@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Pencil, Trash2, Archive, CheckCircle2, Clock, ArchiveX,
-  Search, Loader2, MapPin, User, Mail, Phone
+  Search, Loader2, MapPin, User, Mail, Phone, Lock, History, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import JobEditModal from './JobEditModal';
+import JobAuditLog from './JobAuditLog';
+import { logAudit } from '@/lib/audit';
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  icon: Clock,         class: 'bg-secondary text-secondary-foreground' },
@@ -22,11 +24,13 @@ export default function JobsTable({ jobs, isLoading }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingJob, setEditingJob] = useState(null);
+  const [expandedHistory, setExpandedHistory] = useState(null);
   const queryClient = useQueryClient();
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-jobs'] });
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['audit'] });
   };
 
   const updateMutation = useMutation({
@@ -38,6 +42,19 @@ export default function JobsTable({ jobs, isLoading }) {
     mutationFn: (id) => base44.entities.Job.delete(id),
     onSuccess: () => { invalidate(); toast.success('Job deleted'); },
   });
+
+  const handleArchive = async (job) => {
+    await base44.entities.Job.update(job.id, { status: 'archived' });
+    await logAudit(job.id, 'record_archived', 'Admin', `Archived by admin`);
+    invalidate();
+    toast.success('Job archived');
+  };
+
+  const handleStatusChange = async (job, newStatus) => {
+    await base44.entities.Job.update(job.id, { status: newStatus });
+    await logAudit(job.id, 'status_changed', 'Admin', `Status changed to "${newStatus}"`);
+    invalidate();
+  };
 
   const filtered = jobs.filter(j => {
     const q = search.toLowerCase();
@@ -93,91 +110,106 @@ export default function JobsTable({ jobs, isLoading }) {
           {filtered.map(job => {
             const sc = STATUS_CONFIG[job.status] || STATUS_CONFIG.pending;
             const StatusIcon = sc.icon;
+            const historyOpen = expandedHistory === job.id;
+
             return (
-              <div key={job.id} className="bg-card border border-border rounded-xl p-4 space-y-2.5">
-                {/* Row 1: address + status + actions */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 flex-1 min-w-0">
-                    <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <p className="font-medium text-sm text-foreground leading-snug truncate">{job.address}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge className={`text-xs ${sc.class} border-0`}>
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {sc.label}
-                    </Badge>
-                    <Button
-                      variant="ghost" size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                      onClick={() => setEditingJob(job)}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    {job.status !== 'archived' ? (
+              <div key={job.id} className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="p-4 space-y-2.5">
+                  {/* Row 1: address + badges + actions */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                      <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <p className="font-medium text-sm text-foreground leading-snug truncate">{job.address}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {job.locked && (
+                        <span title="Signed & Locked">
+                          <Lock className="w-3.5 h-3.5 text-primary" />
+                        </span>
+                      )}
+                      <Badge className={`text-xs ${sc.class} border-0`}>
+                        <StatusIcon className="w-3 h-3 mr-1" />
+                        {sc.label}
+                      </Badge>
                       <Button
                         variant="ghost" size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-amber-500"
-                        onClick={() => updateMutation.mutate({ id: job.id, data: { status: 'archived' } })}
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => setEditingJob(job)}
                       >
-                        <Archive className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                    ) : null}
-                    <Button
-                      variant="ghost" size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteMutation.mutate(job.id)}
+                      {job.status !== 'archived' && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-amber-500"
+                          onClick={() => handleArchive(job)}
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteMutation.mutate(job.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Row 2: customer + price */}
+                  <div className="flex items-center justify-between pl-6">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <User className="w-3.5 h-3.5" />
+                      {job.customer_name}
+                    </div>
+                    <span className="text-sm font-semibold text-primary">
+                      ${Number(job.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* Row 3: contact / BT */}
+                  {(job.email || job.phone || job.buildertrend_id) && (
+                    <div className="pl-6 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      {job.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{job.email}</span>}
+                      {job.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{job.phone}</span>}
+                      {job.buildertrend_id && <span className="text-muted-foreground/70">BT# {job.buildertrend_id}</span>}
+                    </div>
+                  )}
+
+                  {/* Status quick-change + History toggle */}
+                  <div className="pl-6 flex items-center justify-between">
+                    {job.status !== 'archived' ? (
+                      <Select
+                        value={job.status}
+                        onValueChange={val => handleStatusChange(job, val)}
+                      >
+                        <SelectTrigger className="h-7 w-36 text-xs rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Set Pending</SelectItem>
+                          <SelectItem value="approved">Set Approved</SelectItem>
+                          <SelectItem value="archived">Archive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : <div />}
+
+                    <button
+                      onClick={() => setExpandedHistory(historyOpen ? null : job.id)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                      <History className="w-3.5 h-3.5" />
+                      History
+                      {historyOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Row 2: customer + price */}
-                <div className="flex items-center justify-between pl-6">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <User className="w-3.5 h-3.5" />
-                    {job.customer_name}
-                  </div>
-                  <span className="text-sm font-semibold text-primary">
-                    ${Number(job.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-
-                {/* Row 3: email / phone / BT id */}
-                {(job.email || job.phone || job.buildertrend_id) && (
-                  <div className="pl-6 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    {job.email && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3" />{job.email}
-                      </span>
-                    )}
-                    {job.phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />{job.phone}
-                      </span>
-                    )}
-                    {job.buildertrend_id && (
-                      <span className="text-muted-foreground/70">BT# {job.buildertrend_id}</span>
-                    )}
-                  </div>
-                )}
-
-                {/* Status quick-change */}
-                {job.status !== 'archived' && (
-                  <div className="pl-6">
-                    <Select
-                      value={job.status}
-                      onValueChange={val => updateMutation.mutate({ id: job.id, data: { status: val } })}
-                    >
-                      <SelectTrigger className="h-7 w-36 text-xs rounded-lg">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Set Pending</SelectItem>
-                        <SelectItem value="approved">Set Approved</SelectItem>
-                        <SelectItem value="archived">Archive</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {/* Audit timeline (collapsible) */}
+                {historyOpen && (
+                  <div className="border-t border-border bg-muted/30 px-4 py-4">
+                    <JobAuditLog jobId={job.id} />
                   </div>
                 )}
               </div>

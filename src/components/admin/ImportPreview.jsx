@@ -79,24 +79,19 @@ export default function ImportPreview({ rows, duplicates, onImport, importing })
                 </div>
                 {dup ? (
                   <Select
-                    value={decisions[i]}
-                    onValueChange={(val) =>
-                      setDecisions(prev => prev.map((d, j) => (j === i ? val : d)))
-                    }
+                  value={decisions[i]}
+                  onValueChange={(val) =>
+                    setDecisions(prev => prev.map((d, j) => (j === i ? val : d)))
+                  }
                   >
-                    <SelectTrigger className="h-7 w-32 text-xs rounded-lg border-amber-300 shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DUP_OPTIONS.map(({ value, label, icon: Icon }) => (
-                        <SelectItem key={value} value={value}>
-                          <div className="flex items-center gap-1.5">
-                            <Icon className="w-3 h-3" />
-                            {label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                  <SelectTrigger className="h-7 w-32 text-xs rounded-lg border-amber-300 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DUP_OPTIONS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
                   </Select>
                 ) : (
                   <Badge variant="secondary" className="text-xs text-primary shrink-0">

@@ -14,7 +14,7 @@ export default function JobSearch() {
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.filter({ status: 'pending' }, '-created_date'),
+    queryFn: () => base44.entities.Job.list('-created_date'),
   });
 
   const filtered = jobs.filter(job => {

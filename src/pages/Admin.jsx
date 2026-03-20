@@ -14,6 +14,7 @@ import CsvImportFlow from '../components/admin/CsvImportFlow';
 import JobsTable from '../components/admin/JobsTable';
 import { isAdminAuthed, adminLogout } from '@/lib/adminAuth';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/audit';
 
 const emptyJob = { address: '', customer_name: '', description: '', price: '', buildertrend_id: '', email: '', phone: '' };
 
@@ -30,7 +31,11 @@ export default function Admin() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Job.create({ ...data, price: Number(data.price), status: 'pending' }),
+    mutationFn: async (data) => {
+      const job = await base44.entities.Job.create({ ...data, price: Number(data.price), status: 'pending' });
+      await logAudit(job.id, 'job_created', 'Admin', `Manually created: ${data.address}`);
+      return job;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['jobs'] });

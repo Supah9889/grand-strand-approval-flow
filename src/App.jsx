@@ -5,7 +5,13 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
+import Splash from './pages/Splash';
+import JobSearch from './pages/JobSearch';
+import JobApproval from './pages/JobApproval';
+import Signature from './pages/Signature';
+import Confirmation from './pages/Confirmation';
+import Review from './pages/Review';
+import Admin from './pages/Admin';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,7 +39,13 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route path="/" element={<Splash />} />
+      <Route path="/search" element={<JobSearch />} />
+      <Route path="/approve" element={<JobApproval />} />
+      <Route path="/signature" element={<Signature />} />
+      <Route path="/confirmation" element={<Confirmation />} />
+      <Route path="/review" element={<Review />} />
+      <Route path="/admin" element={<Admin />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

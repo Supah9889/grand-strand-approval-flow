@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import CompanyLogo from '../components/CompanyLogo';
 import SignatureCanvas from '../components/SignatureCanvas';
+import { logAudit } from '@/lib/audit';
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -26,17 +27,17 @@ export default function Signature() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      // Convert data URL to blob and upload
       const blob = await (await fetch(signatureData)).blob();
       const file = new File([blob], 'signature.png', { type: 'image/png' });
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      
       const now = new Date().toISOString();
       await base44.entities.Job.update(jobId, {
         signature_url: file_url,
         approval_timestamp: now,
         status: 'approved',
+        locked: true,
       });
+      await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${job.customer_name}`);
     },
     onSuccess: () => {
       navigate(`/confirmation?jobId=${jobId}`);

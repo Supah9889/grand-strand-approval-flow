@@ -9,6 +9,7 @@ import CsvUploader from './CsvUploader';
 import ColumnMapper from './ColumnMapper';
 import ImportPreview from './ImportPreview';
 import { autoMapColumns, applyMapping, detectDuplicates } from '@/lib/csvParser';
+import { logAudit } from '@/lib/audit';
 
 const STEPS = ['upload', 'map', 'preview', 'done'];
 
@@ -49,9 +50,11 @@ export default function CsvImportFlow({ existingJobs }) {
         skipped++;
       } else if (decision === 'update' && dup) {
         await base44.entities.Job.update(dup.id, row);
+        await logAudit(dup.id, 'imported_from_csv', 'Admin', `Updated via CSV import (${csvData.fileName})`);
         updated++;
       } else {
-        await base44.entities.Job.create(row);
+        const created_job = await base44.entities.Job.create(row);
+        await logAudit(created_job.id, 'imported_from_csv', 'Admin', `Created via CSV import (${csvData.fileName})`);
         created++;
       }
     }

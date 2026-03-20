@@ -7,6 +7,7 @@ import { ThumbsUp, Meh, ThumbsDown, Star, Send, Loader2, CheckCircle2 } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import CompanyLogo from '../components/CompanyLogo';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/audit';
 
 const GOOGLE_REVIEW_URL = 'https://search.google.com/local/writereview?placeid=YOUR_PLACE_ID';
 
@@ -113,8 +114,9 @@ export default function Review() {
                 <div className="flex flex-col gap-3">
                   <Button
                     className="w-full h-12 rounded-xl text-base font-medium"
-                    onClick={() => {
+                    onClick={async () => {
                       submitMutation.mutate({ rating: 'great' });
+                      if (jobId) await logAudit(jobId, 'review_link_opened', 'Customer', 'Google Review link opened');
                       window.open(GOOGLE_REVIEW_URL, '_blank');
                     }}
                     disabled={submitMutation.isPending}

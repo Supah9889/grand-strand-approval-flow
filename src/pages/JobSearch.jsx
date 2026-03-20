@@ -18,8 +18,10 @@ export default function JobSearch() {
   });
 
   const filtered = jobs.filter(job => {
+    if (job.status === 'archived') return false;
     const q = search.toLowerCase();
     return (
+      !q ||
       job.address?.toLowerCase().includes(q) ||
       job.customer_name?.toLowerCase().includes(q)
     );

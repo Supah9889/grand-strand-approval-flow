@@ -1,35 +1,38 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ThumbsUp, Meh, ThumbsDown, Star, Send, Loader2, CheckCircle2 } from 'lucide-react';
+import { ThumbsUp, Meh, ThumbsDown, Star, Send, Loader2, CheckCircle2, Home, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import CompanyLogo from '../components/CompanyLogo';
+import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 
 const GOOGLE_REVIEW_URL = 'https://search.google.com/local/writereview?placeid=YOUR_PLACE_ID';
 
 const ratings = [
-  { value: 'great', label: 'Great', icon: ThumbsUp, color: 'text-primary' },
-  { value: 'okay', label: 'Okay', icon: Meh, color: 'text-amber-500' },
+  { value: 'great',    label: 'Great',    icon: ThumbsUp,   color: 'text-primary' },
+  { value: 'okay',     label: 'Okay',     icon: Meh,        color: 'text-amber-500' },
   { value: 'not_good', label: 'Not Good', icon: ThumbsDown, color: 'text-destructive' },
 ];
 
 export default function Review() {
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
+  const navigate = useNavigate();
   const [selected, setSelected] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  // Log review prompt shown once on mount
   useEffect(() => {
     if (!jobId) return;
     base44.entities.Job.update(jobId, { review_prompt_shown: true });
     logAudit(jobId, 'review_link_opened', 'Customer', 'Review prompt shown to customer');
   }, [jobId]);
+
+  const goHome = () => navigate('/search', { replace: true });
 
   const submitMutation = useMutation({
     mutationFn: async ({ rating, feedbackText, googleClicked }) => {
@@ -47,44 +50,52 @@ export default function Review() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background font-inter">
-        <div className="max-w-lg mx-auto px-4 py-8">
-          <div className="flex flex-col items-center mb-8">
-            <CompanyLogo className="h-14 w-auto mb-6" />
-          </div>
+      <AppLayout title="Review">
+        <div className="max-w-lg mx-auto w-full px-4 py-6">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-card border border-border rounded-2xl p-6 text-center space-y-4"
+            className="bg-card border border-border rounded-2xl p-6 text-center space-y-5"
           >
             <CheckCircle2 className="w-14 h-14 text-primary mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Thank You!</h2>
-            <p className="text-muted-foreground text-sm">
-              We appreciate your feedback. It helps us improve.
-            </p>
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">Thank You!</h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                We appreciate your feedback. It helps us improve.
+              </p>
+            </div>
+            {/* Session reset actions */}
+            <div className="border-t border-border pt-5 space-y-2">
+              <p className="text-xs text-muted-foreground mb-3">Ready for the next customer?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button className="h-11 rounded-xl text-sm" onClick={goHome}>
+                  <Home className="w-4 h-4 mr-1.5" />
+                  Go Home
+                </Button>
+                <Button variant="outline" className="h-11 rounded-xl text-sm" onClick={goHome}>
+                  <Search className="w-4 h-4 mr-1.5" />
+                  New Search
+                </Button>
+              </div>
+            </div>
           </motion.div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background font-inter">
-      <div className="max-w-lg mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center mb-8"
-        >
-          <CompanyLogo className="h-14 w-auto mb-6" />
-          <h1 className="text-2xl font-semibold text-foreground">How was your experience?</h1>
-          <p className="text-muted-foreground text-sm mt-1">We'd love to hear from you</p>
-        </motion.div>
+    <AppLayout title="How did we do?">
+      <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-4">
+
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">How was your experience?</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">We'd love to hear from you</p>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
           className="bg-card border border-border rounded-2xl p-6 space-y-6"
         >
           <div className="grid grid-cols-3 gap-3">
@@ -99,9 +110,7 @@ export default function Review() {
                 }`}
               >
                 <Icon className={`w-7 h-7 ${selected === value ? color : 'text-muted-foreground'}`} />
-                <span className={`text-sm font-medium ${
-                  selected === value ? 'text-foreground' : 'text-muted-foreground'
-                }`}>
+                <span className={`text-sm font-medium ${selected === value ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {label}
                 </span>
               </button>
@@ -136,7 +145,7 @@ export default function Review() {
                   <Button
                     variant="ghost"
                     className="text-sm text-muted-foreground"
-                    onClick={() => submitMutation.mutate({ rating: 'great' })}
+                    onClick={() => submitMutation.mutate({ rating: 'great', googleClicked: false })}
                     disabled={submitMutation.isPending}
                   >
                     Skip for now
@@ -177,7 +186,19 @@ export default function Review() {
             )}
           </AnimatePresence>
         </motion.div>
+
+        {/* Always-visible home buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" className="h-11 rounded-xl text-sm" onClick={goHome}>
+            <Home className="w-4 h-4 mr-1.5" />
+            Go Home
+          </Button>
+          <Button variant="outline" className="h-11 rounded-xl text-sm" onClick={goHome}>
+            <Search className="w-4 h-4 mr-1.5" />
+            Back to Search
+          </Button>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

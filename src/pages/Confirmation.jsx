@@ -4,10 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle2, Mail, Download, Loader2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Mail, Loader2, ArrowRight, Home, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import CompanyLogo from '../components/CompanyLogo';
+import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
 
 export default function Confirmation() {
@@ -53,25 +53,24 @@ export default function Confirmation() {
     setEmail('');
   };
 
+  // Clean session & go home
+  const goHome = () => {
+    navigate('/search', { replace: true });
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center font-inter">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
-      </div>
+      <AppLayout title="Confirmation">
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background font-inter">
-      <div className="max-w-lg mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center mb-8"
-        >
-          <CompanyLogo className="h-14 w-auto mb-6" />
-        </motion.div>
-
+    <AppLayout title="Confirmation">
+      <div className="max-w-lg mx-auto w-full px-4 py-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -93,8 +92,17 @@ export default function Confirmation() {
             </p>
           </div>
 
-          <div className="border-t border-border pt-5 space-y-4">
-            <p className="text-sm font-medium text-foreground text-left">Send a copy to your email</p>
+          {job && (
+            <div className="bg-muted/50 rounded-xl p-4 text-left space-y-1.5">
+              <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Customer:</span> {job.customer_name}</p>
+              <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Address:</span> {job.address}</p>
+              <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Amount:</span> ${Number(job.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            </div>
+          )}
+
+          {/* Email copy */}
+          <div className="border-t border-border pt-5 space-y-3 text-left">
+            <p className="text-sm font-medium text-foreground">Send a copy to your email</p>
             <div className="flex gap-2">
               <Input
                 type="email"
@@ -114,15 +122,36 @@ export default function Confirmation() {
             </div>
           </div>
 
-          <Button
-            className="w-full h-12 rounded-xl text-base font-medium"
-            onClick={() => navigate(`/review?jobId=${jobId}`)}
-          >
-            Continue
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
+          {/* Navigation actions */}
+          <div className="space-y-2 pt-1">
+            <Button
+              className="w-full h-12 rounded-xl text-base font-medium"
+              onClick={() => navigate(`/review?jobId=${jobId}`)}
+            >
+              Continue to Review
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl text-sm"
+                onClick={goHome}
+              >
+                <Home className="w-4 h-4 mr-1.5" />
+                Go Home
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl text-sm"
+                onClick={goHome}
+              >
+                <Search className="w-4 h-4 mr-1.5" />
+                Back to Search
+              </Button>
+            </div>
+          </div>
         </motion.div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

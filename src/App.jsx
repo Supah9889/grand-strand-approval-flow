@@ -55,6 +55,13 @@ const AuthenticatedApp = () => {
       <Route path="/confirmation" element={<Confirmation />} />
       <Route path="/review" element={<Review />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/time-clock" element={<TimeClock />} />
+      <Route path="/time-entries" element={<TimeEntries />} />
+      <Route path="/vendors" element={<VendorBank />} />
+      <Route path="/expenses" element={<Expenses />} />
+      <Route path="/calendar" element={<CalendarPage />} />
+      <Route path="/templates" element={<DocumentTemplates />} />
+      <Route path="/employees" element={<EmployeeManager />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

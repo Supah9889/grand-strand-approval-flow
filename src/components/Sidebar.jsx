@@ -9,14 +9,35 @@ import {
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';
 
-const NAV_ITEMS = [
-  { label: 'Home',               to: '/search',                     icon: Home,           adminOnly: false },
-  { label: 'Dashboard',          to: '/dashboard',                  icon: LayoutDashboard, adminOnly: false },
-  { label: 'Job Search',         to: '/search',                     icon: Search,          adminOnly: false },
-  { label: 'Pending Signatures', to: '/dashboard?section=pending',  icon: PenLine,         adminOnly: false },
-  { label: 'Signed Jobs',        to: '/dashboard?section=approved', icon: CheckCircle2,    adminOnly: false },
-  { label: 'Archived Jobs',      to: '/dashboard?section=archived', icon: Archive,         adminOnly: false },
-  { label: 'Admin Mode',         to: '/admin',                      icon: ShieldAlert,     adminOnly: true  },
+const NAV_GROUPS = [
+  {
+    label: 'Main',
+    items: [
+      { label: 'Dashboard',          to: '/dashboard',                  icon: LayoutDashboard },
+      { label: 'Job Search',         to: '/search',                     icon: Search },
+      { label: 'Pending Signatures', to: '/dashboard?section=pending',  icon: PenLine },
+      { label: 'Signed Jobs',        to: '/dashboard?section=approved', icon: CheckCircle2 },
+      { label: 'Archived Jobs',      to: '/dashboard?section=archived', icon: Archive },
+    ],
+  },
+  {
+    label: 'Field',
+    items: [
+      { label: 'Time Clock',         to: '/time-clock',   icon: Clock },
+      { label: 'Time Entries',       to: '/time-entries', icon: List },
+      { label: 'Expenses',           to: '/expenses',     icon: Receipt },
+    ],
+  },
+  {
+    label: 'Management',
+    items: [
+      { label: 'Calendar',           to: '/calendar',     icon: CalendarDays },
+      { label: 'Vendor Bank',        to: '/vendors',      icon: Building2 },
+      { label: 'Doc Templates',      to: '/templates',    icon: FileText },
+      { label: 'Employees',          to: '/employees',    icon: Users, adminOnly: true },
+      { label: 'Admin Mode',         to: '/admin',        icon: ShieldAlert, adminOnly: true },
+    ],
+  },
 ];
 
 export default function Sidebar({ open, onClose }) {

@@ -120,29 +120,20 @@ export default function Admin() {
   });
 
   return (
-    <div className="min-h-screen bg-background font-inter">
+    <AppLayout title={isAdminRole ? 'Admin Mode' : 'Staff Mode'}>
       <div className="max-w-2xl mx-auto px-4 py-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <CompanyLogo className="h-10 w-auto" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold text-foreground leading-tight">
-                  {isAdminRole ? 'Admin Dashboard' : 'Staff Dashboard'}
-                </h1>
-                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                  isAdminRole ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'
-                }`}>
-                  {isAdminRole ? <ShieldAlert className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-                  {isAdminRole ? 'Admin' : 'Staff'}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">Grand Strand Custom Painting</p>
-            </div>
+        {/* Role badge + sign out */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+              isAdminRole ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'
+            }`}>
+              {isAdminRole ? <ShieldAlert className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+              {isAdminRole ? 'Admin Session' : 'Staff Session'}
+            </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground h-8">
             <LogOut className="w-4 h-4 mr-1.5" />
             Sign Out
           </Button>

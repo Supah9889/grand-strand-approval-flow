@@ -88,6 +88,8 @@ export default function Dashboard() {
     { icon: CheckCircle2, label: 'Signed Jobs',         value: approved.length, color: 'text-primary',   bg: 'bg-secondary', border: 'border-primary/30', key: 'approved' },
     { icon: Archive,      label: 'Archived',            value: archived.length, color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border', key: 'archived' },
     { icon: FileUp,       label: 'Total Jobs',          value: jobs.length,     color: 'text-blue-600',  bg: 'bg-blue-50',   border: 'border-blue-100', key: null },
+    { icon: Users,        label: 'Clocked In Today',   value: clockedInNow,    color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100', key: null },
+    { icon: Receipt,      label: 'Total Expenses',      value: `$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 0 })}`, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', key: null },
   ];
 
   return (

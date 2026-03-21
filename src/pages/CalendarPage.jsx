@@ -1,36 +1,24 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Plus, ChevronLeft, ChevronRight, Calendar, List, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, Plus, ChevronLeft, ChevronRight, Calendar, List } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
   startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks,
   isToday, isSameMonth, parseISO,
 } from 'date-fns';
 import AppLayout from '../components/AppLayout';
-import { toast } from 'sonner';
+import CalendarEventModal from '../components/CalendarEventModal';
 
 const VIEWS = ['month', 'week', 'agenda'];
-const STATUS_COLORS = {
-  scheduled: 'bg-primary/80',
-  in_progress: 'bg-amber-500',
-  completed: 'bg-green-500',
-  cancelled: 'bg-muted-foreground/40',
-};
 
-const emptyEvent = { title: '', job_id: '', job_address: '', assigned_to: '', start_date: '', end_date: '', notes: '', status: 'scheduled' };
+const getEventColor = (e) => e.color || '#3d8b7a';
 
 export default function CalendarPage() {
   const [view, setView] = useState('month');
   const [current, setCurrent] = useState(new Date());
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyEvent);
-  const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['calendar-events'],
@@ -39,23 +27,8 @@ export default function CalendarPage() {
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['cal-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 100),
+    queryFn: () => base44.entities.Job.list('-created_date', 200),
   });
-
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.CalendarEvent.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      setForm(emptyEvent);
-      setShowForm(false);
-      toast.success('Event added');
-    },
-  });
-
-  const handleJobSelect = (jobId) => {
-    const job = jobs.find(j => j.id === jobId);
-    setForm(prev => ({ ...prev, job_id: jobId, job_address: job?.address || '' }));
-  };
 
   const getEventsForDay = (day) =>
     events.filter(e => e.start_date && isSameDay(parseISO(e.start_date.split('T')[0]), day));
@@ -83,7 +56,11 @@ export default function CalendarPage() {
                   isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
                 }`}>{format(day, 'd')}</p>
                 {dayEvents.slice(0, 2).map(e => (
-                  <div key={e.id} className={`text-xs px-1 py-0.5 rounded mb-0.5 text-white truncate ${STATUS_COLORS[e.status] || 'bg-primary/80'}`}>
+                  <div
+                    key={e.id}
+                    className="text-xs px-1 py-0.5 rounded mb-0.5 text-white truncate"
+                    style={{ backgroundColor: getEventColor(e) }}
+                  >
                     {e.title}
                   </div>
                 ))}
@@ -109,11 +86,21 @@ export default function CalendarPage() {
                 <p className={`text-xs font-medium mb-1.5 ${isToday(day) ? 'text-primary' : 'text-muted-foreground'}`}>
                   {format(day, 'EEE d')}
                 </p>
-                {dayEvents.map(e => (
-                  <div key={e.id} className={`text-xs px-1.5 py-1 rounded mb-1 text-white leading-tight ${STATUS_COLORS[e.status] || 'bg-primary/80'}`}>
-                    {e.title}
-                  </div>
-                ))}
+                {dayEvents.map(e => {
+                  const timeStr = e.start_date?.includes('T')
+                    ? format(parseISO(e.start_date), 'h:mm a')
+                    : null;
+                  return (
+                    <div
+                      key={e.id}
+                      className="text-xs px-1.5 py-1 rounded mb-1 text-white leading-tight"
+                      style={{ backgroundColor: getEventColor(e) }}
+                    >
+                      {timeStr && <span className="opacity-80">{timeStr} · </span>}
+                      {e.title}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -130,22 +117,34 @@ export default function CalendarPage() {
     if (upcoming.length === 0) return <p className="text-sm text-muted-foreground text-center py-12">No events scheduled.</p>;
     return (
       <div className="space-y-2">
-        {upcoming.map(e => (
-          <div key={e.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
-            <div className={`w-1 self-stretch rounded-full ${STATUS_COLORS[e.status] || 'bg-primary'}`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">{e.title}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {e.start_date ? format(parseISO(e.start_date.split('T')[0]), 'EEEE, MMM d, yyyy') : ''}
-              </p>
-              {e.job_address && <p className="text-xs text-muted-foreground">{e.job_address}</p>}
-              {e.assigned_to && <p className="text-xs text-muted-foreground">Assigned: {e.assigned_to}</p>}
+        {upcoming.map(e => {
+          const color = getEventColor(e);
+          const hasTime = e.start_date?.includes('T');
+          return (
+            <div key={e.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
+              <div className="w-1 self-stretch rounded-full shrink-0" style={{ backgroundColor: color }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{e.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {e.start_date ? format(parseISO(e.start_date.split('T')[0]), 'EEEE, MMM d, yyyy') : ''}
+                  {hasTime && (
+                    <span> · {format(parseISO(e.start_date), 'h:mm a')}
+                      {e.end_date?.includes('T') && ` – ${format(parseISO(e.end_date), 'h:mm a')}`}
+                    </span>
+                  )}
+                </p>
+                {e.job_address && <p className="text-xs text-muted-foreground">{e.job_address}</p>}
+                {e.assigned_to && <p className="text-xs text-muted-foreground">Assigned: {e.assigned_to}</p>}
+              </div>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full text-white shrink-0 font-medium"
+                style={{ backgroundColor: color }}
+              >
+                {e.status}
+              </span>
             </div>
-            <span className={`text-xs px-2 py-0.5 rounded-full text-white shrink-0 ${STATUS_COLORS[e.status] || 'bg-primary/80'}`}>
-              {e.status}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -161,6 +160,7 @@ export default function CalendarPage() {
   return (
     <AppLayout title="Calendar">
       <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-4">
+
         {/* Header */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1">
@@ -185,49 +185,11 @@ export default function CalendarPage() {
                 {v}
               </Button>
             ))}
-            <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => setShowForm(!showForm)}>
+            <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => setShowModal(true)}>
               <Plus className="w-3.5 h-3.5 mr-1" />Add
             </Button>
           </div>
         </div>
-
-        {/* Add Event Form */}
-        <AnimatePresence>
-          {showForm && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              className="bg-card border border-border rounded-2xl p-5 space-y-3 overflow-hidden">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">New Event</p>
-                <button onClick={() => setShowForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
-              </div>
-              <Input placeholder="Event Title *" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="h-10 rounded-xl text-sm" />
-              <div className="grid grid-cols-2 gap-3">
-                <Input type="date" placeholder="Start Date *" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className="h-10 rounded-xl text-sm" />
-                <Input type="date" placeholder="End Date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} className="h-10 rounded-xl text-sm" />
-              </div>
-              <Select value={form.job_id} onValueChange={handleJobSelect}>
-                <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue placeholder="Link to job (optional)" /></SelectTrigger>
-                <SelectContent>{jobs.map(j => <SelectItem key={j.id} value={j.id}>{j.address}</SelectItem>)}</SelectContent>
-              </Select>
-              <div className="grid grid-cols-2 gap-3">
-                <Input placeholder="Assigned To" value={form.assigned_to} onChange={e => setForm({...form, assigned_to: e.target.value})} className="h-10 rounded-xl text-sm" />
-                <Select value={form.status} onValueChange={v => setForm({...form, status: v})}>
-                  <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Textarea placeholder="Notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="rounded-xl text-sm min-h-14" />
-              <Button className="w-full h-10 rounded-xl" disabled={!form.title || !form.start_date || createMutation.isPending} onClick={() => createMutation.mutate(form)}>
-                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Event'}
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Calendar Views */}
         {isLoading ? (
@@ -238,6 +200,13 @@ export default function CalendarPage() {
           renderAgenda()
         )}
       </div>
+
+      {/* Event creation modal */}
+      <CalendarEventModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        jobs={jobs}
+      />
     </AppLayout>
   );
 }

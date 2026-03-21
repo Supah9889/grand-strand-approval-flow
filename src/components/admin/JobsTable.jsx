@@ -20,7 +20,8 @@ const STATUS_CONFIG = {
   archived: { label: 'Archived', icon: ArchiveX,      class: 'bg-muted text-muted-foreground' },
 };
 
-export default function JobsTable({ jobs, isLoading }) {
+export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
+  const isAdminRole = role === 'admin';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingJob, setEditingJob] = useState(null);

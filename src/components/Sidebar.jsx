@@ -9,13 +9,13 @@ import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';
 
 const NAV_ITEMS = [
-  { label: 'Home',               to: '/search',  icon: Home,          roles: ['staff', 'admin', null] },
-  { label: 'Dashboard',          to: '/dashboard', icon: LayoutDashboard, roles: ['staff', 'admin'] },
-  { label: 'Job Search',         to: '/search',  icon: Search,        roles: ['staff', 'admin', null] },
-  { label: 'Pending Signatures', to: '/dashboard?section=pending',  icon: PenLine,       roles: ['staff', 'admin'] },
-  { label: 'Signed Jobs',        to: '/dashboard?section=approved', icon: CheckCircle2,  roles: ['staff', 'admin'] },
-  { label: 'Archived Jobs',      to: '/dashboard?section=archived', icon: Archive,       roles: ['admin'] },
-  { label: 'Admin Mode',         to: '/admin',   icon: ShieldAlert,   roles: ['admin'] },
+  { label: 'Home',               to: '/search',                     icon: Home,           adminOnly: false },
+  { label: 'Dashboard',          to: '/dashboard',                  icon: LayoutDashboard, adminOnly: false },
+  { label: 'Job Search',         to: '/search',                     icon: Search,          adminOnly: false },
+  { label: 'Pending Signatures', to: '/dashboard?section=pending',  icon: PenLine,         adminOnly: false },
+  { label: 'Signed Jobs',        to: '/dashboard?section=approved', icon: CheckCircle2,    adminOnly: false },
+  { label: 'Archived Jobs',      to: '/dashboard?section=archived', icon: Archive,         adminOnly: false },
+  { label: 'Admin Mode',         to: '/admin',                      icon: ShieldAlert,     adminOnly: true  },
 ];
 
 export default function Sidebar({ open, onClose }) {

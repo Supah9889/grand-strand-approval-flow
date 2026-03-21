@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Splash from './pages/Splash';
+import Dashboard from './pages/Dashboard';
 import JobSearch from './pages/JobSearch';
 import JobApproval from './pages/JobApproval';
 import Signature from './pages/Signature';
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<Splash />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/search" element={<JobSearch />} />
       <Route path="/approve" element={<JobApproval />} />
       <Route path="/signature" element={<Signature />} />

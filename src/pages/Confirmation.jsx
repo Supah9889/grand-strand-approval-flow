@@ -38,10 +38,13 @@ export default function Confirmation() {
         <p>Your approval has been recorded for the following job:</p>
         <ul>
           <li><strong>Address:</strong> ${job.address}</li>
+          <li><strong>Customer:</strong> ${job.customer_name}</li>
           <li><strong>Description:</strong> ${job.description}</li>
           <li><strong>Total Price:</strong> $${Number(job.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</li>
-          <li><strong>Approved on:</strong> ${job.approval_timestamp ? format(new Date(job.approval_timestamp), 'MMMM d, yyyy · h:mm a') : 'N/A'}</li>
+          <li><strong>Signed On:</strong> ${job.approval_timestamp ? format(new Date(job.approval_timestamp), 'MMMM d, yyyy · h:mm a') : 'N/A'}</li>
+          <li><strong>Terms Version Agreed:</strong> ${job.terms_version || 'N/A'}</li>
         </ul>
+        ${job.approval_statement ? `<p style="font-size:12px;color:#666;border-left:3px solid #ccc;padding-left:10px;margin-top:16px;"><em>${job.approval_statement}</em></p>` : ''}
         <p>Thank you for choosing Grand Strand Custom Painting!</p>
       `
     });

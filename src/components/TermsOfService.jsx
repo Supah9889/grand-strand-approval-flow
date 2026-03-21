@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { TERMS_VERSION } from '@/lib/terms';
 
 export default function TermsOfService() {
   const [expanded, setExpanded] = useState(false);
@@ -11,11 +12,12 @@ export default function TermsOfService() {
         className="text-primary text-sm font-medium underline underline-offset-2 flex items-center gap-1 hover:opacity-80 transition-opacity"
       >
         View Terms of Service
+        <span className="text-xs text-muted-foreground font-normal">({TERMS_VERSION})</span>
         {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
       {expanded && (
         <div className="mt-3 p-4 bg-muted/50 rounded-xl text-xs text-muted-foreground leading-relaxed max-h-48 overflow-y-auto space-y-2">
-          <p className="font-medium text-foreground text-sm">Terms of Service</p>
+          <p className="font-medium text-foreground text-sm">Terms of Service <span className="text-muted-foreground font-normal">({TERMS_VERSION})</span></p>
           <p>By signing this approval, you ("Customer") agree to the following terms with Grand Strand Custom Painting ("Company"):</p>
           <p><strong>1. Scope of Work:</strong> The Company will perform the painting services described in the job details above. Any changes to the scope must be agreed upon in writing by both parties.</p>
           <p><strong>2. Payment:</strong> The total price listed is due upon completion of the work unless otherwise agreed. Payment terms are net 30 days from invoice date.</p>

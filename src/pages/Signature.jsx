@@ -32,13 +32,16 @@ export default function Signature() {
       const file = new File([blob], 'signature.png', { type: 'image/png' });
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const now = new Date().toISOString();
+      const statement = buildApprovalStatement(job.customer_name, job.address, job.price);
       await base44.entities.Job.update(jobId, {
         signature_url: file_url,
         approval_timestamp: now,
         status: 'approved',
         locked: true,
+        terms_version: TERMS_VERSION,
+        approval_statement: statement,
       });
-      await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${job.customer_name}`);
+      await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${job.customer_name} · Terms ${TERMS_VERSION}`);
     },
     onSuccess: () => {
       navigate(`/confirmation?jobId=${jobId}`);

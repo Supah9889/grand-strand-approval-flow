@@ -20,7 +20,7 @@ const STATUS_CONFIG = {
   archived: { label: 'Archived', icon: ArchiveX,      class: 'bg-muted text-muted-foreground' },
 };
 
-export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
+export default function JobsTable({ jobs, isLoading, role = 'admin', hideFilters = false }) {
   const isAdminRole = role === 'admin';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -78,8 +78,8 @@ export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex gap-3">
+      {/* Filters — only shown when not overridden externally */}
+      {!hideFilters && <div className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -100,15 +100,15 @@ export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
             <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+        </div>}
 
-      {filtered.length === 0 ? (
+        {(hideFilters ? jobs : filtered).length === 0 ? (
         <p className="text-center text-muted-foreground text-sm py-12">
-          {search || statusFilter !== 'all' ? 'No jobs match your filters.' : 'No jobs yet.'}
+          {(!hideFilters && (search || statusFilter !== 'all')) ? 'No jobs match your filters.' : 'No jobs yet.'}
         </p>
       ) : (
         <div className="space-y-2">
-          {filtered.map(job => {
+          {(hideFilters ? jobs : filtered).map(job => {
             const sc = STATUS_CONFIG[job.status] || STATUS_CONFIG.pending;
             const StatusIcon = sc.icon;
             const historyOpen = expandedHistory === job.id;

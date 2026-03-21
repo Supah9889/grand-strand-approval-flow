@@ -1,15 +1,38 @@
-// Simple admin PIN protection for the Admin panel.
-// PIN is checked client-side; it keeps customers away without complex auth.
-const ADMIN_PIN = '2580';
-const SESSION_KEY = 'gscp_admin_auth';
+// Role-based PIN auth for internal access.
+// Two roles: 'admin' and 'staff', each with their own PIN.
+const PINS = {
+  admin: '2580',
+  staff: '1234',
+};
 
-export function isAdminAuthed() {
-  return sessionStorage.getItem(SESSION_KEY) === 'true';
+const SESSION_KEY = 'gscp_internal_auth';
+
+export function getInternalRole() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const { role } = JSON.parse(raw);
+    return role || null;
+  } catch {
+    return null;
+  }
 }
 
-export function attemptAdminLogin(pin) {
-  if (pin === ADMIN_PIN) {
-    sessionStorage.setItem(SESSION_KEY, 'true');
+export function isAdminAuthed() {
+  return !!getInternalRole();
+}
+
+export function isAdmin() {
+  return getInternalRole() === 'admin';
+}
+
+export function isStaff() {
+  return getInternalRole() === 'staff';
+}
+
+export function attemptAdminLogin(pin, role = 'admin') {
+  if (PINS[role] && pin === PINS[role]) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ role }));
     return true;
   }
   return false;

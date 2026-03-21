@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CompanyLogo from '../components/CompanyLogo';
+import AppLayout from '../components/AppLayout';
 import AdminPinGate from '../components/admin/AdminPinGate';
 import CsvImportFlow from '../components/admin/CsvImportFlow';
 import JobsTable from '../components/admin/JobsTable';

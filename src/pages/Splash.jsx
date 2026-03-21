@@ -8,8 +8,8 @@ export default function Splash() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/search');
-    }, 1800);
+      navigate('/search', { replace: true });
+    }, 1600);
     return () => clearTimeout(timer);
   }, [navigate]);
 

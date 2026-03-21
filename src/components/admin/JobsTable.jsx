@@ -132,29 +132,33 @@ export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
                         <StatusIcon className="w-3 h-3 mr-1" />
                         {sc.label}
                       </Badge>
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => setEditingJob(job)}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      {job.status !== 'archived' && (
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-amber-500"
-                          onClick={() => handleArchive(job)}
-                        >
-                          <Archive className="w-3.5 h-3.5" />
-                        </Button>
+                      {isAdminRole && (
+                        <>
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => setEditingJob(job)}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          {job.status !== 'archived' && (
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-amber-500"
+                              onClick={() => handleArchive(job)}
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteMutation.mutate(job.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
                       )}
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteMutation.mutate(job.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
                     </div>
                   </div>
 
@@ -180,7 +184,7 @@ export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
 
                   {/* Status quick-change + History toggle */}
                   <div className="pl-6 flex items-center justify-between">
-                    {job.status !== 'archived' ? (
+                    {isAdminRole && job.status !== 'archived' ? (
                       <Select
                         value={job.status}
                         onValueChange={val => handleStatusChange(job, val)}
@@ -219,7 +223,7 @@ export default function JobsTable({ jobs, isLoading, role = 'admin' }) {
         </div>
       )}
 
-      {editingJob && (
+      {editingJob && isAdminRole && (
         <JobEditModal
           job={editingJob}
           open={!!editingJob}

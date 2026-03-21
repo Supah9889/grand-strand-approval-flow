@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ export default function Review() {
   const [submitted, setSubmitted] = useState(false);
 
   // Log review prompt shown once on mount
-  React.useEffect(() => {
+  useEffect(() => {
     if (!jobId) return;
     base44.entities.Job.update(jobId, { review_prompt_shown: true });
     logAudit(jobId, 'review_link_opened', 'Customer', 'Review prompt shown to customer');
@@ -123,9 +123,9 @@ export default function Review() {
                 <div className="flex flex-col gap-3">
                   <Button
                     className="w-full h-12 rounded-xl text-base font-medium"
-                    onClick={async () => {
-                      submitMutation.mutate({ rating: 'great' });
-                      if (jobId) await logAudit(jobId, 'review_link_opened', 'Customer', 'Google Review link opened');
+                    onClick={() => {
+                      submitMutation.mutate({ rating: 'great', googleClicked: true });
+                      logAudit(jobId, 'review_link_opened', 'Customer', 'Google Review link clicked');
                       window.open(GOOGLE_REVIEW_URL, '_blank');
                     }}
                     disabled={submitMutation.isPending}
@@ -164,7 +164,7 @@ export default function Review() {
                 />
                 <Button
                   className="w-full h-12 rounded-xl text-base font-medium"
-                  onClick={() => submitMutation.mutate({ rating: selected, feedbackText: feedback })}
+                  onClick={() => submitMutation.mutate({ rating: selected, feedbackText: feedback, googleClicked: false })}
                   disabled={submitMutation.isPending}
                 >
                   {submitMutation.isPending ? (

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { motion } from 'framer-motion';
-import { PenLine, CheckCircle2, Archive, FileUp, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { PenLine, CheckCircle2, Archive, FileUp, Clock, ArrowRight, Loader2, Receipt, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { format } from 'date-fns';
 
@@ -45,6 +45,21 @@ export default function Dashboard() {
     queryKey: ['dashboard-audit'],
     queryFn: () => base44.entities.AuditLog.list('-timestamp', 20),
   });
+
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ['dashboard-time'],
+    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 100),
+  });
+
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['dashboard-expenses'],
+    queryFn: () => base44.entities.Expense.list('-created_date', 50),
+  });
+
+  const todayStr = new Date().toDateString();
+  const todayEntries = timeEntries.filter(e => e.clock_in && new Date(e.clock_in).toDateString() === todayStr);
+  const clockedInNow = todayEntries.filter(e => e.status === 'clocked_in').length;
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.total_amount || 0), 0);
 
   const pending  = jobs.filter(j => j.status === 'pending');
   const approved = jobs.filter(j => j.status === 'approved');

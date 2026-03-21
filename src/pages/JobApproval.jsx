@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, MapPin, User, FileText, DollarSign } from 'lucide-react';
+import { Loader2, MapPin, User, FileText, DollarSign, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
-import CompanyLogo from '../components/CompanyLogo';
+import AppLayout from '../components/AppLayout';
 import TermsOfService from '../components/TermsOfService';
 
 export default function JobApproval() {
@@ -26,35 +26,43 @@ export default function JobApproval() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center font-inter">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
-      </div>
+      <AppLayout title="Job Details">
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        </div>
+      </AppLayout>
     );
   }
 
   if (!job) {
     return (
-      <div className="min-h-screen flex items-center justify-center font-inter">
-        <p className="text-muted-foreground">Job not found.</p>
-      </div>
+      <AppLayout title="Job Details">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
+          <p className="text-muted-foreground text-sm">Job not found.</p>
+          <Button variant="outline" onClick={() => navigate('/search')} className="rounded-xl">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Search
+          </Button>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background font-inter">
-      <div className="max-w-lg mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center mb-8"
+    <AppLayout title="Job Details">
+      <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-4">
+
+        {/* Back link */}
+        <button
+          onClick={() => navigate('/search')}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <CompanyLogo className="h-14 w-auto mb-6" />
-        </motion.div>
+          <ArrowLeft className="w-4 h-4" />
+          Back to Search
+        </button>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
           className="bg-card border border-border rounded-2xl p-6 space-y-5"
         >
           <h2 className="text-lg font-semibold text-foreground">Job Details</h2>
@@ -117,10 +125,10 @@ export default function JobApproval() {
             disabled={!agreed}
             onClick={() => navigate(`/signature?jobId=${jobId}`)}
           >
-            Continue
+            Continue to Sign
           </Button>
         </motion.div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

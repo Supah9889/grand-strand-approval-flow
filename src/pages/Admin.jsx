@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download } from 'lucide-react';
+import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CompanyLogo from '../components/CompanyLogo';
 import AdminPinGate from '../components/admin/AdminPinGate';
@@ -13,6 +13,7 @@ import CsvImportFlow from '../components/admin/CsvImportFlow';
 import JobsTable from '../components/admin/JobsTable';
 import DashboardStats from '../components/admin/DashboardStats';
 import JobFilters from '../components/admin/JobFilters';
+import ReportingPanel from '../components/admin/ReportingPanel';
 import { isAdminAuthed, adminLogout, getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
@@ -160,7 +161,11 @@ export default function Admin() {
                 </TabsTrigger>
                 <TabsTrigger value="import" className="flex-1 rounded-lg text-sm gap-2">
                   <Upload className="w-4 h-4" />
-                  CSV Import
+                  Import
+                </TabsTrigger>
+                <TabsTrigger value="reporting" className="flex-1 rounded-lg text-sm gap-2">
+                  <BarChart2 className="w-4 h-4" />
+                  Reports
                 </TabsTrigger>
               </>
             )}
@@ -249,6 +254,19 @@ export default function Admin() {
             <TabsContent value="import" className="mt-0">
               <div className="bg-card border border-border rounded-2xl p-5">
                 <CsvImportFlow existingJobs={jobs} />
+              </div>
+            </TabsContent>
+          )}
+
+          {/* ── REPORTING TAB (admin only) ── */}
+          {isAdminRole && (
+            <TabsContent value="reporting" className="mt-0">
+              <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Reporting</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Internal only — not visible to customers</p>
+                </div>
+                <ReportingPanel />
               </div>
             </TabsContent>
           )}

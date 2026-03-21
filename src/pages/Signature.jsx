@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import CompanyLogo from '../components/CompanyLogo';
 import SignatureCanvas from '../components/SignatureCanvas';
 import { logAudit } from '@/lib/audit';
+import { TERMS_VERSION, buildApprovalStatement } from '@/lib/terms';
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);

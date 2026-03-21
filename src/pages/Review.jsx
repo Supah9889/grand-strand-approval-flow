@@ -24,10 +24,19 @@ export default function Review() {
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
+  // Log review prompt shown once on mount
+  React.useEffect(() => {
+    if (!jobId) return;
+    base44.entities.Job.update(jobId, { review_prompt_shown: true });
+    logAudit(jobId, 'review_link_opened', 'Customer', 'Review prompt shown to customer');
+  }, [jobId]);
+
   const submitMutation = useMutation({
-    mutationFn: async ({ rating, feedbackText }) => {
+    mutationFn: async ({ rating, feedbackText, googleClicked }) => {
       const data = { review_rating: rating };
       if (feedbackText) data.review_feedback = feedbackText;
+      if (googleClicked) data.google_review_clicked = true;
+      if (rating === 'okay' || rating === 'not_good') data.internal_feedback_submitted = true;
       await base44.entities.Job.update(jobId, data);
     },
     onSuccess: () => {

@@ -202,7 +202,7 @@ export default function Admin() {
               </Button>
             )}
 
-            <JobsTable jobs={displayedJobs} isLoading={isLoading} role={role} />
+            <JobsTable jobs={displayedJobs} isLoading={isLoading} role={role} hideFilters />
           </TabsContent>
 
           {/* ── MANAGE TAB (admin only) ── */}

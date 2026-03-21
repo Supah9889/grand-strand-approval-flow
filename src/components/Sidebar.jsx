@@ -22,7 +22,7 @@ export default function Sidebar({ open, onClose }) {
   const location = useLocation();
   const role = getInternalRole();
 
-  const visibleItems = NAV_ITEMS.filter(item => item.roles.includes(role));
+  const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || role === 'admin');
 
   return (
     <AnimatePresence>

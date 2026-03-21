@@ -47,6 +47,49 @@ export default function JobApproval() {
     );
   }
 
+  // ── LOCKED / ALREADY SIGNED ──
+  if (job.locked || job.status === 'approved') {
+    return (
+      <AppLayout title="Job Details">
+        <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-4">
+          <button onClick={() => navigate('/search')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Search
+          </button>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-card border border-border rounded-2xl p-6 space-y-5 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Lock className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Signature Completed</h2>
+              <p className="text-sm text-muted-foreground mt-1">This document has already been signed and locked.</p>
+              {job.approval_timestamp && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Signed on {format(new Date(job.approval_timestamp), 'MMMM d, yyyy · h:mm a')}
+                </p>
+              )}
+            </div>
+            <div className="bg-secondary/50 rounded-xl p-4 text-left space-y-2">
+              <p className="text-xs text-muted-foreground">Customer</p>
+              <p className="text-sm font-medium text-foreground">{job.customer_name}</p>
+              <p className="text-xs text-muted-foreground mt-1">Address</p>
+              <p className="text-sm text-foreground">{job.address}</p>
+            </div>
+            {job.signature_url && (
+              <div className="border border-border rounded-xl p-3">
+                <p className="text-xs text-muted-foreground mb-2">Signature on file</p>
+                <img src={job.signature_url} alt="Signature" className="max-h-20 mx-auto" />
+              </div>
+            )}
+            <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate('/search')}>
+              Back to Search
+            </Button>
+          </motion.div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout title="Job Details">
       <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-4">

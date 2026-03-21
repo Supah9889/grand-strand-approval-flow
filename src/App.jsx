@@ -13,6 +13,13 @@ import Signature from './pages/Signature';
 import Confirmation from './pages/Confirmation';
 import Review from './pages/Review';
 import Admin from './pages/Admin';
+import TimeClock from './pages/TimeClock';
+import TimeEntries from './pages/TimeEntries';
+import VendorBank from './pages/VendorBank';
+import Expenses from './pages/Expenses';
+import CalendarPage from './pages/CalendarPage';
+import DocumentTemplates from './pages/DocumentTemplates';
+import EmployeeManager from './pages/EmployeeManager';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();

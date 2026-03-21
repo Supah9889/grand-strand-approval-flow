@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Search, PenLine, CheckCircle2,
-  Archive, ShieldAlert, Home
+  Archive, ShieldAlert, Home, Clock, FileText, Building2,
+  Receipt, CalendarDays, Users, List
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';

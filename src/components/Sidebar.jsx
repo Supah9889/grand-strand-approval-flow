@@ -44,8 +44,6 @@ export default function Sidebar({ open, onClose }) {
   const location = useLocation();
   const role = getInternalRole();
 
-  const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || role === 'admin');
-
   return (
     <AnimatePresence>
       {open && (
@@ -81,25 +79,36 @@ export default function Sidebar({ open, onClose }) {
               </button>
             </div>
 
-            {/* Nav items */}
-            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-              {visibleItems.map(({ label, to, icon: Icon }) => {
-                const isActive = location.pathname + location.search === to ||
-                  (to === '/search' && location.pathname === '/search');
+            {/* Nav groups */}
+            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+              {NAV_GROUPS.map(group => {
+                const visibleItems = group.items.filter(item => !item.adminOnly || role === 'admin');
+                if (visibleItems.length === 0) return null;
                 return (
-                  <Link
-                    key={label}
-                    to={to}
-                    onClick={onClose}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-secondary text-primary'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
-                    {label}
-                  </Link>
+                  <div key={group.label}>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">{group.label}</p>
+                    <div className="space-y-0.5">
+                      {visibleItems.map(({ label, to, icon: Icon }) => {
+                        const isActive = location.pathname + location.search === to ||
+                          (location.pathname === to && !location.search);
+                        return (
+                          <Link
+                            key={label}
+                            to={to}
+                            onClick={onClose}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                              isActive
+                                ? 'bg-secondary text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                          >
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+                            {label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </nav>

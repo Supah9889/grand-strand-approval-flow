@@ -98,9 +98,8 @@ export default function JobSearch() {
             {filtered.map((job) => {
               const badge = STATUS_BADGE[job.status] || STATUS_BADGE.pending;
               return (
-                <button
+                <div
                   key={job.id}
-                  onClick={() => navigate(`/approve?jobId=${job.id}`)}
                   className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/40 hover:shadow-sm transition-all duration-150"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -123,7 +122,11 @@ export default function JobSearch() {
                   {job.buildertrend_id && (
                     <p className="text-xs text-muted-foreground/60 mt-1">BT# {job.buildertrend_id}</p>
                   )}
-                </button>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => navigate(`/approve?jobId=${job.id}`)} className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors">Sign / View</button>
+                    <button onClick={() => navigate(`/job-hub?jobId=${job.id}`)} className="text-xs bg-muted text-foreground px-2.5 py-1 rounded-lg hover:bg-muted/80 transition-colors">Job Hub</button>
+                  </div>
+                </div>
               );
             })}
           </motion.div>

@@ -22,6 +22,8 @@ import Expenses from './pages/Expenses';
 import CalendarPage from './pages/CalendarPage';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EmployeeManager from './pages/EmployeeManager';
+import JobComms from './pages/JobComms';
+import JobCommsDetail from './pages/JobCommsDetail';
 import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
 import DailyLogs from './pages/DailyLogs';
@@ -74,6 +76,8 @@ const AuthenticatedApp = () => {
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/templates" element={<DocumentTemplates />} />
       <Route path="/employees" element={<EmployeeManager />} />
+      <Route path="/job-comms" element={<JobComms />} />
+      <Route path="/job-comms/detail" element={<JobCommsDetail />} />
       <Route path="/tasks" element={<Tasks />} />
       <Route path="/tasks/:id" element={<TaskDetail />} />
       <Route path="/daily-logs" element={<DailyLogs />} />

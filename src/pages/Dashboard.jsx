@@ -5,6 +5,8 @@ import { base44 } from '@/api/base44Client';
 import { motion } from 'framer-motion';
 import { PenLine, CheckCircle2, Archive, FileUp, Clock, ArrowRight, Loader2, Receipt, Users } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
+import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import { format } from 'date-fns';
 
 const STATUS_CONFIG = {
@@ -61,18 +63,27 @@ export default function Dashboard() {
   const clockedInNow = todayEntries.filter(e => e.status === 'clocked_in').length;
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.total_amount || 0), 0);
 
-  const pending  = jobs.filter(j => j.status === 'pending');
-  const approved = jobs.filter(j => j.status === 'approved');
-  const archived = jobs.filter(j => j.status === 'archived');
+  const pending    = jobs.filter(j => j.status === 'pending');
+  const approved   = jobs.filter(j => j.status === 'approved');
+  const archived   = jobs.filter(j => j.status === 'archived');
+  const inProgress = jobs.filter(j => j.lifecycle_status === 'in_progress');
+  const warranty   = jobs.filter(j => j.lifecycle_status === 'warranty');
+  const waiting    = jobs.filter(j => j.lifecycle_status === 'waiting');
 
   const sectionJobs = section === 'pending' ? pending
     : section === 'approved' ? approved
     : section === 'archived' ? archived
+    : section === 'in_progress' ? inProgress
+    : section === 'warranty' ? warranty
+    : section === 'waiting' ? waiting
     : null;
 
   const sectionLabel = section === 'pending' ? 'Pending Signatures'
     : section === 'approved' ? 'Signed Jobs'
     : section === 'archived' ? 'Archived Jobs'
+    : section === 'in_progress' ? 'In Progress'
+    : section === 'warranty' ? 'Warranty'
+    : section === 'waiting' ? 'Waiting'
     : null;
 
   const handleSection = (s) => {
@@ -84,12 +95,12 @@ export default function Dashboard() {
   };
 
   const stats = [
-    { icon: PenLine,      label: 'Pending Signatures', value: pending.length,  color: 'text-amber-600', bg: 'bg-amber-50',  border: 'border-amber-200', key: 'pending'  },
-    { icon: CheckCircle2, label: 'Signed Jobs',         value: approved.length, color: 'text-primary',   bg: 'bg-secondary', border: 'border-primary/30', key: 'approved' },
-    { icon: Archive,      label: 'Archived',            value: archived.length, color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border', key: 'archived' },
-    { icon: FileUp,       label: 'Total Jobs',          value: jobs.length,     color: 'text-blue-600',  bg: 'bg-blue-50',   border: 'border-blue-100', key: null },
-    { icon: Users,        label: 'Clocked In Today',   value: clockedInNow,    color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100', key: null },
-    { icon: Receipt,      label: 'Total Expenses',      value: `$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 0 })}`, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', key: null },
+    { icon: PenLine,      label: 'Pending Signatures', value: pending.length,    color: 'text-amber-600',        bg: 'bg-amber-50',    border: 'border-amber-200',    key: 'pending'     },
+    { icon: CheckCircle2, label: 'In Progress',         value: inProgress.length, color: 'text-primary',          bg: 'bg-secondary',   border: 'border-primary/30',   key: 'in_progress' },
+    { icon: FileUp,       label: 'Signed Jobs',         value: approved.length,   color: 'text-blue-600',         bg: 'bg-blue-50',     border: 'border-blue-100',     key: 'approved'    },
+    { icon: Archive,      label: 'Waiting',             value: waiting.length,    color: 'text-orange-600',       bg: 'bg-orange-50',   border: 'border-orange-200',   key: 'waiting'     },
+    { icon: Users,        label: 'Clocked In Today',   value: clockedInNow,      color: 'text-violet-600',       bg: 'bg-violet-50',   border: 'border-violet-100',   key: null          },
+    { icon: Receipt,      label: 'Warranty Open',       value: warranty.length,   color: 'text-violet-600',       bg: 'bg-violet-50',   border: 'border-violet-200',   key: 'warranty'    },
   ];
 
   return (
@@ -153,11 +164,16 @@ export default function Dashboard() {
                           {sc.label}
                         </span>
                       </div>
+                      {job.title && <p className="text-xs text-muted-foreground">{job.title}</p>}
                       <div className="flex items-center justify-between mt-1">
                         <p className="text-xs text-muted-foreground">{job.customer_name}</p>
                         <p className="text-xs font-semibold text-primary">
                           ${Number(job.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </p>
+                      </div>
+                      <div className="flex gap-1.5 mt-1 flex-wrap">
+                        {job.lifecycle_status && <JobLifecycleBadge status={job.lifecycle_status} />}
+                        {job.job_group && <JobGroupBadge group={job.job_group} />}
                       </div>
                       {job.approval_timestamp && (
                         <p className="text-xs text-muted-foreground/70 mt-1">

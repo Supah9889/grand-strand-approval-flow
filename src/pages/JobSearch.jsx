@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, Clock, CheckCircle2 } from 'lucide-react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Search, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
+import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
+import JobGroupBadge from '../components/jobs/JobGroupBadge';
+import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG } from '@/lib/jobHelpers';
 
 const STATUS_BADGE = {
   pending:  { label: 'Pending', class: 'bg-amber-50 text-amber-600' },
@@ -15,6 +19,8 @@ const STATUS_BADGE = {
 
 export default function JobSearch() {
   const [search, setSearch] = useState('');
+  const [filterGroup, setFilterGroup] = useState('all');
+  const [filterLifecycle, setFilterLifecycle] = useState('all');
   const navigate = useNavigate();
 
   const { data: jobs = [], isLoading } = useQuery({
@@ -23,12 +29,15 @@ export default function JobSearch() {
   });
 
   const filtered = jobs.filter(job => {
-    if (job.status === 'archived') return false;
+    if (job.status === 'archived' && filterLifecycle !== 'archived') return false;
+    if (filterGroup !== 'all' && job.job_group !== filterGroup) return false;
+    if (filterLifecycle !== 'all' && (job.lifecycle_status || 'open') !== filterLifecycle) return false;
     const q = search.toLowerCase();
     return (
       !q ||
       job.address?.toLowerCase().includes(q) ||
-      job.customer_name?.toLowerCase().includes(q)
+      job.customer_name?.toLowerCase().includes(q) ||
+      job.title?.toLowerCase().includes(q)
     );
   });
 
@@ -41,15 +50,33 @@ export default function JobSearch() {
           <p className="text-xs text-muted-foreground mt-0.5">Search by address or customer name</p>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search address or customer name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-12 rounded-xl bg-muted/40 border-border text-sm"
-            autoFocus
-          />
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search address, customer, title..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 h-12 rounded-xl bg-muted/40 border-border text-sm"
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2">
+            <Select value={filterLifecycle} onValueChange={setFilterLifecycle}>
+              <SelectTrigger className="h-8 text-xs rounded-lg flex-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {Object.entries(JOB_LIFECYCLE_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterGroup} onValueChange={setFilterGroup}>
+              <SelectTrigger className="h-8 text-xs rounded-lg flex-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Groups</SelectItem>
+                {Object.entries(JOB_GROUP_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {isLoading ? (
@@ -82,11 +109,16 @@ export default function JobSearch() {
                       {badge.label}
                     </span>
                   </div>
+                  {job.title && <p className="text-xs text-muted-foreground">{job.title}</p>}
                   <div className="flex items-center justify-between mt-1.5">
                     <p className="text-xs text-muted-foreground">{job.customer_name}</p>
                     <p className="text-xs font-semibold text-primary">
                       ${Number(job.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    {job.lifecycle_status && <JobLifecycleBadge status={job.lifecycle_status} />}
+                    {job.job_group && <JobGroupBadge group={job.job_group} />}
                   </div>
                   {job.buildertrend_id && (
                     <p className="text-xs text-muted-foreground/60 mt-1">BT# {job.buildertrend_id}</p>

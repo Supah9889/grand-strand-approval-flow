@@ -4,10 +4,12 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { X, Loader2, Briefcase } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
+import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG } from '@/lib/jobHelpers';
 
 const JOB_COLORS = [
   '#2563eb', // blue
@@ -30,6 +32,8 @@ const empty = {
   price: '',
   color: JOB_COLORS[0],
   status: 'pending',
+  lifecycle_status: 'open',
+  job_group: 'painting',
 };
 
 export default function NewJobModal({ open, onClose }) {
@@ -173,6 +177,22 @@ export default function NewJobModal({ open, onClose }) {
                   onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                   className="h-10 rounded-xl text-sm"
                 />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Job Group</p>
+                    <Select value={form.job_group} onValueChange={v => setForm(f => ({ ...f, job_group: v }))}>
+                      <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(JOB_GROUP_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Lifecycle Status</p>
+                    <Select value={form.lifecycle_status} onValueChange={v => setForm(f => ({ ...f, lifecycle_status: v }))}>
+                      <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(JOB_LIFECYCLE_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
                 <div className="pt-1 flex gap-2">
                   <Button type="button" variant="outline" className="flex-1 h-10 rounded-xl" onClick={onClose}>

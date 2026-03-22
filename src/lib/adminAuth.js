@@ -1,8 +1,8 @@
 // Role-based PIN auth for internal access.
-// Two roles: 'admin' and 'staff', each with their own PIN.
-const PINS = {
-  admin: '2580',
-  staff: '1234',
+// Codes: 1234 = staff, 4321 = admin
+const CODES = {
+  '1234': 'staff',
+  '4321': 'admin',
 };
 
 const SESSION_KEY = 'gscp_internal_auth';
@@ -30,8 +30,20 @@ export function isStaff() {
   return getInternalRole() === 'staff';
 }
 
+/** Attempt login by code. Returns role string or null. */
+export function attemptLogin(code) {
+  const role = CODES[code?.trim()];
+  if (role) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ role }));
+    return role;
+  }
+  return null;
+}
+
+/** Legacy support — checks staff or admin pin */
 export function attemptAdminLogin(pin, role = 'admin') {
-  if (PINS[role] && pin === PINS[role]) {
+  const legacyPins = { admin: '2580', staff: '1234' };
+  if (legacyPins[role] && pin === legacyPins[role]) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ role }));
     return true;
   }

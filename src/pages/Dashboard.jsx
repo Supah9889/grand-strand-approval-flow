@@ -1,225 +1,233 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { motion } from 'framer-motion';
-import { PenLine, CheckCircle2, Archive, FileUp, Clock, ArrowRight, Loader2, Receipt, Users } from 'lucide-react';
+import { Loader2, PenLine, CheckCircle2, TrendingUp, Clock, ClipboardList, FileDiff, FileText, ShieldCheck, BookOpen, StickyNote, Briefcase, Users, ArrowRight } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
-import JobGroupBadge from '../components/jobs/JobGroupBadge';
+import { StatCard, SectionHeader } from '../components/dashboard/DashSection';
+import DrillDownList from '../components/dashboard/DrillDownList';
+import { getInternalRole } from '@/lib/adminAuth';
 import { format } from 'date-fns';
 
-const STATUS_CONFIG = {
-  pending:  { label: 'Pending', color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-100' },
-  approved: { label: 'Signed',  color: 'text-primary',    bg: 'bg-secondary',  border: 'border-secondary' },
-  archived: { label: 'Archived',color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border' },
-};
-
-function StatCard({ icon: Icon, label, value, color, bg, border, onClick, active }) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      onClick={onClick}
-      className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-150 ${
-        active ? `${bg} ${border}` : 'bg-card border-border hover:border-primary/30'
-      }`}
-    >
-      <div className={`w-9 h-9 rounded-xl ${active ? 'bg-white/70' : bg} flex items-center justify-center mb-3`}>
-        <Icon className={`w-5 h-5 ${color}`} />
-      </div>
-      <p className="text-2xl font-bold text-foreground leading-none">{value}</p>
-      <p className="text-xs text-muted-foreground mt-1">{label}</p>
-    </motion.button>
-  );
-}
+const todayStr = new Date().toDateString();
+const todayISO = new Date().toISOString().split('T')[0];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const urlParams = new URLSearchParams(window.location.search);
-  const section = urlParams.get('section') || null;
+  const role = getInternalRole();
+  const isAdmin = role === 'admin';
+  const [activeSection, setActiveSection] = useState(null);
 
+  // All data loads
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
     queryKey: ['dashboard-jobs'],
     queryFn: () => base44.entities.Job.list('-created_date'),
   });
-
-  const { data: auditLogs = [] } = useQuery({
-    queryKey: ['dashboard-audit'],
-    queryFn: () => base44.entities.AuditLog.list('-timestamp', 20),
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['dashboard-tasks'],
+    queryFn: () => base44.entities.Task.list('-created_date', 200),
+    enabled: isAdmin,
   });
-
+  const { data: leads = [] } = useQuery({
+    queryKey: ['dashboard-leads'],
+    queryFn: () => base44.entities.Lead.list('-created_date', 200),
+    enabled: isAdmin,
+  });
+  const { data: changeOrders = [] } = useQuery({
+    queryKey: ['dashboard-cos'],
+    queryFn: () => base44.entities.ChangeOrder.list('-created_date', 100),
+    enabled: isAdmin,
+  });
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['dashboard-invoices'],
+    queryFn: () => base44.entities.Invoice.list('-created_date', 200),
+    enabled: isAdmin,
+  });
+  const { data: warrantyItems = [] } = useQuery({
+    queryKey: ['dashboard-warranty'],
+    queryFn: () => base44.entities.WarrantyItem.list('-created_date', 100),
+    enabled: isAdmin,
+  });
   const { data: timeEntries = [] } = useQuery({
     queryKey: ['dashboard-time'],
-    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 100),
+    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 200),
+  });
+  const { data: dailyLogs = [] } = useQuery({
+    queryKey: ['dashboard-logs'],
+    queryFn: () => base44.entities.DailyLog.list('-log_date', 50),
+    enabled: isAdmin,
+  });
+  const { data: notes = [] } = useQuery({
+    queryKey: ['dashboard-notes'],
+    queryFn: () => base44.entities.JobNote.list('-created_date', 50),
+  });
+  const { data: auditLogs = [] } = useQuery({
+    queryKey: ['dashboard-audit'],
+    queryFn: () => base44.entities.AuditLog.list('-timestamp', 10),
+    enabled: isAdmin,
   });
 
-  const { data: expenses = [] } = useQuery({
-    queryKey: ['dashboard-expenses'],
-    queryFn: () => base44.entities.Expense.list('-created_date', 50),
-  });
+  // Derived counts
+  const pending       = useMemo(() => jobs.filter(j => j.status === 'pending'), [jobs]);
+  const approved      = useMemo(() => jobs.filter(j => j.status === 'approved'), [jobs]);
+  const activeJobs    = useMemo(() => jobs.filter(j => ['open','in_progress','waiting'].includes(j.lifecycle_status)), [jobs]);
+  const warrantyJobs  = useMemo(() => jobs.filter(j => j.lifecycle_status === 'warranty'), [jobs]);
 
-  const todayStr = new Date().toDateString();
-  const todayEntries = timeEntries.filter(e => e.clock_in && new Date(e.clock_in).toDateString() === todayStr);
-  const clockedInNow = todayEntries.filter(e => e.status === 'clocked_in').length;
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.total_amount || 0), 0);
+  const openLeads     = useMemo(() => leads.filter(l => !['won','lost','converted_to_job','archived','duplicate'].includes(l.status)), [leads]);
+  const openTodos     = useMemo(() => tasks.filter(t => ['open','in_progress','waiting'].includes(t.status)), [tasks]);
+  const openCOs       = useMemo(() => changeOrders.filter(co => ['draft','sent','in_review'].includes(co.status)), [changeOrders]);
+  const openInvoices  = useMemo(() => invoices.filter(i => ['draft','sent','partial','overdue'].includes(i.status)), [invoices]);
+  const openWarranty  = useMemo(() => warrantyItems.filter(w => ['new','scheduled','in_progress'].includes(w.status)), [warrantyItems]);
+  const todayTime     = useMemo(() => timeEntries.filter(e => e.clock_in && new Date(e.clock_in).toDateString() === todayStr), [timeEntries]);
+  const clockedInNow  = useMemo(() => todayTime.filter(e => e.status === 'clocked_in').length, [todayTime]);
+  const recentLogs    = useMemo(() => dailyLogs.slice(0, 20), [dailyLogs]);
+  const unreadNotes   = useMemo(() => notes.filter(n => !n.read).length, [notes]);
 
-  const pending    = jobs.filter(j => j.status === 'pending');
-  const approved   = jobs.filter(j => j.status === 'approved');
-  const archived   = jobs.filter(j => j.status === 'archived');
-  const inProgress = jobs.filter(j => j.lifecycle_status === 'in_progress');
-  const warranty   = jobs.filter(j => j.lifecycle_status === 'warranty');
-  const waiting    = jobs.filter(j => j.lifecycle_status === 'waiting');
-
-  const sectionJobs = section === 'pending' ? pending
-    : section === 'approved' ? approved
-    : section === 'archived' ? archived
-    : section === 'in_progress' ? inProgress
-    : section === 'warranty' ? warranty
-    : section === 'waiting' ? waiting
-    : null;
-
-  const sectionLabel = section === 'pending' ? 'Pending Signatures'
-    : section === 'approved' ? 'Signed Jobs'
-    : section === 'archived' ? 'Archived Jobs'
-    : section === 'in_progress' ? 'In Progress'
-    : section === 'warranty' ? 'Warranty'
-    : section === 'waiting' ? 'Waiting'
-    : null;
-
-  const handleSection = (s) => {
-    if (section === s) {
-      navigate('/dashboard');
-    } else {
-      navigate(`/dashboard?section=${s}`);
-    }
+  const DRILL_DATA = {
+    pending, approved, active: activeJobs, warranty_jobs: warrantyJobs,
+    leads: openLeads, todos: openTodos, change_orders: openCOs,
+    invoices: openInvoices, warranty: openWarranty,
+    time_today: todayTime, daily_logs: recentLogs, notes,
   };
 
-  const stats = [
-    { icon: PenLine,      label: 'Pending Signatures', value: pending.length,    color: 'text-amber-600',        bg: 'bg-amber-50',    border: 'border-amber-200',    key: 'pending'     },
-    { icon: CheckCircle2, label: 'In Progress',         value: inProgress.length, color: 'text-primary',          bg: 'bg-secondary',   border: 'border-primary/30',   key: 'in_progress' },
-    { icon: FileUp,       label: 'Signed Jobs',         value: approved.length,   color: 'text-blue-600',         bg: 'bg-blue-50',     border: 'border-blue-100',     key: 'approved'    },
-    { icon: Archive,      label: 'Waiting',             value: waiting.length,    color: 'text-orange-600',       bg: 'bg-orange-50',   border: 'border-orange-200',   key: 'waiting'     },
-    { icon: Users,        label: 'Clocked In Today',   value: clockedInNow,      color: 'text-violet-600',       bg: 'bg-violet-50',   border: 'border-violet-100',   key: null          },
-    { icon: Receipt,      label: 'Warranty Open',       value: warranty.length,   color: 'text-violet-600',       bg: 'bg-violet-50',   border: 'border-violet-200',   key: 'warranty'    },
-  ];
+  const DRILL_LABELS = {
+    pending: 'Pending Signatures',
+    approved: 'Signed Jobs',
+    active: 'Active Jobs',
+    warranty_jobs: 'Jobs in Warranty',
+    leads: 'Open Leads / Presale',
+    todos: 'Open To-Dos & Tasks',
+    change_orders: 'Open Change Orders',
+    invoices: 'Open Invoices',
+    warranty: 'Open Warranty Requests',
+    time_today: "Today's Time Entries",
+    daily_logs: 'Recent Daily Logs',
+    notes: 'Notes & Activity',
+  };
+
+  const toggle = (key) => setActiveSection(s => s === key ? null : key);
 
   return (
     <AppLayout title="Dashboard">
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-7">
 
-        {/* Welcome */}
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">Operations Overview</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Grand Strand Custom Painting · Internal</p>
-        </div>
-
-        {/* Stat cards */}
-        {loadingJobs ? (
-          <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {stats.map(s => (
-              <StatCard
-                key={s.label}
-                icon={s.icon}
-                label={s.label}
-                value={s.value}
-                color={s.color}
-                bg={s.bg}
-                border={s.border}
-                active={section === s.key}
-                onClick={s.key ? () => handleSection(s.key) : undefined}
-              />
-            ))}
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-semibold text-foreground">Operations Overview</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Grand Strand Custom Painting · {format(new Date(), 'EEE, MMM d')}</p>
           </div>
-        )}
-
-        {/* Section job list */}
-        {sectionJobs && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-foreground">{sectionLabel}</p>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-              >
-                Clear
-              </button>
-            </div>
-            {sectionJobs.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No jobs in this category.</p>
-            ) : (
-              <div className="space-y-2">
-                {sectionJobs.map(job => {
-                  const sc = STATUS_CONFIG[job.status] || STATUS_CONFIG.pending;
-                  return (
-                    <button
-                      key={job.id}
-                      onClick={() => section === 'pending' && navigate(`/approve?jobId=${job.id}`)}
-                      className={`w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors ${section !== 'pending' ? 'cursor-default' : ''}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">{job.address}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${sc.bg} ${sc.color} font-medium`}>
-                          {sc.label}
-                        </span>
-                      </div>
-                      {job.title && <p className="text-xs text-muted-foreground">{job.title}</p>}
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-xs text-muted-foreground">{job.customer_name}</p>
-                        <p className="text-xs font-semibold text-primary">
-                          ${Number(job.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="flex gap-1.5 mt-1 flex-wrap">
-                        {job.lifecycle_status && <JobLifecycleBadge status={job.lifecycle_status} />}
-                        {job.job_group && <JobGroupBadge group={job.job_group} />}
-                      </div>
-                      {job.approval_timestamp && (
-                        <p className="text-xs text-muted-foreground/70 mt-1">
-                          Signed {format(new Date(job.approval_timestamp), 'MMM d, yyyy')}
-                        </p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick action */}
-        {!sectionJobs && (
           <button
             onClick={() => navigate('/search')}
-            className="w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-5 py-4 hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1.5 h-8 px-3 bg-primary text-primary-foreground text-xs font-medium rounded-xl hover:bg-primary/90 transition-colors"
           >
-            <div>
-              <p className="text-sm font-semibold">Start Signing Flow</p>
-              <p className="text-xs text-primary-foreground/80 mt-0.5">Search for a job to begin</p>
-            </div>
-            <ArrowRight className="w-5 h-5 shrink-0" />
+            <ArrowRight className="w-3.5 h-3.5" /> Sign Job
           </button>
-        )}
+        </div>
 
-        {/* Recent activity */}
-        {auditLogs.length > 0 && !sectionJobs && (
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">Recent Activity</p>
-            <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
-              {auditLogs.slice(0, 6).map(log => (
-                <div key={log.id} className="px-4 py-3 flex items-start gap-3">
-                  <Clock className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground leading-snug">{log.detail || log.action}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {log.actor} · {log.timestamp ? format(new Date(log.timestamp), 'MMM d, h:mm a') : ''}
-                    </p>
-                  </div>
-                </div>
-              ))}
+        {loadingJobs ? (
+          <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+        ) : (
+          <>
+            {/* ── SIGNATURES / APPROVALS ── */}
+            <div className="space-y-3">
+              <SectionHeader title="Signatures & Approvals" onViewAll={() => navigate('/search')} viewAllLabel="Open Signing Flow" />
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard icon={PenLine} label="Pending Signatures" value={pending.length} color="text-amber-600" bg="bg-amber-50" urgent={pending.length > 0} onClick={() => toggle('pending')} />
+                <StatCard icon={CheckCircle2} label="Signed Jobs" value={approved.length} color="text-blue-600" bg="bg-blue-50" onClick={() => toggle('approved')} />
+              </div>
             </div>
-          </div>
+
+            {/* ── JOBS / PROJECTS ── */}
+            <div className="space-y-3">
+              <SectionHeader title="Jobs & Projects" onViewAll={() => navigate('/search')} />
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard icon={Briefcase} label="Active Jobs" value={activeJobs.length} color="text-primary" bg="bg-secondary" onClick={() => toggle('active')} />
+                <StatCard icon={ShieldCheck} label="Warranty Phase" value={warrantyJobs.length} color="text-violet-600" bg="bg-violet-50" onClick={() => toggle('warranty_jobs')} />
+              </div>
+            </div>
+
+            {/* ── SALES / PRESALE (admin only) ── */}
+            {isAdmin && (
+              <div className="space-y-3">
+                <SectionHeader title="Sales & Presale" onViewAll={() => navigate('/sales')} />
+                <div className="grid grid-cols-2 gap-3">
+                  <StatCard icon={TrendingUp} label="Open Leads" value={openLeads.length} color="text-emerald-600" bg="bg-emerald-50" onClick={() => toggle('leads')} />
+                  <StatCard icon={FileDiff} label="Open Change Orders" value={openCOs.length} color="text-indigo-600" bg="bg-indigo-50" onClick={() => toggle('change_orders')} />
+                </div>
+              </div>
+            )}
+
+            {/* ── FIELD ACTIVITY (admin only) ── */}
+            {isAdmin && (
+              <div className="space-y-3">
+                <SectionHeader title="Field Activity" onViewAll={() => navigate('/time-entries')} />
+                <div className="grid grid-cols-3 gap-2">
+                  <StatCard icon={Users} label="Clocked In" value={clockedInNow} color="text-violet-600" bg="bg-violet-50" onClick={() => toggle('time_today')} />
+                  <StatCard icon={Clock} label="Entries Today" value={todayTime.length} color="text-slate-600" bg="bg-slate-100" onClick={() => toggle('time_today')} />
+                  <StatCard icon={BookOpen} label="Recent Logs" value={recentLogs.length} color="text-orange-600" bg="bg-orange-50" onClick={() => toggle('daily_logs')} />
+                </div>
+              </div>
+            )}
+
+            {/* ── TASKS ── */}
+            {isAdmin && (
+              <div className="space-y-3">
+                <SectionHeader title="Tasks & To-Dos" onViewAll={() => navigate('/tasks')} />
+                <div className="grid grid-cols-2 gap-3">
+                  <StatCard icon={ClipboardList} label="Open To-Dos" value={openTodos.length} color="text-sky-600" bg="bg-sky-50"
+                    urgent={openTodos.some(t => t.due_date && new Date(t.due_date) < new Date())}
+                    onClick={() => toggle('todos')} />
+                  <StatCard icon={BookOpen} label="Daily Logs" value={recentLogs.length} color="text-orange-600" bg="bg-orange-50" sub="Recent" onClick={() => toggle('daily_logs')} />
+                </div>
+              </div>
+            )}
+
+            {/* ── FINANCIALS (admin only) ── */}
+            {isAdmin && (
+              <div className="space-y-3">
+                <SectionHeader title="Financials" onViewAll={() => navigate('/financials')} />
+                <div className="grid grid-cols-2 gap-3">
+                  <StatCard icon={FileText} label="Open Invoices" value={openInvoices.length} color="text-emerald-600" bg="bg-emerald-50"
+                    urgent={openInvoices.some(i => i.status === 'overdue')}
+                    onClick={() => toggle('invoices')} />
+                  <StatCard icon={ShieldCheck} label="Warranty Requests" value={openWarranty.length} color="text-rose-600" bg="bg-rose-50" onClick={() => toggle('warranty')} />
+                </div>
+              </div>
+            )}
+
+            {/* ── NOTES / ACTIVITY ── */}
+            <div className="space-y-3">
+              <SectionHeader title="Notes & Activity" onViewAll={() => navigate('/notes')} />
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard icon={StickyNote} label="Notes" value={notes.length} sub={unreadNotes > 0 ? `${unreadNotes} unread` : undefined}
+                  color="text-amber-600" bg="bg-amber-50" urgent={unreadNotes > 0} onClick={() => toggle('notes')} />
+                {isAdmin && auditLogs.length > 0 && (
+                  <div className="bg-card border border-border rounded-2xl p-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Recent Activity</p>
+                    <div className="space-y-1.5">
+                      {auditLogs.slice(0, 3).map(log => (
+                        <div key={log.id} className="flex items-start gap-1.5">
+                          <Clock className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground leading-snug line-clamp-1">{log.detail || log.action}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── DRILL-DOWN PANEL ── */}
+            {activeSection && (
+              <DrillDownList
+                section={activeSection}
+                data={DRILL_DATA[activeSection] || []}
+                label={DRILL_LABELS[activeSection] || ''}
+                onClear={() => setActiveSection(null)}
+              />
+            )}
+          </>
         )}
       </div>
     </AppLayout>

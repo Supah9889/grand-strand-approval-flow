@@ -29,13 +29,20 @@ const empty = {
   color: '',
 };
 
-export default function CalendarEventModal({ open, onClose, jobs = [] }) {
+export default function CalendarEventModal({ open, onClose, jobs = [], prefilledDate = '' }) {
   const [step, setStep] = useState('job'); // 'job' | 'details'
   const [jobSearch, setJobSearch] = useState('');
   const [form, setForm] = useState(empty);
   const [hourlyMode, setHourlyMode] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const queryClient = useQueryClient();
+
+  // Sync prefilled date when modal opens
+  React.useEffect(() => {
+    if (open && prefilledDate) {
+      setForm(f => ({ ...f, start_date: prefilledDate }));
+    }
+  }, [open, prefilledDate]);
 
   const filteredJobs = useMemo(() => {
     const q = jobSearch.toLowerCase();

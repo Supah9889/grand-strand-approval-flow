@@ -10,15 +10,17 @@ import {
 } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import CalendarEventModal from '../components/CalendarEventModal';
+import CalendarEventDetail from '../components/CalendarEventDetail';
 
 const VIEWS = ['month', 'week', 'agenda'];
-
 const getEventColor = (e) => e.color || '#3d8b7a';
 
 export default function CalendarPage() {
   const [view, setView] = useState('month');
   const [current, setCurrent] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
+  const [prefilledDate, setPrefilledDate] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['calendar-events'],
@@ -32,6 +34,18 @@ export default function CalendarPage() {
 
   const getEventsForDay = (day) =>
     events.filter(e => e.start_date && isSameDay(parseISO(e.start_date.split('T')[0]), day));
+
+  const handleDayClick = (day) => {
+    setPrefilledDate(format(day, 'yyyy-MM-dd'));
+    setShowModal(true);
+  };
+
+  const handleEventClick = (e, evt) => {
+    e.stopPropagation();
+    setSelectedEvent(evt);
+  };
+
+  const selectedJob = selectedEvent ? jobs.find(j => j.id === selectedEvent.job_id) : null;
 
   // ── MONTH VIEW ──
   const renderMonth = () => {
@@ -51,14 +65,19 @@ export default function CalendarPage() {
             const dayEvents = getEventsForDay(day);
             const inMonth = isSameMonth(day, current);
             return (
-              <div key={day.toISOString()} className={`bg-card min-h-[56px] p-1 ${!inMonth ? 'opacity-40' : ''}`}>
+              <div
+                key={day.toISOString()}
+                onClick={() => handleDayClick(day)}
+                className={`bg-card min-h-[56px] p-1 cursor-pointer hover:bg-secondary/40 transition-colors ${!inMonth ? 'opacity-40' : ''}`}
+              >
                 <p className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-0.5 ${
                   isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
                 }`}>{format(day, 'd')}</p>
                 {dayEvents.slice(0, 2).map(e => (
                   <div
                     key={e.id}
-                    className="text-xs px-1 py-0.5 rounded mb-0.5 text-white truncate"
+                    onClick={(ev) => handleEventClick(ev, e)}
+                    className="text-xs px-1 py-0.5 rounded mb-0.5 text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
                     style={{ backgroundColor: getEventColor(e) }}
                   >
                     {e.title}
@@ -82,7 +101,11 @@ export default function CalendarPage() {
           {days.map(day => {
             const dayEvents = getEventsForDay(day);
             return (
-              <div key={day.toISOString()} className={`border border-border rounded-xl p-2 min-h-[100px] ${isToday(day) ? 'border-primary' : ''}`}>
+              <div
+                key={day.toISOString()}
+                onClick={() => handleDayClick(day)}
+                className={`border border-border rounded-xl p-2 min-h-[100px] cursor-pointer hover:bg-secondary/20 transition-colors ${isToday(day) ? 'border-primary' : ''}`}
+              >
                 <p className={`text-xs font-medium mb-1.5 ${isToday(day) ? 'text-primary' : 'text-muted-foreground'}`}>
                   {format(day, 'EEE d')}
                 </p>
@@ -93,7 +116,8 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={e.id}
-                      className="text-xs px-1.5 py-1 rounded mb-1 text-white leading-tight"
+                      onClick={(ev) => handleEventClick(ev, e)}
+                      className="text-xs px-1.5 py-1 rounded mb-1 text-white leading-tight cursor-pointer hover:opacity-80 transition-opacity"
                       style={{ backgroundColor: getEventColor(e) }}
                     >
                       {timeStr && <span className="opacity-80">{timeStr} · </span>}
@@ -121,7 +145,11 @@ export default function CalendarPage() {
           const color = getEventColor(e);
           const hasTime = e.start_date?.includes('T');
           return (
-            <div key={e.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
+            <div
+              key={e.id}
+              onClick={() => setSelectedEvent(e)}
+              className="bg-card border border-border rounded-xl p-4 flex items-start gap-3 cursor-pointer hover:border-primary/30 transition-colors"
+            >
               <div className="w-1 self-stretch rounded-full shrink-0" style={{ backgroundColor: color }} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground">{e.title}</p>
@@ -185,11 +213,16 @@ export default function CalendarPage() {
                 {v}
               </Button>
             ))}
-            <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => setShowModal(true)}>
+            <Button size="sm" className="h-8 rounded-lg text-xs" onClick={() => { setPrefilledDate(''); setShowModal(true); }}>
               <Plus className="w-3.5 h-3.5 mr-1" />Add
             </Button>
           </div>
         </div>
+
+        {/* Hint */}
+        {view !== 'agenda' && (
+          <p className="text-xs text-muted-foreground">Tap any day to add an event, or tap an event to view details.</p>
+        )}
 
         {/* Calendar Views */}
         {isLoading ? (
@@ -201,11 +234,18 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {/* Event creation modal */}
       <CalendarEventModal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setPrefilledDate(''); }}
         jobs={jobs}
+        prefilledDate={prefilledDate}
+      />
+
+      <CalendarEventDetail
+        open={!!selectedEvent}
+        event={selectedEvent}
+        job={selectedJob}
+        onClose={() => setSelectedEvent(null)}
       />
     </AppLayout>
   );

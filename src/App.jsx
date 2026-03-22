@@ -22,6 +22,9 @@ import Expenses from './pages/Expenses';
 import CalendarPage from './pages/CalendarPage';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EmployeeManager from './pages/EmployeeManager';
+import PortalManager from './pages/PortalManager';
+import ClientPortal from './pages/ClientPortal';
+import VendorPortal from './pages/VendorPortal';
 import ChangeOrders from './pages/ChangeOrders';
 import ChangeOrderDetail from './pages/ChangeOrderDetail';
 import JobComms from './pages/JobComms';
@@ -78,6 +81,9 @@ const AuthenticatedApp = () => {
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/templates" element={<DocumentTemplates />} />
       <Route path="/employees" element={<EmployeeManager />} />
+      <Route path="/portal-manager" element={<PortalManager />} />
+      <Route path="/portal/client" element={<ClientPortal />} />
+      <Route path="/portal/vendor" element={<VendorPortal />} />
       <Route path="/change-orders" element={<ChangeOrders />} />
       <Route path="/change-orders/:id" element={<ChangeOrderDetail />} />
       <Route path="/job-comms" element={<JobComms />} />

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Search, ShieldAlert, Clock,
   FileText, Building2, Receipt, CalendarDays, Users,
-  List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList, BookOpen, CheckSquare, FolderOpen, FileDiff
+  List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList, BookOpen, CheckSquare, FolderOpen, FileDiff, Globe
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';
@@ -62,7 +62,8 @@ const NAV_GROUPS = [
       { label: 'Doc Templates',   to: '/templates', icon: FileText },
       { label: 'Employees',       to: '/employees', icon: Users },
       { label: 'Expenses',        to: '/expenses',  icon: Receipt },
-      { label: 'Admin Mode',      to: '/admin',     icon: ShieldAlert },
+        { label: 'Portal Access',   to: '/portal-manager', icon: Globe },
+    { label: 'Admin Mode',      to: '/admin',     icon: ShieldAlert },
     ],
   },
 ];

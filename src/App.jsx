@@ -25,6 +25,8 @@ import EmployeeManager from './pages/EmployeeManager';
 import Financials from './pages/Financials';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Bills from './pages/Bills';
+import Invoices from './pages/Invoices';
+import PaymentsPage from './pages/PaymentsPage';
 import PortalManager from './pages/PortalManager';
 import ClientPortal from './pages/ClientPortal';
 import VendorPortal from './pages/VendorPortal';
@@ -87,6 +89,8 @@ const AuthenticatedApp = () => {
       <Route path="/financials" element={<Financials />} />
       <Route path="/purchase-orders" element={<PurchaseOrders />} />
       <Route path="/bills" element={<Bills />} />
+      <Route path="/invoices" element={<Invoices />} />
+      <Route path="/payments" element={<PaymentsPage />} />
       <Route path="/portal-manager" element={<PortalManager />} />
       <Route path="/portal/client" element={<ClientPortal />} />
       <Route path="/portal/vendor" element={<VendorPortal />} />

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Search, ShieldAlert, Clock,
   FileText, Building2, Receipt, CalendarDays, Users,
-  List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList, BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign, ShoppingCart
+  List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList, BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign, ShoppingCart, CreditCard
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';
@@ -61,6 +61,8 @@ const NAV_GROUPS = [
         { label: 'Financials',      to: '/financials',       icon: DollarSign },
       { label: 'Purchase Orders', to: '/purchase-orders',  icon: ShoppingCart },
       { label: 'Bills',           to: '/bills',            icon: Receipt },
+      { label: 'Invoices',        to: '/invoices',         icon: FileText },
+      { label: 'Payments',        to: '/payments',         icon: CreditCard },
     { label: 'Vendor Bank',     to: '/vendors',           icon: Building2 },
       { label: 'Doc Templates',   to: '/templates', icon: FileText },
       { label: 'Employees',       to: '/employees', icon: Users },

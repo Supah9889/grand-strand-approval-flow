@@ -29,6 +29,7 @@ import Invoices from './pages/Invoices';
 import PaymentsPage from './pages/PaymentsPage';
 import Warranty from './pages/Warranty';
 import WarrantyDetail from './pages/WarrantyDetail';
+import CustomFields from './pages/CustomFields';
 import PortalManager from './pages/PortalManager';
 import ClientPortal from './pages/ClientPortal';
 import VendorPortal from './pages/VendorPortal';
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
       <Route path="/payments" element={<PaymentsPage />} />
       <Route path="/warranty" element={<Warranty />} />
       <Route path="/warranty/:id" element={<WarrantyDetail />} />
+      <Route path="/custom-fields" element={<CustomFields />} />
       <Route path="/portal-manager" element={<PortalManager />} />
       <Route path="/portal/client" element={<ClientPortal />} />
       <Route path="/portal/vendor" element={<VendorPortal />} />

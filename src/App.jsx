@@ -23,6 +23,8 @@ import CalendarPage from './pages/CalendarPage';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EmployeeManager from './pages/EmployeeManager';
 import Financials from './pages/Financials';
+import PurchaseOrders from './pages/PurchaseOrders';
+import Bills from './pages/Bills';
 import PortalManager from './pages/PortalManager';
 import ClientPortal from './pages/ClientPortal';
 import VendorPortal from './pages/VendorPortal';
@@ -83,6 +85,8 @@ const AuthenticatedApp = () => {
       <Route path="/templates" element={<DocumentTemplates />} />
       <Route path="/employees" element={<EmployeeManager />} />
       <Route path="/financials" element={<Financials />} />
+      <Route path="/purchase-orders" element={<PurchaseOrders />} />
+      <Route path="/bills" element={<Bills />} />
       <Route path="/portal-manager" element={<PortalManager />} />
       <Route path="/portal/client" element={<ClientPortal />} />
       <Route path="/portal/vendor" element={<VendorPortal />} />

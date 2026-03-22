@@ -22,6 +22,8 @@ import Expenses from './pages/Expenses';
 import CalendarPage from './pages/CalendarPage';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EmployeeManager from './pages/EmployeeManager';
+import Sales from './pages/Sales';
+import LeadDetail from './pages/LeadDetail';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -66,6 +68,8 @@ const AuthenticatedApp = () => {
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/templates" element={<DocumentTemplates />} />
       <Route path="/employees" element={<EmployeeManager />} />
+      <Route path="/sales" element={<Sales />} />
+      <Route path="/sales/:id" element={<LeadDetail />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

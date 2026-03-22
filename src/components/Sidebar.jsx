@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Search, ShieldAlert, Clock,
   FileText, Building2, Receipt, CalendarDays, Users,
-  List, ChevronDown, Plus, StickyNote, TrendingUp
+  List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';
@@ -45,7 +45,8 @@ const NAV_GROUPS = [
     defaultOpen: false,
     adminOnly: true,
     items: [
-      { label: 'Sales / CRM', to: '/sales', icon: TrendingUp },
+      { label: 'Sales / CRM',  to: '/sales',     icon: TrendingUp },
+      { label: 'Estimates',    to: '/estimates',  icon: ClipboardList },
     ],
   },
   {

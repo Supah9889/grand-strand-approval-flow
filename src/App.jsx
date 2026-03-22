@@ -24,6 +24,8 @@ import DocumentTemplates from './pages/DocumentTemplates';
 import EmployeeManager from './pages/EmployeeManager';
 import Sales from './pages/Sales';
 import LeadDetail from './pages/LeadDetail';
+import Estimates from './pages/Estimates';
+import EstimateDetail from './pages/EstimateDetail';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -70,6 +72,8 @@ const AuthenticatedApp = () => {
       <Route path="/employees" element={<EmployeeManager />} />
       <Route path="/sales" element={<Sales />} />
       <Route path="/sales/:id" element={<LeadDetail />} />
+      <Route path="/estimates" element={<Estimates />} />
+      <Route path="/estimates/:id" element={<EstimateDetail />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

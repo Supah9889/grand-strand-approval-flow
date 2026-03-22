@@ -2,52 +2,62 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, LayoutDashboard, Search, PenLine, CheckCircle2,
-  Archive, ShieldAlert, Clock, FileText, Building2,
-  Receipt, CalendarDays, Users, List, ChevronDown, Plus, Briefcase
+  X, LayoutDashboard, Search, ShieldAlert, Clock,
+  FileText, Building2, Receipt, CalendarDays, Users,
+  List, ChevronDown, Plus, StickyNote
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole } from '@/lib/adminAuth';
 import NewJobModal from './NewJobModal';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 
 const NAV_GROUPS = [
   {
     label: 'Main',
     defaultOpen: true,
+    adminOnly: false,
     items: [
-      { label: 'Dashboard',          to: '/dashboard',                  icon: LayoutDashboard },
-      { label: 'Job Search',         to: '/search',                     icon: Search },
-      { label: 'Pending Signatures', to: '/dashboard?section=pending',  icon: PenLine },
-      { label: 'Signed Jobs',        to: '/dashboard?section=approved', icon: CheckCircle2 },
-      { label: 'Archived Jobs',      to: '/dashboard?section=archived', icon: Archive },
+      { label: 'Dashboard',  to: '/dashboard', icon: LayoutDashboard },
+      { label: 'Job Search', to: '/search',    icon: Search },
     ],
   },
   {
     label: 'Field',
     defaultOpen: false,
+    adminOnly: false,
     items: [
-      { label: 'Time Clock',   to: '/time-clock',   icon: Clock },
-      { label: 'Time Entries', to: '/time-entries',  icon: List },
-      { label: 'Expenses',     to: '/expenses',      icon: Receipt },
+      { label: 'Time Clock',   to: '/time-clock',  icon: Clock },
+      { label: 'Time Entries', to: '/time-entries', icon: List },
     ],
   },
   {
     label: 'Coordination',
     defaultOpen: false,
+    adminOnly: false,
     items: [
-      { label: 'Calendar',      to: '/calendar',   icon: CalendarDays },
-      { label: 'Vendor Bank',   to: '/vendors',    icon: Building2 },
-      { label: 'Doc Templates', to: '/templates',  icon: FileText },
-      { label: 'Employees',     to: '/employees',  icon: Users,      adminOnly: true },
-      { label: 'Admin Mode',    to: '/admin',      icon: ShieldAlert, adminOnly: true },
+      { label: 'Calendar', to: '/calendar', icon: CalendarDays },
+      { label: 'Notes',    to: '/notes',    icon: StickyNote, badge: true },
+    ],
+  },
+  {
+    label: 'Management',
+    defaultOpen: false,
+    adminOnly: true,
+    items: [
+      { label: 'Vendor Bank',     to: '/vendors',   icon: Building2 },
+      { label: 'Doc Templates',   to: '/templates', icon: FileText },
+      { label: 'Employees',       to: '/employees', icon: Users },
+      { label: 'Expenses',        to: '/expenses',  icon: Receipt },
+      { label: 'Admin Mode',      to: '/admin',     icon: ShieldAlert },
     ],
   },
 ];
 
-function NavGroup({ group, role, location, onClose }) {
+function NavGroup({ group, role, location, onClose, unreadNotes }) {
   const [open, setOpen] = useState(group.defaultOpen);
-  const visibleItems = group.items.filter(item => !item.adminOnly || role === 'admin');
-  if (visibleItems.length === 0) return null;
+
+  if (group.adminOnly && role !== 'admin') return null;
 
   return (
     <div>
@@ -73,9 +83,10 @@ function NavGroup({ group, role, location, onClose }) {
             className="overflow-hidden"
           >
             <div className="mt-0.5 space-y-0.5 pb-1">
-              {visibleItems.map(({ label, to, icon: Icon }) => {
+              {group.items.map(({ label, to, icon: Icon, badge }) => {
                 const isActive = location.pathname + location.search === to ||
                   (location.pathname === to && !location.search);
+                const showBadge = badge && unreadNotes > 0;
                 return (
                   <Link
                     key={label}
@@ -88,7 +99,12 @@ function NavGroup({ group, role, location, onClose }) {
                     }`}
                   >
                     <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
-                    {label}
+                    <span className="flex-1">{label}</span>
+                    {showBadge && (
+                      <span className="w-4 h-4 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
+                        {unreadNotes > 9 ? '9+' : unreadNotes}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -105,12 +121,18 @@ export default function Sidebar({ open, onClose }) {
   const role = getInternalRole();
   const [showNewJob, setShowNewJob] = useState(false);
 
+  const { data: notes = [] } = useQuery({
+    queryKey: ['job-notes'],
+    queryFn: () => base44.entities.JobNote.list('-created_date', 100),
+    enabled: open,
+  });
+  const unreadNotes = notes.filter(n => !n.read).length;
+
   return (
     <>
       <AnimatePresence>
         {open && (
           <>
-            {/* Overlay */}
             <motion.div
               key="overlay"
               initial={{ opacity: 0 }}
@@ -121,7 +143,6 @@ export default function Sidebar({ open, onClose }) {
               onClick={onClose}
             />
 
-            {/* Sidebar panel */}
             <motion.div
               key="sidebar"
               initial={{ x: '-100%' }}
@@ -161,6 +182,7 @@ export default function Sidebar({ open, onClose }) {
                     role={role}
                     location={location}
                     onClose={onClose}
+                    unreadNotes={unreadNotes}
                   />
                 ))}
               </nav>
@@ -181,7 +203,6 @@ export default function Sidebar({ open, onClose }) {
         )}
       </AnimatePresence>
 
-      {/* New Job Modal — rendered outside sidebar so it works after sidebar closes */}
       <NewJobModal open={showNewJob} onClose={() => setShowNewJob(false)} />
     </>
   );

@@ -8,7 +8,7 @@ export default function Splash() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/search', { replace: true });
+      navigate('/gate', { replace: true });
     }, 1600);
     return () => clearTimeout(timer);
   }, [navigate]);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
   const queryClient = useQueryClient();
 
   // Sync prefilled date when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && prefilledDate) {
       setForm(f => ({ ...f, start_date: prefilledDate }));
     }

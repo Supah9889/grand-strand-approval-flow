@@ -69,10 +69,15 @@ export default function TimeClock() {
         employee_code: employee.employee_code,
         job_id: selectedJob,
         job_address: job?.address || '',
+        job_title: job?.title || '',
         cost_code: costCode,
         clock_in: new Date().toISOString(),
+        entry_date: new Date().toISOString().split('T')[0],
+        employee_note: note,
         note,
+        entry_source: 'employee_clock',
         status: 'clocked_in',
+        created_by_name: employee.name,
       });
     },
     onSuccess: (entry) => {
@@ -92,7 +97,9 @@ export default function TimeClock() {
         clock_out: now.toISOString(),
         duration_minutes: mins,
         status: 'clocked_out',
+        employee_note: note || activeEntry.employee_note || activeEntry.note,
         note: note || activeEntry.note,
+        last_updated_by: employee?.name || activeEntry.employee_name,
       });
     },
     onSuccess: () => {

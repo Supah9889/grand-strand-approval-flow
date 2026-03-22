@@ -17,6 +17,7 @@ import Review from './pages/Review';
 import Admin from './pages/Admin';
 import TimeClock from './pages/TimeClock';
 import TimeEntries from './pages/TimeEntries';
+import TimeEntryDetail from './pages/TimeEntryDetail';
 import VendorBank from './pages/VendorBank';
 import Expenses from './pages/Expenses';
 import CalendarPage from './pages/CalendarPage';
@@ -84,6 +85,7 @@ const AuthenticatedApp = () => {
       <Route path="/admin" element={<Admin />} />
       <Route path="/time-clock" element={<TimeClock />} />
       <Route path="/time-entries" element={<TimeEntries />} />
+      <Route path="/time-entries/:id" element={<TimeEntryDetail />} />
       <Route path="/vendors" element={<VendorBank />} />
       <Route path="/expenses" element={<Expenses />} />
       <Route path="/calendar" element={<CalendarPage />} />

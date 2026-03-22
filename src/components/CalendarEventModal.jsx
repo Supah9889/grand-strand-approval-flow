@@ -37,10 +37,14 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
   const [selectedPreset, setSelectedPreset] = useState(null);
   const queryClient = useQueryClient();
 
-  // Sync prefilled date when modal opens
+  // Reset and sync when modal opens
   useEffect(() => {
-    if (open && prefilledDate) {
-      setForm(f => ({ ...f, start_date: prefilledDate }));
+    if (open) {
+      setStep('job');
+      setJobSearch('');
+      setSelectedPreset(null);
+      setHourlyMode(false);
+      setForm({ ...empty, start_date: prefilledDate || '' });
     }
   }, [open, prefilledDate]);
 

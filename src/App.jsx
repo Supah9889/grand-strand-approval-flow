@@ -46,6 +46,7 @@ import Sales from './pages/Sales';
 import LeadDetail from './pages/LeadDetail';
 import Estimates from './pages/Estimates';
 import EstimateDetail from './pages/EstimateDetail';
+import AuditLogPage from './pages/AuditLogPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -114,6 +115,7 @@ const AuthenticatedApp = () => {
       <Route path="/sales/:id" element={<LeadDetail />} />
       <Route path="/estimates" element={<Estimates />} />
       <Route path="/estimates/:id" element={<EstimateDetail />} />
+      <Route path="/audit-log" element={<AuditLogPage />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

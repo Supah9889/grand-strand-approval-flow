@@ -70,6 +70,7 @@ const NAV_GROUPS = [
       { label: 'Employees',       to: '/employees', icon: Users },
       { label: 'Expenses',        to: '/expenses',  icon: Receipt },
         { label: 'Portal Access',   to: '/portal-manager', icon: Globe },
+    { label: 'Audit Log',       to: '/audit-log', icon: ShieldAlert },
     { label: 'Admin Mode',      to: '/admin',     icon: ShieldAlert },
     ],
   },

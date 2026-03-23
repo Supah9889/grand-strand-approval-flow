@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2, Database } from 'lucide-react';
+import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2, Database, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import AdminPinGate from '../components/admin/AdminPinGate';

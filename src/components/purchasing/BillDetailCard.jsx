@@ -58,7 +58,7 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
       </div>
 
       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/60 flex-wrap">
-        <Select value={bill.status} onValueChange={onStatusChange}>
+        <Select value={bill.status} onValueChange={handleStatusChange}>
           <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
           <SelectContent>{Object.entries(BILL_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
         </Select>

@@ -86,6 +86,7 @@ export default function ExpenseEditScreen({
 
   const [lineItems, setLineItems] = useState(normalizeLineItems(initialData.line_items));
   const [showHeader, setShowHeader] = useState(true);
+  const [touched, setTouched] = useState(false);
 
   const itemSum = lineItems.reduce((s, item) =>
     s + (parseFloat(item.unit_cost) || 0) * (parseFloat(item.quantity) || 1), 0);

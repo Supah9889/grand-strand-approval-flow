@@ -232,8 +232,12 @@ export default function TimeEntryDetail() {
               <Textarea value={form.admin_note || ''} onChange={e => set('admin_note', e.target.value)} className="rounded-lg text-sm min-h-12" />
             </div>
 
+            {validationTouched && validationIssues.length > 0 && (
+              <ValidationPanel issues={validationIssues} />
+            )}
+
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 h-9 rounded-xl" onClick={() => { setEditing(false); setForm({ ...entry }); }}>Cancel</Button>
+              <Button variant="outline" className="flex-1 h-9 rounded-xl" onClick={() => { setEditing(false); setForm({ ...entry }); setValidationTouched(false); }}>Cancel</Button>
               <Button className="flex-1 h-9 rounded-xl gap-2" onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save</>}
               </Button>

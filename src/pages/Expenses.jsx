@@ -136,6 +136,14 @@ export default function Expenses() {
   // Editing existing expense
   const [editingExpense, setEditingExpense] = useState(null);
 
+  // Delete dialog
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Duplicate detection state
+  const [pendingSaveData, setPendingSaveData] = useState(null); // data awaiting duplicate confirmation
+  const [pendingSaveType, setPendingSaveType] = useState(null); // 'single' | 'edit' | 'multi'
+  const [dupeMatches, setDupeMatches] = useState(null);
+
   // Data
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses'],

@@ -6,6 +6,8 @@ import { format, parseISO } from 'date-fns';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
 import { getInternalRole } from '@/lib/adminAuth';
+import { validateInvoice } from '@/lib/validation';
+import { toast } from 'sonner';
 
 const SOURCE_LABELS = { estimate: 'From Estimate', change_order: 'Change Order', manual: 'Manual' };
 

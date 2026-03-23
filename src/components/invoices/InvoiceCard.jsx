@@ -4,6 +4,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
+import { getInternalRole } from '@/lib/adminAuth';
 
 const SOURCE_LABELS = { estimate: 'From Estimate', change_order: 'Change Order', manual: 'Manual' };
 
@@ -11,6 +13,8 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
   const cfg = INVOICE_STATUS_CONFIG[inv.status] || INVOICE_STATUS_CONFIG.draft;
+  const role = getInternalRole();
+  const isAdmin = role === 'admin';
   const lines = (() => { try { return JSON.parse(inv.line_items || '[]'); } catch { return []; } })();
   const balanceDue = Number(inv.balance_due ?? inv.amount ?? 0);
   const amtPaid = Number(inv.amount_paid || 0);
@@ -109,6 +113,17 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
               </button>
             </div>
           )}
+
+          <div className="pt-3 border-t border-border/60 mt-3">
+            <AttachmentManager
+              recordType="invoice"
+              recordId={inv.id}
+              jobId={inv.job_id}
+              isAdmin={isAdmin}
+              defaultCategory="invoice_support"
+              defaultVisibility="internal"
+            />
+          </div>
         </div>
       )}
     </div>

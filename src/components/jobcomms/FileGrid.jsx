@@ -8,6 +8,7 @@ import PhotoLightbox from '../dailylogs/PhotoLightbox';
 
 const IMAGE_TYPES = ['image/jpeg','image/png','image/webp','image/gif','image/jpg'];
 const isImage = (f) => IMAGE_TYPES.includes(f.file_type) || /\.(jpg|jpeg|png|webp|gif)$/i.test(f.file_name || '');
+const isPDF = (f) => f.file_type === 'application/pdf' || /\.pdf$/i.test(f.file_name || '') || /\.pdf/i.test(f.file_url || '');
 
 const VISIBILITY_BADGE = {
   internal: { label: 'Internal', color: 'bg-slate-100 text-slate-600', icon: Lock },

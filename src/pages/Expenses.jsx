@@ -223,18 +223,56 @@ export default function Expenses() {
     }
   };
 
-  // ── Save single parsed receipt ───────────────────────────────────────────
-  const handleSaveSingle = async (data) => {
-    await createMutation.mutateAsync({ ...data, inbox_status: 'confirmed' });
-    toast.success('Expense saved');
-    resetToInbox();
+  // ── Duplicate check helper ────────────────────────────────────────────────
+  const checkAndSave = (data, type) => {
+    const matches = detectDuplicates(data, expenses);
+    if (matches.length > 0) {
+      setPendingSaveData(data);
+      setPendingSaveType(type);
+      setDupeMatches(matches);
+    } else {
+      doSave(data, type);
+    }
   };
 
-  // ── Save one in multi queue ───────────────────────────────────────────────
-  const handleSaveMultiOne = async (data) => {
-    await createMutation.mutateAsync({ ...data, inbox_status: 'confirmed' });
-    toast.success('Receipt saved');
+  const doSave = async (data, type, dupeStatus = null) => {
+    const payload = { ...data, inbox_status: 'confirmed' };
+    if (dupeStatus) payload.duplicate_status = dupeStatus;
+    if (type === 'edit') {
+      updateMutation.mutate({ id: editingExpense.id, data: payload });
+    } else {
+      await createMutation.mutateAsync(payload);
+      if (type === 'single') { toast.success('Expense saved'); resetToInbox(); }
+      else { toast.success('Receipt saved'); }
+    }
   };
+
+  // ── Duplicate modal actions ───────────────────────────────────────────────
+  const handleDupeKeepBoth = () => {
+    const data = pendingSaveData;
+    const type = pendingSaveType;
+    setDupeMatches(null); setPendingSaveData(null); setPendingSaveType(null);
+    doSave(data, type, 'ignored');
+    toast.success('Saved — duplicate warning ignored');
+  };
+
+  const handleDupeDiscard = () => {
+    setDupeMatches(null); setPendingSaveData(null); setPendingSaveType(null);
+    toast('New entry discarded');
+  };
+
+  const handleDupeIgnore = () => {
+    const data = pendingSaveData;
+    const type = pendingSaveType;
+    setDupeMatches(null); setPendingSaveData(null); setPendingSaveType(null);
+    doSave(data, type, 'ignored');
+  };
+
+  // ── Save single parsed receipt ───────────────────────────────────────────
+  const handleSaveSingle = (data) => checkAndSave(data, 'single');
+
+  // ── Save one in multi queue ───────────────────────────────────────────────
+  const handleSaveMultiOne = (data) => checkAndSave(data, 'multi');
 
   // ── Edit existing expense ─────────────────────────────────────────────────
   const handleOpenExpense = (expense) => {
@@ -242,9 +280,7 @@ export default function Expenses() {
     setView('edit');
   };
 
-  const handleSaveEdit = (data) => {
-    updateMutation.mutate({ id: editingExpense.id, data: { ...data, inbox_status: 'confirmed' } });
-  };
+  const handleSaveEdit = (data) => checkAndSave(data, 'edit');
 
   const resetToInbox = () => {
     setView('inbox');

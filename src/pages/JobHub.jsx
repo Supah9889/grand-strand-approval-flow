@@ -67,6 +67,16 @@ export default function JobHub() {
     queryFn: () => base44.entities.TimeEntry.filter({ job_id: jobId }, '-clock_in'),
     enabled: !!jobId && activeTab === 'time' && isAdmin,
   });
+  const { data: estimates = [] } = useQuery({
+    queryKey: ['hub-estimates', jobId],
+    queryFn: () => base44.entities.Estimate.filter({ job_id: jobId }, '-created_date'),
+    enabled: !!jobId && activeTab === 'estimates' && isAdmin,
+  });
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['hub-expenses', jobId],
+    queryFn: () => base44.entities.Expense.filter({ job_id: jobId }, '-created_date'),
+    enabled: !!jobId && activeTab === 'expenses' && isAdmin,
+  });
   const { data: warrantyItems = [] } = useQuery({
     queryKey: ['hub-warranty', jobId],
     queryFn: () => base44.entities.WarrantyItem.filter({ job_id: jobId }, '-created_date'),

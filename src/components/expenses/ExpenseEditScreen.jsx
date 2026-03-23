@@ -105,7 +105,20 @@ export default function ExpenseEditScreen({
     setHeader(h => ({ ...h, job_id: jobId, job_address: job?.address || '' }));
   };
 
+  const expenseForValidation = {
+    vendor_name: header.vendor_name,
+    total_amount: parseFloat(header.final_total) || computedTotal,
+    expense_date: header.receipt_date,
+    category: header.category,
+    job_id: header.job_id,
+    payment_method: header.payment_method,
+  };
+  const validationIssues = validateExpense(expenseForValidation);
+  const validationErrors = validationIssues.filter(i => i.level === 'error');
+
   const handleSave = () => {
+    setTouched(true);
+    if (validationErrors.length > 0) return;
     const itemsForStorage = lineItems.map(({ _id, ...rest }) => rest);
     onSave({
       vendor_name:      header.vendor_name,

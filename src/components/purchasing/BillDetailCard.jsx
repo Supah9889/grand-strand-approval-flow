@@ -5,6 +5,8 @@ import { format, parseISO } from 'date-fns';
 import { BILL_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
 import { getInternalRole } from '@/lib/adminAuth';
+import { validateBill } from '@/lib/validation';
+import { toast } from 'sonner';
 
 export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
   const cfg = BILL_STATUS_CONFIG[bill.status] || BILL_STATUS_CONFIG.open;

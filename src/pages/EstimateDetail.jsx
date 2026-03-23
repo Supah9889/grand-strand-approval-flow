@@ -409,10 +409,16 @@ export default function EstimateDetail() {
             </div>
           </div>
 
+          {/* Validation panel — shown when editing and touched */}
+          {editing && validationTouched && (() => {
+            const issues = validateEstimate(form, lineItems);
+            return issues.length > 0 ? <ValidationPanel issues={issues} className="mt-2" /> : null;
+          })()}
+
           {/* Save/cancel editing */}
           {editing && (
             <div className="flex gap-2 border-t border-border pt-4">
-              <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={() => { setEditing(false); setForm({ ...estimate }); setLineItems(() => { try { return JSON.parse(estimate.line_items || '[]'); } catch { return []; } }); }}>Cancel</Button>
+              <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={() => { setEditing(false); setValidationTouched(false); setForm({ ...estimate }); setLineItems(() => { try { return JSON.parse(estimate.line_items || '[]'); } catch { return []; } }); }}>Cancel</Button>
               <Button className="flex-1 h-10 rounded-xl gap-2" onClick={saveEdits} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" />Save Changes</>}
               </Button>

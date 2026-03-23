@@ -174,6 +174,7 @@ export default function CostInboxTable({ expenses, onOpen, onDelete, onRestore, 
             const isArchived = expense.inbox_status === 'archived';
             const isDupe = expense.duplicate_status === 'possible_duplicate' || expense.duplicate_status === 'needs_review';
             const dupeIgnored = expense.duplicate_status === 'ignored';
+            const validationErrors = !isArchived ? validateExpense(expense).filter(i => i.level === 'error') : [];
             const lineItemCount = (() => {
               try { return expense.line_items ? JSON.parse(expense.line_items).length : 0; } catch { return 0; }
             })();

@@ -127,7 +127,7 @@ export default function Expenses() {
           </div>
           <div className="flex gap-2">
             <label className="cursor-pointer">
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChange} />
               <Button asChild variant="outline" className="h-9 rounded-xl text-sm">
                 <span>
                   {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Camera className="w-4 h-4 mr-1.5" />Scan</>}

@@ -28,11 +28,15 @@ export default function BillForm({ jobId, jobAddress, existingNums = [], onSave,
     created_by_name: role || 'admin',
   });
   const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const issues = validateBill({ ...form, amount: parseFloat(form.amount) || 0 });
+  const errors = issues.filter(i => i.level === 'error');
+
   const handleSave = async () => {
-    if (!form.vendor_name) { toast.error('Vendor is required'); return; }
-    if (!form.amount) { toast.error('Amount is required'); return; }
+    setTouched(true);
+    if (errors.length > 0) { toast.error('Please fix the issues before saving'); return; }
     setSaving(true);
     await onSave({ ...form, amount: parseFloat(form.amount) || 0 });
     setSaving(false);

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Camera, Receipt, Search, DollarSign, X, Scan } from 'lucide-react';
+import { Loader2, Camera, Receipt, Search, X, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';

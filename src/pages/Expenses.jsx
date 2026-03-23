@@ -150,8 +150,15 @@ export default function Expenses() {
               </div>
 
               {receiptPreview && (
-                <img src={receiptPreview} alt="Receipt" className="w-full max-h-40 object-cover rounded-xl" />
+                <img src={receiptPreview} alt="Scanned Receipt" className="w-full max-h-40 object-cover rounded-xl" />
               )}
+
+              <DocUpload
+                fileUrl={form.receipt_image_url && !receiptPreview ? form.receipt_image_url : undefined}
+                fileName={form.file_name}
+                onUploaded={(url, name) => setForm(f => ({ ...f, receipt_image_url: url, file_name: name }))}
+                label="Upload receipt, invoice, or supporting document"
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <Input placeholder="Vendor Name *" value={form.vendor_name} onChange={e => setForm({...form, vendor_name: e.target.value})} className="h-10 rounded-xl text-sm" />

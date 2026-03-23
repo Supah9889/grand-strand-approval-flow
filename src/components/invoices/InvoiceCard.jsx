@@ -9,6 +9,7 @@ const SOURCE_LABELS = { estimate: 'From Estimate', change_order: 'Change Order',
 
 export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
   const cfg = INVOICE_STATUS_CONFIG[inv.status] || INVOICE_STATUS_CONFIG.draft;
   const lines = (() => { try { return JSON.parse(inv.line_items || '[]'); } catch { return []; } })();
   const balanceDue = Number(inv.balance_due ?? inv.amount ?? 0);
@@ -95,6 +96,17 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
             <div className="pt-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
               <p className="text-xs text-foreground">{inv.notes}</p>
+            </div>
+          )}
+
+          {inv.job_id && (
+            <div className="pt-3">
+              <button
+                onClick={() => navigate(`/job-hub?jobId=${inv.job_id}`)}
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+              >
+                <ExternalLink className="w-3 h-3" /> View Job: {inv.job_address || inv.job_id}
+              </button>
             </div>
           )}
         </div>

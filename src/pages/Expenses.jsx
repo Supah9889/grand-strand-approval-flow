@@ -212,7 +212,12 @@ export default function Expenses() {
                 </div>
                 {e.cost_code && <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full mt-1 inline-block">{e.cost_code}</span>}
                 {e.receipt_image_url && (
-                  <a href={e.receipt_image_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline mt-1 block">View receipt</a>
+                  <a href={e.receipt_image_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline mt-1">
+                    {e.receipt_image_url.match(/\.pdf/i) || (e.file_name && e.file_name.match(/\.pdf$/i))
+                      ? <><span className="px-1 bg-red-50 text-red-600 rounded text-[10px] font-mono">PDF</span> View document</>
+                      : 'View receipt'
+                    }
+                  </a>
                 )}
               </div>
             ))}

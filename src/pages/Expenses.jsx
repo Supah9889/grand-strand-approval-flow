@@ -282,6 +282,11 @@ export default function Expenses() {
 
   const handleSaveEdit = (data) => checkAndSave(data, 'edit');
 
+  // ── Delete / Restore ─────────────────────────────────────────────────────
+  const handleDeleteRequest = (expense) => setDeleteTarget(expense);
+  const handleDeleteConfirm = () => deleteMutation.mutate({ id: deleteTarget.id });
+  const handleRestore = (expense) => restoreMutation.mutate({ id: expense.id });
+
   const resetToInbox = () => {
     setView('inbox');
     setParsedReceipts(null);

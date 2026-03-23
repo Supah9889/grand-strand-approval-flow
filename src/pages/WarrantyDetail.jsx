@@ -13,6 +13,7 @@ import AppLayout from '../components/AppLayout';
 import { WARRANTY_STATUS_CONFIG, WARRANTY_CATEGORY_LABELS, WARRANTY_PRIORITY_CONFIG } from '@/lib/warrantyHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
+import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 
 export default function WarrantyDetail() {
   const itemId = window.location.pathname.split('/').pop();

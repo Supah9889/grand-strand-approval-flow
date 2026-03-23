@@ -117,6 +117,16 @@ export default function EstimateDetail() {
   };
 
   const changeStatus = (newStatus) => {
+    // Block sent/approved if critical fields missing
+    const BLOCKED = ['sent', 'approved'];
+    if (BLOCKED.includes(newStatus) && form) {
+      const issues = validateEstimate(form, lineItems);
+      const errors = issues.filter(i => i.level === 'error');
+      if (errors.length > 0) {
+        toast.error(errors[0].message);
+        return;
+      }
+    }
     const data = { status: newStatus };
     if (newStatus === 'approved') data.approval_date = new Date().toISOString();
     if (newStatus === 'rejected') data.rejection_date = new Date().toISOString();

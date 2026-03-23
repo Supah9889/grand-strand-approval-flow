@@ -326,13 +326,17 @@ export default function ExpenseEditScreen({
         />
       )}
 
+      {touched && validationIssues.length > 0 && (
+        <ValidationPanel issues={validationIssues} />
+      )}
+
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="outline" className="flex-1 h-10 rounded-xl text-sm" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="button" className="flex-1 h-10 rounded-xl text-sm"
-          disabled={!header.vendor_name || saving} onClick={handleSave}>
+          disabled={saving} onClick={handleSave}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Confirm & Save'}
         </Button>
       </div>

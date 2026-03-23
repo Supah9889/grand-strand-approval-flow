@@ -31,7 +31,6 @@ export default function BillDetailForm({ jobs = [], vendors = [], existingNums =
     created_by_name: role || 'admin',
   });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
 

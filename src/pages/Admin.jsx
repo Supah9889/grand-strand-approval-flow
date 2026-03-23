@@ -266,6 +266,15 @@ export default function Admin() {
               </div>
             </TabsContent>
           )}
+
+          {/* ── QB EXPORT TAB (admin only) ── */}
+          {isAdminRole && (
+            <TabsContent value="export" className="mt-0">
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <QBExportPanel />
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>

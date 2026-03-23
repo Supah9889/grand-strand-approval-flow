@@ -99,6 +99,10 @@ export default function EstimateDetail() {
 
   const saveEdits = async () => {
     if (!form) return;
+    const issues = validateEstimate(form, lineItems);
+    const errors = issues.filter(i => i.level === 'error');
+    setValidationTouched(true);
+    if (errors.length > 0) { toast.error('Fix the validation errors before saving'); return; }
     setSaving(true);
     const totals = calcTotals(lineItems, form.tax_rate || 0, form.discount_amount || 0);
     await updateMutation.mutateAsync({
@@ -108,6 +112,7 @@ export default function EstimateDetail() {
     });
     setSaving(false);
     setEditing(false);
+    setValidationTouched(false);
     toast.success('Estimate saved');
   };
 

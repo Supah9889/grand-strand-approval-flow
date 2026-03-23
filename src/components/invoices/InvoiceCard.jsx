@@ -63,7 +63,7 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
         </div>
 
         <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/60">
-          <Select value={inv.status} onValueChange={onStatusChange}>
+          <Select value={inv.status} onValueChange={handleStatusChange}>
             <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>{Object.entries(INVOICE_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
           </Select>

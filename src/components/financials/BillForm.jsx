@@ -84,6 +84,9 @@ export default function BillForm({ jobId, jobAddress, existingNums = [], onSave,
         <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
         <Textarea value={form.notes} onChange={e => set('notes', e.target.value)} className="rounded-lg text-sm min-h-12" />
       </div>
+      {touched && issues.length > 0 && (
+        <ValidationPanel issues={issues} />
+      )}
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1 h-9 rounded-xl" onClick={onCancel}>Cancel</Button>
         <Button className="flex-1 h-9 rounded-xl" onClick={handleSave} disabled={saving}>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Loader2, ArrowLeft, MapPin, User, DollarSign, Calendar, CheckSquare, FileDiff, FileText, Clock, BookOpen, ShieldCheck, FolderOpen, StickyNote, Lock } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, User, DollarSign, Calendar, CheckSquare, FileDiff, FileText, Clock, BookOpen, ShieldCheck, FolderOpen, StickyNote, Lock, Receipt } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
@@ -15,7 +15,9 @@ const TABS = [
   { key: 'logs',          label: 'Daily Logs',    icon: BookOpen,     adminOnly: false },
   { key: 'files',         label: 'Files',         icon: FolderOpen,   adminOnly: false },
   { key: 'change_orders', label: 'Change Orders', icon: FileDiff,     adminOnly: true  },
+  { key: 'estimates',     label: 'Estimates',     icon: FileText,     adminOnly: true  },
   { key: 'invoices',      label: 'Invoices',      icon: FileText,     adminOnly: true  },
+  { key: 'expenses',      label: 'Expenses',      icon: Receipt,      adminOnly: true  },
   { key: 'time',          label: 'Time',          icon: Clock,        adminOnly: true  },
   { key: 'warranty',      label: 'Warranty',      icon: ShieldCheck,  adminOnly: false },
   { key: 'notes',         label: 'Notes',         icon: StickyNote,   adminOnly: false },

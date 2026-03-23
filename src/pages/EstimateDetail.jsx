@@ -22,6 +22,8 @@ import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
+import { validateEstimate } from '@/lib/validation';
+import ValidationPanel from '@/components/shared/ValidationPanel';
 
 const SERVICE_TYPES = ['interior_painting','exterior_painting','cabinet_painting','deck_staining','commercial_painting','drywall_repair','power_washing','epoxy_floor','other'];
 const lbl = s => s?.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) || '';

@@ -189,17 +189,24 @@ export default function CostInboxTable({ expenses, onOpen, onDelete, onRestore, 
                   onClick={() => { setMenuOpenId(null); onOpen(expense); }}
                   className="w-full text-left p-3"
                 >
-                  {/* Duplicate badge */}
-                  {isDupe && (
-                    <div className="flex items-center gap-1 mb-1.5">
-                      <Copy className="w-3 h-3 text-amber-500" />
-                      <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Possible Duplicate</span>
-                    </div>
-                  )}
-                  {dupeIgnored && (
-                    <div className="flex items-center gap-1 mb-1.5">
-                      <Copy className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Duplicate Warning Ignored</span>
+                  {/* Duplicate + validation badges */}
+                  {(isDupe || dupeIgnored || validationErrors.length > 0) && (
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                      {isDupe && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                          <Copy className="w-2.5 h-2.5" /> Possible Duplicate
+                        </span>
+                      )}
+                      {dupeIgnored && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                          <Copy className="w-2.5 h-2.5" /> Duplicate Ignored
+                        </span>
+                      )}
+                      {validationErrors.map((e, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 text-[10px] text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">
+                          <XCircle className="w-2.5 h-2.5 shrink-0" /> {e.message}
+                        </span>
+                      ))}
                     </div>
                   )}
 

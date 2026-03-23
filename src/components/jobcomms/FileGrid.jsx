@@ -46,6 +46,12 @@ function FileCard({ file, onImageClick }) {
         <button onClick={onImageClick} className="block w-full aspect-video bg-muted hover:opacity-90 transition-opacity overflow-hidden">
           <img src={file.file_url} alt={file.file_name} className="w-full h-full object-cover" />
         </button>
+      ) : isPDF(file) ? (
+        <a href={file.file_url} target="_blank" rel="noopener noreferrer"
+          className="flex flex-col items-center justify-center gap-2 aspect-video bg-red-50 hover:bg-red-100 transition-colors">
+          <FileText className="w-8 h-8 text-red-400" />
+          <span className="text-xs font-mono font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded">PDF</span>
+        </a>
       ) : (
         <a href={file.file_url} target="_blank" rel="noopener noreferrer"
           className="flex items-center justify-center aspect-video bg-muted hover:bg-muted/80 transition-colors">

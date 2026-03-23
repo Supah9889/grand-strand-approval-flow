@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Loader2, Paperclip } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateNumber, BILL_STATUS_CONFIG } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import DocUpload from '@/components/shared/DocUpload';
 
 const CATEGORIES = ['labor','materials','subcontractor','permit','equipment','travel','disposal','admin','other'];
 

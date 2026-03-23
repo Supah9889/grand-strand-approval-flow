@@ -22,6 +22,12 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
 
+  // Photo-only categories keep image-only; document categories allow PDF too
+  const PHOTO_CATEGORIES = ['before_photo','progress_photo','after_photo','jobsite_photo','punch_list_photo','warranty_photo'];
+  const isDocCategory = !PHOTO_CATEGORIES.includes(category);
+  const accept = isDocCategory ? 'application/pdf,image/png,image/jpeg,image/jpg' : 'image/*';
+  const acceptLabel = isDocCategory ? 'PDF, PNG, JPG' : 'Images only';
+
   const handleFileChange = (e) => {
     const selected = Array.from(e.target.files || []);
     setFiles(selected);

@@ -164,6 +164,10 @@ export default function Admin() {
                   <Database className="w-4 h-4" />
                   QB Export
                 </TabsTrigger>
+                <TabsTrigger value="costcodes" className="flex-1 rounded-lg text-sm gap-2">
+                  <Tag className="w-4 h-4" />
+                  Cost Codes
+                </TabsTrigger>
               </>
             )}
           </TabsList>

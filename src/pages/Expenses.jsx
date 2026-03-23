@@ -447,10 +447,33 @@ export default function Expenses() {
           <CostInboxTable
             expenses={expenses}
             onOpen={handleOpenExpense}
+            onDelete={handleDeleteRequest}
+            onRestore={handleRestore}
             isLoading={isLoading}
           />
         )}
       </div>
+
+      {/* ── DELETE CONFIRMATION ───────────────────────────────────────────── */}
+      {deleteTarget && (
+        <DeleteExpenseDialog
+          expense={deleteTarget}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          saving={deleteMutation.isPending}
+        />
+      )}
+
+      {/* ── DUPLICATE WARNING ─────────────────────────────────────────────── */}
+      {dupeMatches && pendingSaveData && (
+        <DuplicateWarningModal
+          newExpense={pendingSaveData}
+          matches={dupeMatches}
+          onKeepBoth={handleDupeKeepBoth}
+          onDiscard={handleDupeDiscard}
+          onIgnore={handleDupeIgnore}
+        />
+      )}
     </AppLayout>
   );
 }

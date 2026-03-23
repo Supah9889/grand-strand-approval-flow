@@ -21,6 +21,7 @@ import { ESTIMATE_STATUS_CONFIG, generateEstimateNumber, calcTotals } from '@/li
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
 
 const SERVICE_TYPES = ['interior_painting','exterior_painting','cabinet_painting','deck_staining','commercial_painting','drywall_repair','power_washing','epoxy_floor','other'];
 const lbl = s => s?.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) || '';
@@ -472,6 +473,18 @@ export default function EstimateDetail() {
 
         {/* Linked Job */}
         {estimate.job_id && <LinkedJobPanel jobId={estimate.job_id} />}
+
+        {/* Attachments */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <AttachmentManager
+            recordType="estimate"
+            recordId={estimateId}
+            jobId={estimate.job_id}
+            isAdmin={role === 'admin'}
+            defaultCategory="estimate"
+            defaultVisibility="internal"
+          />
+        </div>
 
         {/* Activity */}
         <div className="bg-card border border-border rounded-2xl p-5">

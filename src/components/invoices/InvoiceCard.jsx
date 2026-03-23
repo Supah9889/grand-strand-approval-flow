@@ -17,6 +17,18 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
   const cfg = INVOICE_STATUS_CONFIG[inv.status] || INVOICE_STATUS_CONFIG.draft;
   const role = getInternalRole();
   const isAdmin = role === 'admin';
+
+  const BLOCKED_STATUSES = ['paid', 'sent'];
+  const handleStatusChange = (newStatus) => {
+    if (BLOCKED_STATUSES.includes(newStatus)) {
+      const errors = validateInvoice(inv).filter(i => i.level === 'error');
+      if (errors.length > 0) {
+        toast.error(errors[0].message);
+        return;
+      }
+    }
+    onStatusChange(newStatus);
+  };
   const lines = (() => { try { return JSON.parse(inv.line_items || '[]'); } catch { return []; } })();
   const balanceDue = Number(inv.balance_due ?? inv.amount ?? 0);
   const amtPaid = Number(inv.amount_paid || 0);

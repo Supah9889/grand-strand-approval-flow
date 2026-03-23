@@ -298,6 +298,18 @@ export default function ExpenseEditScreen({
       {/* Line items */}
       <ReceiptLineItems items={lineItems} onChange={setLineItems} />
 
+      {/* Attachments — only for existing saved expenses */}
+      {isEdit && (expenseId || initialData.id) && (
+        <AttachmentManager
+          recordType="expense"
+          recordId={expenseId || initialData.id}
+          jobId={header.job_id || null}
+          isAdmin={true}
+          defaultCategory="receipt"
+          defaultVisibility="internal"
+        />
+      )}
+
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="outline" className="flex-1 h-10 rounded-xl text-sm" onClick={onCancel}>

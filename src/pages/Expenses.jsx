@@ -10,7 +10,10 @@ import DocUpload from '@/components/shared/DocUpload';
 import ExpenseEditScreen from '@/components/expenses/ExpenseEditScreen';
 import MultiReceiptQueue from '@/components/expenses/MultiReceiptQueue';
 import CostInboxTable from '@/components/expenses/CostInboxTable';
+import DeleteExpenseDialog from '@/components/expenses/DeleteExpenseDialog';
+import DuplicateWarningModal from '@/components/expenses/DuplicateWarningModal';
 import { parseReceiptFile } from '@/components/expenses/ReceiptParser';
+import { detectDuplicates } from '@/lib/duplicateDetection';
 
 /**
  * LLM call to detect if a file has multiple receipts and return them all.

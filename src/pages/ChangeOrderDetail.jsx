@@ -19,6 +19,7 @@ import COForm from '../components/changeorders/COForm';
 import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS, calcCOTotal } from '@/lib/changeOrderHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
+import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 
 export default function ChangeOrderDetail() {
   const coId = window.location.pathname.split('/').pop();
@@ -294,6 +295,9 @@ export default function ChangeOrderDetail() {
                 )}
               </div>
             )}
+
+            {/* Linked Job */}
+            {co.job_id && <LinkedJobPanel jobId={co.job_id} />}
 
             {/* Activity */}
             <div className="bg-card border border-border rounded-2xl p-5">

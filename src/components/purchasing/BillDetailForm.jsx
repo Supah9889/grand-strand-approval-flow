@@ -115,13 +115,13 @@ export default function BillDetailForm({ jobs = [], vendors = [], existingNums =
         <Textarea value={form.notes} onChange={e => set('notes', e.target.value)} className="rounded-lg text-sm min-h-12" />
       </div>
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1">Attach Receipt / Invoice</label>
-        <label className={`flex items-center gap-2 cursor-pointer border border-dashed border-border rounded-lg px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-          <Paperclip className="w-3.5 h-3.5" />
-          {uploading ? 'Uploading...' : form.file_url ? 'File attached — change file' : 'Upload bill / receipt'}
-          <input type="file" className="hidden" onChange={handleFileUpload} />
-        </label>
-        {form.file_url && <p className="text-xs text-green-600 mt-1">✓ File attached</p>}
+        <label className="block text-xs font-medium text-muted-foreground mb-1">Attach Bill / Receipt / Invoice</label>
+        <DocUpload
+          fileUrl={form.file_url}
+          fileName={form.file_name}
+          onUploaded={(url, name) => { set('file_url', url); set('file_name', name); }}
+          label="Upload bill, receipt, or invoice"
+        />
       </div>
       <div className="flex gap-2 border-t border-border pt-4">
         <Button variant="outline" className="flex-1 h-9 rounded-xl" onClick={onCancel}>Cancel</Button>

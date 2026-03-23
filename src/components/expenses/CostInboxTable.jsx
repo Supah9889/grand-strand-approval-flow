@@ -3,10 +3,11 @@
  * Supports delete (archive), duplicate badges, and filter by duplicate status.
  */
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X, Copy, Trash2, MoreHorizontal, ArchiveRestore } from 'lucide-react';
+import { Search, Filter, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X, Copy, Trash2, MoreHorizontal, ArchiveRestore, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO } from 'date-fns';
+import { validateExpense } from '@/lib/validation';
 
 const STATUS_CONFIG = {
   new:          { label: 'New',          color: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-500' },

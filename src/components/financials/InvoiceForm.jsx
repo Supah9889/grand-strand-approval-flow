@@ -8,6 +8,8 @@ import { Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateNumber, INVOICE_STATUS_CONFIG } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { validateInvoice } from '@/lib/validation';
+import ValidationPanel from '@/components/shared/ValidationPanel';
 
 export default function InvoiceForm({ jobId, jobAddress, customerName, existingNums = [], onSave, onCancel }) {
   const role = getInternalRole();

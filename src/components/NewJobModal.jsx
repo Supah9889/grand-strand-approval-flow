@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG } from '@/lib/jobHelpers';
+import { validateJob } from '@/lib/validation';
+import ValidationPanel from '@/components/shared/ValidationPanel';
 
 const JOB_COLORS = [
   '#2563eb', // blue

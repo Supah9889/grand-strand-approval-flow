@@ -7,6 +7,8 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateNumber, BILL_STATUS_CONFIG } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { validateBill } from '@/lib/validation';
+import ValidationPanel from '@/components/shared/ValidationPanel';
 
 const CATEGORIES = ['labor','materials','subcontractor','permit','equipment','travel','disposal','admin','other'];
 

@@ -60,6 +60,7 @@ export default function ExpenseEditScreen({
   saving = false,
   isEdit = false,
   progressLabel = null,
+  expenseId = null,
 }) {
   const [header, setHeader] = useState({
     vendor_name:    initialData.vendor_name || '',

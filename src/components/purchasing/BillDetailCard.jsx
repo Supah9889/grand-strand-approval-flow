@@ -14,6 +14,17 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
   const role = getInternalRole();
   const isAdmin = role === 'admin';
 
+  const handleStatusChange = (newStatus) => {
+    if (newStatus === 'paid') {
+      const errors = validateBill(bill).filter(i => i.level === 'error');
+      if (errors.length > 0) {
+        toast.error(errors[0].message);
+        return;
+      }
+    }
+    onStatusChange(newStatus);
+  };
+
   return (
     <div className={`bg-card border rounded-xl p-4 ${isOverdue ? 'border-red-200' : 'border-border'}`}>
       <div className="flex items-start justify-between gap-3">

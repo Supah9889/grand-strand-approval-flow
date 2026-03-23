@@ -97,7 +97,7 @@ export default function Expenses() {
     },
   });
 
-  const handleFileChange = (e) => {
+  const handleScanChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setReceiptFile(file);

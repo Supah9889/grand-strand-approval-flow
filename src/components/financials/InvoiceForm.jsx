@@ -28,11 +28,16 @@ export default function InvoiceForm({ jobId, jobAddress, customerName, existingN
     created_by_name: role || 'admin',
   });
   const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const issues = validateInvoice({ ...form, amount: parseFloat(form.amount) || 0 });
+  const errors = issues.filter(i => i.level === 'error');
+
   const handleSave = async () => {
-    if (!form.amount) { toast.error('Amount is required'); return; }
+    setTouched(true);
+    if (errors.length > 0) { toast.error('Please fix the issues before saving'); return; }
     setSaving(true);
     await onSave({ ...form, amount: parseFloat(form.amount) || 0, balance_due: parseFloat(form.amount) || 0, amount_paid: 0 });
     setSaving(false);

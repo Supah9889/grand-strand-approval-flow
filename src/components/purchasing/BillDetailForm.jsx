@@ -34,15 +34,7 @@ export default function BillDetailForm({ jobs = [], vendors = [], existingNums =
   const [uploading, setUploading] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    set('file_url', file_url);
-    setUploading(false);
-    toast.success('File attached');
-  };
+
 
   const handleSave = async () => {
     if (!form.vendor_name) { toast.error('Vendor is required'); return; }

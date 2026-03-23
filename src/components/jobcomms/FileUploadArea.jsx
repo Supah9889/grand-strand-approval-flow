@@ -67,8 +67,11 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
 
       <label className="flex flex-col items-center gap-2 cursor-pointer border-2 border-dashed border-border rounded-xl px-4 py-6 hover:border-primary/40 transition-colors text-center">
         <Upload className="w-6 h-6 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">{files.length ? `${files.length} file${files.length > 1 ? 's' : ''} selected` : 'Click to select files or photos'}</span>
-        <input type="file" multiple className="hidden" onChange={handleFileChange} />
+        <span className="text-sm text-muted-foreground">
+          {files.length ? `${files.length} file${files.length > 1 ? 's' : ''} selected` : 'Click to select files'}
+        </span>
+        <span className="text-xs text-muted-foreground/60">Accepted: {acceptLabel}</span>
+        <input type="file" multiple accept={accept} className="hidden" onChange={handleFileChange} />
       </label>
 
       <div className="grid grid-cols-2 gap-3">

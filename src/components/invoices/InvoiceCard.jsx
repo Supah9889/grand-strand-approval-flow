@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { AlertCircle, ChevronDown, ChevronUp, CreditCard } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 

@@ -20,6 +20,7 @@ import SendEstimateModal from '../components/estimates/SendEstimateModal';
 import { ESTIMATE_STATUS_CONFIG, generateEstimateNumber, calcTotals } from '@/lib/estimateHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
+import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 
 const SERVICE_TYPES = ['interior_painting','exterior_painting','cabinet_painting','deck_staining','commercial_painting','drywall_repair','power_washing','epoxy_floor','other'];
 const lbl = s => s?.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) || '';

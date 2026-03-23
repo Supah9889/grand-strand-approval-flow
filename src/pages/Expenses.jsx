@@ -437,6 +437,7 @@ export default function Expenses() {
                 onCancel={resetToInbox}
                 saving={updateMutation.isPending}
                 isEdit
+                expenseId={editingExpense?.id}
               />
             </motion.div>
           )}

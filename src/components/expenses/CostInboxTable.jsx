@@ -1,0 +1,237 @@
+/**
+ * CostInboxTable — inbox-style list of expense records.
+ */
+import React, { useState, useMemo } from 'react';
+import { Search, Filter, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format, parseISO } from 'date-fns';
+
+const STATUS_CONFIG = {
+  new:          { label: 'New',          color: 'bg-blue-100 text-blue-700',   dot: 'bg-blue-500' },
+  in_review:    { label: 'In Review',    color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
+  confirmed:    { label: 'Confirmed',    color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+  needs_review: { label: 'Needs Review', color: 'bg-red-100 text-red-700',     dot: 'bg-red-500'   },
+  filed:        { label: 'Filed',        color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+  archived:     { label: 'Archived',     color: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
+};
+
+const MATCH_ICON = {
+  matched:      <CheckCircle2 className="w-3 h-3 text-green-500" />,
+  needs_review: <Clock className="w-3 h-3 text-amber-500" />,
+  mismatch:     <AlertTriangle className="w-3 h-3 text-red-500" />,
+};
+
+function fmt(n) {
+  return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return format(parseISO(d), 'MM/dd/yy'); } catch { return d; }
+}
+
+export default function CostInboxTable({ expenses, onOpen, isLoading }) {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('created_date');
+
+  const filtered = useMemo(() => {
+    let list = [...expenses];
+
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(e =>
+        e.vendor_name?.toLowerCase().includes(q) ||
+        e.job_address?.toLowerCase().includes(q) ||
+        e.file_name?.toLowerCase().includes(q) ||
+        e.receipt_number?.toLowerCase().includes(q) ||
+        e.cost_code?.toLowerCase().includes(q)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      list = list.filter(e => (e.inbox_status || 'new') === statusFilter);
+    }
+
+    list.sort((a, b) => {
+      if (sortBy === 'amount') return (b.total_amount || 0) - (a.total_amount || 0);
+      if (sortBy === 'vendor') return (a.vendor_name || '').localeCompare(b.vendor_name || '');
+      if (sortBy === 'date') return (b.expense_date || b.receipt_date || '').localeCompare(a.expense_date || a.receipt_date || '');
+      // default: created_date desc
+      return (b.created_date || '').localeCompare(a.created_date || '');
+    });
+
+    return list;
+  }, [expenses, search, statusFilter, sortBy]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {};
+    expenses.forEach(e => {
+      const s = e.inbox_status || 'new';
+      counts[s] = (counts[s] || 0) + 1;
+    });
+    return counts;
+  }, [expenses]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-muted-foreground">Loading inbox…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Status pills */}
+      <div className="flex gap-1.5 flex-wrap">
+        <button onClick={() => setStatusFilter('all')}
+          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${statusFilter === 'all' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+          All ({expenses.length})
+        </button>
+        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+          const count = statusCounts[key] || 0;
+          if (count === 0) return null;
+          return (
+            <button key={key} onClick={() => setStatusFilter(statusFilter === key ? 'all' : key)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${statusFilter === key ? cfg.color + ' border-transparent' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+              {cfg.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search + sort */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search vendor, job, file…"
+            className="pl-9 h-9 rounded-xl text-xs" />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="h-9 w-36 rounded-xl text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="created_date">Newest First</SelectItem>
+            <SelectItem value="date">Purchase Date</SelectItem>
+            <SelectItem value="amount">Amount</SelectItem>
+            <SelectItem value="vendor">Vendor</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Entries */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <Inbox className="w-8 h-8 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">No expenses in inbox</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {/* Column header — desktop */}
+          <div className="hidden md:grid grid-cols-[auto_1fr_1fr_auto_auto_auto_auto] gap-3 px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <span className="w-8" />
+            <span>Vendor / File</span>
+            <span>Job</span>
+            <span>Date</span>
+            <span>Amount</span>
+            <span>Status</span>
+            <span></span>
+          </div>
+
+          {filtered.map(expense => {
+            const statusCfg = STATUS_CONFIG[expense.inbox_status || 'new'];
+            const isPDF = expense.file_name?.match(/\.pdf$/i) || expense.receipt_image_url?.match(/\.pdf/i);
+            const lineItemCount = (() => {
+              try { return expense.line_items ? JSON.parse(expense.line_items).length : 0; } catch { return 0; }
+            })();
+
+            return (
+              <button
+                key={expense.id}
+                onClick={() => onOpen(expense)}
+                className="w-full text-left bg-card border border-border rounded-xl p-3 hover:border-primary/40 hover:shadow-sm transition-all group"
+              >
+                {/* Mobile layout */}
+                <div className="md:hidden space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{expense.vendor_name || 'Unknown Vendor'}</p>
+                      {expense.store_location && <p className="text-xs text-muted-foreground truncate">{expense.store_location}</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.color}`}>{statusCfg.label}</span>
+                      <p className="text-sm font-bold text-primary">${fmt(expense.total_amount)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {(expense.expense_date || expense.receipt_date) && (
+                      <span className="text-xs text-muted-foreground">{fmtDate(expense.expense_date || expense.receipt_date)}</span>
+                    )}
+                    {expense.job_address && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{expense.job_address}</span>}
+                    {expense.cost_code && <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{expense.cost_code}</span>}
+                    {expense.parsed_match_status && MATCH_ICON[expense.parsed_match_status]}
+                    {lineItemCount > 0 && <span className="text-xs text-muted-foreground">{lineItemCount} items</span>}
+                    {(expense.receipt_image_url || expense.file_url) && (
+                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                        <FileText className="w-3 h-3" />{isPDF ? 'PDF' : 'IMG'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Desktop layout */}
+                <div className="hidden md:grid grid-cols-[auto_1fr_1fr_auto_auto_auto] gap-3 items-center">
+                  {/* File type icon */}
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    {isPDF
+                      ? <span className="text-[9px] font-bold text-red-500">PDF</span>
+                      : <FileText className="w-3.5 h-3.5 text-muted-foreground" />}
+                  </div>
+
+                  {/* Vendor / file */}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                      {expense.vendor_name || 'Unknown Vendor'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {expense.file_name || expense.store_location || (expense.receipt_number ? `#${expense.receipt_number}` : '—')}
+                    </p>
+                  </div>
+
+                  {/* Job */}
+                  <p className="text-xs text-muted-foreground truncate">{expense.job_address || '—'}</p>
+
+                  {/* Date */}
+                  <p className="text-xs text-muted-foreground whitespace-nowrap">
+                    {fmtDate(expense.expense_date || expense.receipt_date)}
+                  </p>
+
+                  {/* Amount + match */}
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-foreground">${fmt(expense.total_amount)}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      {expense.parsed_match_status && MATCH_ICON[expense.parsed_match_status]}
+                      {lineItemCount > 0 && <span className="text-[10px] text-muted-foreground">{lineItemCount}i</span>}
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${statusCfg.color}`}>
+                    {statusCfg.label}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

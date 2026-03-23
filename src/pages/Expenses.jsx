@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import DocUpload from '@/components/shared/DocUpload';
 
 const COST_CODES = ['Carpentry Labor/Sub', 'Drywall Labor/Sub', 'Other Labor/Sub', 'Paint Expenses', 'Painting Labor/Sub', 'Other'];
 

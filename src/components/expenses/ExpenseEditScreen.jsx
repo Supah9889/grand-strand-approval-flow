@@ -22,6 +22,8 @@ import { Loader2, AlertTriangle, CheckCircle2, Clock, ChevronDown, ChevronUp, Fi
 import { calcMatchStatus } from './ReceiptParser';
 import ReceiptLineItems from './ReceiptLineItems';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
+import { validateExpense } from '@/lib/validation';
+import ValidationPanel from '@/components/shared/ValidationPanel';
 
 const MATCH_CONFIG = {
   matched:      { label: 'Totals Matched',   icon: CheckCircle2,  color: 'text-green-600', bg: 'bg-green-50 border-green-200' },

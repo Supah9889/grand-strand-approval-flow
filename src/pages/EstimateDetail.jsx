@@ -40,6 +40,7 @@ export default function EstimateDetail() {
   const [form, setForm] = useState(null);
   const [lineItems, setLineItems] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [validationTouched, setValidationTouched] = useState(false);
 
   const { data: estimate, isLoading } = useQuery({
     queryKey: ['estimate', estimateId],

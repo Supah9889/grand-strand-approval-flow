@@ -48,6 +48,7 @@ import Estimates from './pages/Estimates';
 import EstimateDetail from './pages/EstimateDetail';
 import AuditLogPage from './pages/AuditLogPage';
 import JobHub from './pages/JobHub';
+import AdminOverview from './pages/AdminOverview';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -118,6 +119,7 @@ const AuthenticatedApp = () => {
       <Route path="/estimates/:id" element={<EstimateDetail />} />
       <Route path="/audit-log" element={<AuditLogPage />} />
       <Route path="/job-hub" element={<JobHub />} />
+      <Route path="/admin-overview" element={<AdminOverview />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

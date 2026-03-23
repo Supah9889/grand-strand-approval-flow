@@ -69,6 +69,7 @@ const NAV_GROUPS = [
       { label: 'Doc Templates',   to: '/templates',       icon: FileText },
       { label: 'Portal Access',   to: '/portal-manager',  icon: Globe },
       { label: 'Audit Log',       to: '/audit-log',       icon: ScrollText },
+      { label: 'Admin Overview',  to: '/admin-overview',  icon: LayoutDashboard },
       { label: 'Admin Mode',      to: '/admin',           icon: ShieldAlert },
     ],
   },

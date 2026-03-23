@@ -1,6 +1,6 @@
 import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { AlertCircle, ExternalLink } from 'lucide-react';
+import { AlertCircle, ExternalLink, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { BILL_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 
@@ -46,7 +46,10 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
         </Select>
         {bill.file_url && (
           <a href={bill.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
-            <ExternalLink className="w-3.5 h-3.5" /> View Receipt
+            {/\.pdf/i.test(bill.file_url) || /\.pdf$/i.test(bill.file_name || '')
+              ? <><FileText className="w-3.5 h-3.5" /> View PDF</>
+              : <><ExternalLink className="w-3.5 h-3.5" /> View File</>
+            }
           </a>
         )}
       </div>

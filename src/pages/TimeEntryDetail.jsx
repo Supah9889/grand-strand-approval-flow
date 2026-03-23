@@ -89,7 +89,12 @@ export default function TimeEntryDetail() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const validationIssues = form ? validateTimeEntry(form) : [];
+  const validationErrors = validationIssues.filter(i => i.level === 'error');
+
   const handleSave = async () => {
+    setValidationTouched(true);
+    if (validationErrors.length > 0) return;
     setSaving(true);
     await updateMutation.mutateAsync(form);
     setSaving(false);

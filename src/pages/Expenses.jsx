@@ -171,6 +171,25 @@ export default function Expenses() {
     },
   });
 
+  // Delete (soft) mutation — archives the record
+  const deleteMutation = useMutation({
+    mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'archived' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      setDeleteTarget(null);
+      toast.success('Expense archived');
+    },
+  });
+
+  // Restore mutation
+  const restoreMutation = useMutation({
+    mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'needs_review' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success('Expense restored');
+    },
+  });
+
   // ── Upload + parse ──────────────────────────────────────────────────────────
   const handleDocUploaded = async (fileUrl, fileName) => {
     setUploadedFileUrl(fileUrl);

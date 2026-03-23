@@ -181,6 +181,24 @@ export default function JobHub() {
               <div className="min-w-0"><p className="text-sm text-foreground truncate">{f.file_name}</p><p className="text-xs text-muted-foreground">{f.category}</p></div>
             </a>
           )} />}
+          {activeTab === 'estimates' && isAdmin && <SimpleList items={estimates} emptyMsg="No estimates for this job." renderItem={est => (
+            <div key={est.id} onClick={() => navigate(`/estimates/${est.id}`)} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">{est.estimate_number ? `#${est.estimate_number}` : 'Estimate'}</p>
+                <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{est.status}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">${Number(est.total_amount || est.amount || 0).toLocaleString()} · {est.created_date ? format(new Date(est.created_date), 'MMM d, yyyy') : ''}</p>
+            </div>
+          )} />}
+          {activeTab === 'expenses' && isAdmin && <SimpleList items={expenses} emptyMsg="No expenses linked to this job." renderItem={exp => (
+            <div key={exp.id} onClick={() => navigate('/expenses')} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">{exp.vendor_name || 'Expense'}</p>
+                <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{exp.inbox_status}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">${Number(exp.total_amount || 0).toFixed(2)} · {exp.expense_date || exp.receipt_date || ''} {exp.category ? `· ${exp.category}` : ''}</p>
+            </div>
+          )} />}
           {activeTab === 'change_orders' && isAdmin && <SimpleList items={changeOrders} emptyMsg="No change orders for this job." renderItem={co => (
             <div key={co.id} onClick={() => navigate(`/change-orders/${co.id}`)} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">
               <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-foreground">{co.title}</p><span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{co.status}</span></div>

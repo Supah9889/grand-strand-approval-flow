@@ -14,6 +14,8 @@ import { getInternalRole } from '@/lib/adminAuth';
 import { formatDuration } from './TimeEntries';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
+import { validateTimeEntry } from '@/lib/validation';
+import ValidationPanel from '@/components/shared/ValidationPanel';
 
 const COST_CODES = ['Carpentry Labor/Sub','Drywall Labor/Sub','Other Labor/Sub','Paint Expenses','Painting Labor/Sub'];
 

@@ -470,6 +470,9 @@ export default function EstimateDetail() {
           ) : null;
         })()}
 
+        {/* Linked Job */}
+        {estimate.job_id && <LinkedJobPanel jobId={estimate.job_id} />}
+
         {/* Activity */}
         <div className="bg-card border border-border rounded-2xl p-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Activity Timeline</p>

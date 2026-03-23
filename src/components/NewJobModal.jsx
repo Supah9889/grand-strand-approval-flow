@@ -61,9 +61,14 @@ export default function NewJobModal({ open, onClose }) {
     },
   });
 
+  const [touched, setTouched] = useState(false);
+  const issues = validateJob({ ...form, price: form.price ? Number(form.price) : 0 });
+  const errors = issues.filter(i => i.level === 'error');
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.address || !form.customer_name || !form.description) return;
+    setTouched(true);
+    if (errors.length > 0) return;
     createMutation.mutate(form);
   };
 

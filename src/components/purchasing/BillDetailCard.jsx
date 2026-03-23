@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { AlertCircle, ExternalLink, FileText } from 'lucide-react';
+import { AlertCircle, ExternalLink, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { BILL_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
+import { getInternalRole } from '@/lib/adminAuth';
 
 export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
   const cfg = BILL_STATUS_CONFIG[bill.status] || BILL_STATUS_CONFIG.open;
+  const [expanded, setExpanded] = useState(false);
+  const role = getInternalRole();
+  const isAdmin = role === 'admin';
 
   return (
     <div className={`bg-card border rounded-xl p-4 ${isOverdue ? 'border-red-200' : 'border-border'}`}>
@@ -52,7 +57,23 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
             }
           </a>
         )}
+        <button onClick={() => setExpanded(v => !v)} className="ml-auto text-muted-foreground hover:text-foreground">
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
       </div>
+
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-border/60">
+          <AttachmentManager
+            recordType="bill"
+            recordId={bill.id}
+            jobId={bill.job_id}
+            isAdmin={isAdmin}
+            defaultCategory="vendor_document"
+            defaultVisibility="internal"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -231,6 +231,9 @@ export default function TimeEntryDetail() {
           </div>
         )}
 
+        {/* Linked Job */}
+        {isAdmin && entry.job_id && <LinkedJobPanel jobId={entry.job_id} />}
+
         {/* Edit history (admin only) */}
         {isAdmin && editHistory.length > 0 && (
           <div className="bg-card border border-border rounded-2xl p-5">

@@ -231,6 +231,9 @@ export default function WarrantyDetail() {
           )}
         </div>
 
+        {/* Linked Job */}
+        {item.job_id && <LinkedJobPanel jobId={item.job_id} />}
+
         {/* Photos */}
         <div className="bg-card border border-border rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">

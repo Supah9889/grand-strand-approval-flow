@@ -112,17 +112,14 @@ export default function ReceiptLineItems({ items, onChange }) {
             <label className="text-[10px] text-muted-foreground md:hidden">Cost Code</label>
             <CostCodePicker
               value={item.cost_code_id || ''}
-              label={item.cost_code || ''}
-              onSelect={(id, code) => {
-                update(item._id, 'cost_code_id', id);
-                update(item._id, 'cost_code', code?.name || '');
-              }}
-              onClear={() => {
-                update(item._id, 'cost_code_id', '');
-                update(item._id, 'cost_code', '');
+              onChange={(id, code) => {
+                onChange(items.map(i => i._id !== item._id ? i : {
+                  ...i,
+                  cost_code_id: id || '',
+                  cost_code: code?.name || '',
+                }));
               }}
               recordType="expense"
-              compact
             />
           </div>
 

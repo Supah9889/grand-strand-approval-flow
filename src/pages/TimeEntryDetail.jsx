@@ -38,6 +38,7 @@ export default function TimeEntryDetail() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [validationTouched, setValidationTouched] = useState(false);
 
   const { data: entry, isLoading } = useQuery({
     queryKey: ['time-entry', entryId],

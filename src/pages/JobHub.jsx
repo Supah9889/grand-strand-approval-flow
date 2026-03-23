@@ -163,7 +163,12 @@ export default function JobHub() {
 
         {/* Tab content */}
         <div className="space-y-2">
-          {activeTab === 'overview' && <OverviewTab job={job} isAdmin={isAdmin} />}
+          {activeTab === 'overview' && (
+            <div className="space-y-3">
+              <OverviewTab job={job} isAdmin={isAdmin} />
+              {isAdmin && <JobLinkedRecords jobId={job.id} isAdmin={isAdmin} />}
+            </div>
+          )}
           {activeTab === 'tasks' && <SimpleList items={tasks} emptyMsg="No tasks linked to this job." renderItem={t => (
             <div key={t.id} onClick={() => navigate(`/tasks/${t.id}`)} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">
               <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium text-foreground">{t.title}</p><span className={`text-xs px-1.5 py-0.5 rounded-full ${t.status==='completed'?'bg-green-100 text-green-700':'bg-muted text-muted-foreground'}`}>{t.status}</span></div>

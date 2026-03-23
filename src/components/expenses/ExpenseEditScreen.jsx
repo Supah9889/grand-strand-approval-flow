@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, AlertTriangle, CheckCircle2, Clock, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { calcMatchStatus } from './ReceiptParser';
 import ReceiptLineItems from './ReceiptLineItems';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
 
 const MATCH_CONFIG = {
   matched:      { label: 'Totals Matched',   icon: CheckCircle2,  color: 'text-green-600', bg: 'bg-green-50 border-green-200' },

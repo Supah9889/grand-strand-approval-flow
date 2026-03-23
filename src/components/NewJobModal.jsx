@@ -201,6 +201,9 @@ export default function NewJobModal({ open, onClose }) {
                   </div>
                 </div>
 
+                {touched && issues.length > 0 && (
+                  <ValidationPanel issues={issues} />
+                )}
                 <div className="pt-1 flex gap-2">
                   <Button type="button" variant="outline" className="flex-1 h-10 rounded-xl" onClick={onClose}>
                     Cancel
@@ -208,7 +211,7 @@ export default function NewJobModal({ open, onClose }) {
                   <Button
                     type="submit"
                     className="flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={createMutation.isPending || !form.address || !form.customer_name || !form.description}
+                    disabled={createMutation.isPending}
                   >
                     {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Job'}
                   </Button>

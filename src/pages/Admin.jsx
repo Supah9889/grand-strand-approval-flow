@@ -159,6 +159,10 @@ export default function Admin() {
                   <BarChart2 className="w-4 h-4" />
                   Reports
                 </TabsTrigger>
+                <TabsTrigger value="export" className="flex-1 rounded-lg text-sm gap-2">
+                  <Database className="w-4 h-4" />
+                  QB Export
+                </TabsTrigger>
               </>
             )}
           </TabsList>

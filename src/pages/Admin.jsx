@@ -14,6 +14,7 @@ import JobsTable from '../components/admin/JobsTable';
 import DashboardStats from '../components/admin/DashboardStats';
 import JobFilters from '../components/admin/JobFilters';
 import ReportingPanel from '../components/admin/ReportingPanel';
+import QBExportPanel from '../components/admin/QBExportPanel';
 import { isAdminAuthed, adminLogout, getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';

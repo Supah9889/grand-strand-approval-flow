@@ -141,7 +141,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="dashboard">
-          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-5' : 'grid grid-cols-1'}`}>
+          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-6' : 'grid grid-cols-1'}`}>
             <TabsTrigger value="dashboard" className="flex-1 rounded-lg text-sm gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Dashboard

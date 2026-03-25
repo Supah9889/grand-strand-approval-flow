@@ -14,7 +14,7 @@ import InvoiceCard from '../components/invoices/InvoiceCard';
 import InvoiceConfirmDialog from '../components/invoices/InvoiceConfirmDialog';
 import { INVOICE_STATUS_CONFIG, fmt, generateNumber } from '@/lib/financialHelpers';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
-import { audit } from '@/lib/audit';
+import { audit, audit_linking } from '@/lib/audit';
 import { toast } from 'sonner';
 
 export default function Invoices() {
@@ -116,11 +116,24 @@ export default function Invoices() {
   }, [invoices, filterStatus, filterJob, filterSource, filterOverdue, filterArchived, search, sort]);
 
   // ── Handlers ──
-  const handleSaveNew = (data) => createInvoice.mutate(data);
+  const handleSaveNew = (data) => {
+    if (!data.job_id) {
+      toast.error('Job linking is required. Please select a job.');
+      return;
+    }
+    createInvoice.mutate(data);
+  };
 
   const handleSaveEdit = (data) => {
+    if (!data.job_id) {
+      toast.error('Job linking is required. Please select a job.');
+      return;
+    }
     const inv = editingInvoice;
     const oldStatus = inv.status;
+    const oldJobId = inv.job_id;
+    const newJobId = data.job_id;
+
     updateInvoice.mutate({ id: inv.id, data });
     audit.invoice.edited(inv.id, role || 'Admin', inv.invoice_number || inv.id, {
       job_id: inv.job_id, job_address: inv.job_address,
@@ -129,6 +142,11 @@ export default function Invoices() {
     });
     if (oldStatus !== data.status) {
       audit.invoice.statusChanged(inv.id, role || 'Admin', inv.invoice_number || inv.id, oldStatus, data.status, { job_id: inv.job_id, job_address: inv.job_address });
+    }
+    if (oldJobId !== newJobId) {
+      const oldJobAddr = invoices.find(i => i.job_id === oldJobId)?.job_address;
+      const newJobAddr = invoices.find(i => i.job_id === newJobId)?.job_address || data.job_address;
+      audit_linking.jobChanged(inv.id, role || 'Admin', 'Invoice', oldJobId, newJobId, oldJobAddr, newJobAddr);
     }
     setEditingInvoice(null);
     toast.success('Invoice updated');

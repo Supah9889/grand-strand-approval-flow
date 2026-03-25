@@ -2,16 +2,41 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { X, Send, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { X, Send, RotateCcw, CheckCircle2, Trash2, UserX, AlertTriangle } from 'lucide-react';
 import EmployeeInviteStatus from './EmployeeInviteStatus';
 import EmployeeInviteModal from './EmployeeInviteModal';
 import PermissionSwitchboard from './PermissionSwitchboard';
 import { toast } from 'sonner';
-import { isAdmin } from '@/lib/adminAuth';
+import { isAdmin, isOwnerOnly } from '@/lib/adminAuth';
 
 export default function EmployeeDetailPanel({ employee, onClose }) {
   const [showInvite, setShowInvite] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false); // 'deactivate' | 'delete' | null
   const queryClient = useQueryClient();
+
+  const deactivateMutation = useMutation({
+    mutationFn: () => base44.entities.Employee.update(employee.id, { active: false }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setDeleteConfirm(null);
+      toast.success('Employee deactivated');
+      onClose();
+    },
+  });
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: () => base44.entities.Employee.delete(employee.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setDeleteConfirm(null);
+      toast.success('Employee permanently deleted');
+      onClose();
+    },
+    onError: () => {
+      toast.error('Could not delete — employee may have linked records. Try deactivating instead.');
+      setDeleteConfirm(null);
+    },
+  });
 
   const markVerifiedMutation = useMutation({
     mutationFn: () => base44.entities.Employee.update(employee.id, {

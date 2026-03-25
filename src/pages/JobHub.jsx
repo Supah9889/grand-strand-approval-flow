@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import JobLinkedRecords from '../components/jobs/JobLinkedRecords';
 
 const TABS = [

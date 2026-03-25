@@ -291,6 +291,15 @@ export default function Admin() {
               </div>
             </TabsContent>
           )}
+
+          {/* ── GEO SETTINGS TAB (admin only) ── */}
+          {isAdminRole && (
+            <TabsContent value="geo" className="mt-0">
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <GeoSettingsPanel />
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>

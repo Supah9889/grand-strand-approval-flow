@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useQueryClient } from '@tanstack/react-query';
+import BottomSheetSelect from '@/components/BottomSheetSelect';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Search, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
@@ -21,12 +23,20 @@ export default function JobSearch() {
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState('all');
   const [filterLifecycle, setFilterLifecycle] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => base44.entities.Job.list('-created_date'),
   });
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['jobs'] });
+    setIsRefreshing(false);
+  };
 
   const filtered = jobs.filter(job => {
     if (job.status === 'archived' && filterLifecycle !== 'archived') return false;
@@ -43,7 +53,8 @@ export default function JobSearch() {
 
   return (
     <AppLayout title="Job Search">
-      <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-5">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
+        <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-5">
 
         <div>
           <h1 className="text-lg font-semibold text-foreground">Find a Job</h1>
@@ -62,20 +73,14 @@ export default function JobSearch() {
             />
           </div>
           <div className="flex gap-2">
-            <Select value={filterLifecycle} onValueChange={setFilterLifecycle}>
-              <SelectTrigger className="h-8 text-xs rounded-lg flex-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(JOB_LIFECYCLE_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterGroup} onValueChange={setFilterGroup}>
-              <SelectTrigger className="h-8 text-xs rounded-lg flex-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Groups</SelectItem>
-                {Object.entries(JOB_GROUP_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <BottomSheetSelect value={filterLifecycle} onChange={setFilterLifecycle} label="Status" options={[
+              { label: 'All Statuses', value: 'all' },
+              ...Object.entries(JOB_LIFECYCLE_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
+            ]} />
+            <BottomSheetSelect value={filterGroup} onChange={setFilterGroup} label="Group" options={[
+              { label: 'All Groups', value: 'all' },
+              ...Object.entries(JOB_GROUP_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
+            ]} />
           </div>
         </div>
 
@@ -132,6 +137,7 @@ export default function JobSearch() {
           </motion.div>
         )}
       </div>
+    </PullToRefresh>
     </AppLayout>
   );
 }

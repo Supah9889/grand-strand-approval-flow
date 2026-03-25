@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import BottomSheetSelect from '@/components/BottomSheetSelect';
 import { Search, Plus, X, Loader2, Receipt, AlertCircle } from 'lucide-react';
 import { isPast, isToday, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
+import PullToRefresh from '../components/PullToRefresh';
 import BillDetailForm from '../components/purchasing/BillDetailForm';
 import BillDetailCard from '../components/purchasing/BillDetailCard';
 import { BILL_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
@@ -50,6 +51,16 @@ export default function Bills() {
     paid: bills.filter(b => b.status === 'paid').reduce((s, b) => s + Number(b.amount || 0), 0),
     count: bills.filter(b => ['open','overdue'].includes(b.status) || isOverdueFn(b)).length,
   }), [bills]);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['bills'] });
+    await queryClient.refetchQueries({ queryKey: ['jobs'] });
+    await queryClient.refetchQueries({ queryKey: ['vendors'] });
+    setIsRefreshing(false);
+  };
 
   const filtered = useMemo(() => {
     let l = bills;
@@ -95,7 +106,8 @@ export default function Bills() {
 
   return (
     <AppLayout title="Bills">
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
+        <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -151,47 +163,32 @@ export default function Bills() {
             <Input placeholder="Search bill #, vendor, job, amount..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(BILL_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterOverdue} onValueChange={setFilterOverdue}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[110px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="yes">Overdue Only</SelectItem>
-                <SelectItem value="no">Not Overdue</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterVendor} onValueChange={setFilterVendor}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Vendors</SelectItem>
-                {vendorNames.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterJob} onValueChange={setFilterJob}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Jobs</SelectItem>
-                {activeJobs.map(j => <SelectItem key={j.id} value={j.id}>{j.address || j.title}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="due_soon">Due Soonest</SelectItem>
-                <SelectItem value="overdue_first">Overdue First</SelectItem>
-                <SelectItem value="amount_high">Amount ↓</SelectItem>
-                <SelectItem value="amount_low">Amount ↑</SelectItem>
-                <SelectItem value="vendor">Vendor A–Z</SelectItem>
-              </SelectContent>
-            </Select>
+            <BottomSheetSelect value={filterStatus} onChange={setFilterStatus} label="Status" options={[
+              { label: 'All Statuses', value: 'all' },
+              ...Object.entries(BILL_STATUS_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
+            ]} />
+            <BottomSheetSelect value={filterOverdue} onChange={setFilterOverdue} label="Overdue" options={[
+              { label: 'All', value: 'all' },
+              { label: 'Overdue Only', value: 'yes' },
+              { label: 'Not Overdue', value: 'no' },
+            ]} />
+            <BottomSheetSelect value={filterVendor} onChange={setFilterVendor} label="Vendor" options={[
+              { label: 'All Vendors', value: 'all' },
+              ...vendorNames.map(v => ({ label: v, value: v })),
+            ]} />
+            <BottomSheetSelect value={filterJob} onChange={setFilterJob} label="Job" options={[
+              { label: 'All Jobs', value: 'all' },
+              ...activeJobs.map(j => ({ label: j.address || j.title, value: j.id })),
+            ]} />
+            <BottomSheetSelect value={sort} onChange={setSort} label="Sort" options={[
+              { label: 'Newest First', value: 'newest' },
+              { label: 'Oldest First', value: 'oldest' },
+              { label: 'Due Soonest', value: 'due_soon' },
+              { label: 'Overdue First', value: 'overdue_first' },
+              { label: 'Amount ↓', value: 'amount_high' },
+              { label: 'Amount ↑', value: 'amount_low' },
+              { label: 'Vendor A–Z', value: 'vendor' },
+            ]} />
           </div>
         </div>
 
@@ -217,6 +214,7 @@ export default function Bills() {
           </div>
         )}
       </div>
+    </PullToRefresh>
     </AppLayout>
   );
 }

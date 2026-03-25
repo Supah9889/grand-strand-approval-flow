@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink, Pencil } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink, Pencil, Archive, Trash2, MoreVertical } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { validateInvoice } from '@/lib/validation';
 import { toast } from 'sonner';
 
 const SOURCE_LABELS = { estimate: 'From Estimate', change_order: 'Change Order', manual: 'Manual' };
 
-export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange, onEdit }) {
+export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange, onEdit, onArchive, onDelete }) {
   const [expanded, setExpanded] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const navigate = useNavigate();
   const cfg = INVOICE_STATUS_CONFIG[inv.status] || INVOICE_STATUS_CONFIG.draft;
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = getIsAdmin();
 
   const BLOCKED_STATUSES = ['paid', 'sent'];
   const handleStatusChange = (newStatus) => {
@@ -29,19 +30,27 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
     }
     onStatusChange(newStatus);
   };
+
   const lines = (() => { try { return JSON.parse(inv.line_items || '[]'); } catch { return []; } })();
   const balanceDue = Number(inv.balance_due ?? inv.amount ?? 0);
   const amtPaid = Number(inv.amount_paid || 0);
 
+  const isArchived = inv.status === 'closed';
+
   return (
-    <div className={`bg-card border rounded-xl overflow-hidden ${isOverdue ? 'border-red-200' : 'border-border'}`}>
-      <div className="p-4">
+    <div className={`bg-card border rounded-xl overflow-hidden ${isOverdue ? 'border-red-200' : isArchived ? 'border-slate-200 opacity-75' : 'border-border'}`}>
+      {/* Clickable header row */}
+      <div
+        className="p-4 cursor-pointer hover:bg-muted/20 transition-colors"
+        onClick={() => onEdit && onEdit()}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-xs font-mono text-muted-foreground">{inv.invoice_number}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
               {isOverdue && <span className="flex items-center gap-0.5 text-xs text-red-600 font-medium"><AlertCircle className="w-3 h-3" />Overdue</span>}
+              {isArchived && <span className="text-xs text-slate-400 italic">Archived</span>}
               {inv.source_type && <span className="text-xs text-muted-foreground">{SOURCE_LABELS[inv.source_type]}</span>}
             </div>
             <p className="text-sm font-semibold text-foreground">{inv.customer_name}</p>
@@ -56,25 +65,42 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
             <p className="text-base font-bold text-foreground">${fmt(inv.amount)}</p>
             {amtPaid > 0 && <p className="text-xs text-green-600">Paid: ${fmt(amtPaid)}</p>}
             {balanceDue > 0 && amtPaid > 0 && <p className="text-xs text-amber-600 font-medium">Bal: ${fmt(balanceDue)}</p>}
-            <button onClick={() => setExpanded(e => !e)} className="text-muted-foreground hover:text-foreground mt-1">
-              {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+            <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setExpanded(e => !e)} className="text-muted-foreground hover:text-foreground p-0.5">
+                {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/60">
-          <Select value={inv.status} onValueChange={handleStatusChange}>
-            <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(INVOICE_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
-          </Select>
+      {/* Action bar */}
+      <div className="flex items-center gap-2 px-4 pb-3 pt-0 border-t border-border/60" onClick={e => e.stopPropagation()}>
+        <Select value={inv.status} onValueChange={handleStatusChange}>
+          <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>{Object.entries(INVOICE_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
+        </Select>
+
+        <div className="ml-auto flex items-center gap-1">
           {onEdit && (
-            <button onClick={onEdit} className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-muted">
+            <button onClick={onEdit} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-muted">
               <Pencil className="w-3 h-3" /> Edit
+            </button>
+          )}
+          {isAdmin && onArchive && (
+            <button onClick={onArchive} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600 transition-colors px-2 py-1 rounded-lg hover:bg-amber-50">
+              <Archive className="w-3 h-3" /> Archive
+            </button>
+          )}
+          {isAdmin && onDelete && (
+            <button onClick={onDelete} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5">
+              <Trash2 className="w-3 h-3" /> Delete
             </button>
           )}
         </div>
       </div>
 
+      {/* Expanded details */}
       {expanded && (
         <div className="px-4 pb-4 border-t border-border/60 bg-muted/20">
           {lines.length > 0 && (

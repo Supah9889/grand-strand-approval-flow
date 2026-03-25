@@ -5,14 +5,16 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Search, Plus, X, Loader2, FileText, AlertCircle } from 'lucide-react';
+import { Search, Plus, X, Loader2, FileText, AlertCircle, Archive } from 'lucide-react';
 import { isPast, isToday, parseISO, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import InvoiceFullForm from '../components/invoices/InvoiceFullForm';
 import InvoiceCard from '../components/invoices/InvoiceCard';
+import InvoiceConfirmDialog from '../components/invoices/InvoiceConfirmDialog';
 import { INVOICE_STATUS_CONFIG, fmt, generateNumber } from '@/lib/financialHelpers';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 export default function Invoices() {
@@ -20,44 +22,73 @@ export default function Invoices() {
   const role = getInternalRole();
   const isOwnerOrAdmin = getIsAdmin();
   const navigate = useNavigate();
+
   const [showForm, setShowForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { type: 'archive'|'delete', invoice }
+
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterJob, setFilterJob] = useState('all');
   const [filterOverdue, setFilterOverdue] = useState('all');
   const [filterSource, setFilterSource] = useState('all');
+  const [filterArchived, setFilterArchived] = useState('active'); // 'active' | 'archived' | 'all'
   const [sort, setSort] = useState('newest');
 
-  const { data: invoices = [], isLoading } = useQuery({ queryKey: ['invoices'], queryFn: () => base44.entities.Invoice.list('-created_date') });
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: ['invoices'],
+    queryFn: () => base44.entities.Invoice.list('-created_date'),
+  });
   const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list('-created_date') });
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
   const { data: estimates = [] } = useQuery({ queryKey: ['estimates'], queryFn: () => base44.entities.Estimate.list('-created_date') });
   const { data: changeOrders = [] } = useQuery({ queryKey: ['change-orders'], queryFn: () => base44.entities.ChangeOrder.list('-created_date') });
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+  };
+
   const createInvoice = useMutation({
     mutationFn: d => base44.entities.Invoice.create(d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['invoices'] }); setShowForm(false); toast.success('Invoice created'); },
-  });
-  const updateInvoice = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Invoice.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+    onSuccess: (inv) => {
+      invalidate();
+      setShowForm(false);
+      audit.invoice.created(inv.id, role || 'Admin', inv.customer_name, fmt(inv.amount), inv.job_address, { job_id: inv.job_id, job_address: inv.job_address });
+      toast.success('Invoice created');
+    },
   });
 
-  const isOverdueFn = (inv) => inv.due_date && !['paid','closed','canceled'].includes(inv.status) && isPast(parseISO(inv.due_date)) && !isToday(parseISO(inv.due_date));
+  const updateInvoice = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Invoice.update(id, data),
+    onSuccess: (_, { id, data, _invoice }) => {
+      invalidate();
+    },
+  });
+
+  const isOverdueFn = (inv) => inv.due_date && !['paid', 'closed', 'canceled'].includes(inv.status) && isPast(parseISO(inv.due_date)) && !isToday(parseISO(inv.due_date));
   const existingNums = invoices.map(i => i.invoice_number).filter(Boolean);
   const activeJobs = jobs.filter(j => j.status !== 'archived');
 
-  const totals = useMemo(() => ({
-    draft: invoices.filter(i => i.status === 'draft').length,
-    sent: invoices.filter(i => i.status === 'sent').length,
-    overdue: invoices.filter(i => isOverdueFn(i)).length,
-    outstanding: invoices.filter(i => !['paid','closed','draft'].includes(i.status)).reduce((s, i) => s + Number(i.balance_due || i.amount || 0), 0),
-    received: payments.reduce((s, p) => s + Number(p.amount || 0), 0),
-  }), [invoices, payments]);
+  const totals = useMemo(() => {
+    const active = invoices.filter(i => i.status !== 'closed');
+    return {
+      draft: active.filter(i => i.status === 'draft').length,
+      sent: active.filter(i => i.status === 'sent').length,
+      overdue: active.filter(i => isOverdueFn(i)).length,
+      outstanding: active.filter(i => !['paid', 'closed', 'draft'].includes(i.status)).reduce((s, i) => s + Number(i.balance_due || i.amount || 0), 0),
+      received: payments.reduce((s, p) => s + Number(p.amount || 0), 0),
+    };
+  }, [invoices, payments]);
 
   const filtered = useMemo(() => {
     let l = invoices;
+
+    // Archived visibility
+    if (filterArchived === 'active') l = l.filter(i => i.status !== 'closed');
+    else if (filterArchived === 'archived') l = l.filter(i => i.status === 'closed');
+    // 'all' shows everything
+
     if (filterStatus !== 'all') l = l.filter(i => i.status === filterStatus);
     if (filterJob !== 'all') l = l.filter(i => i.job_id === filterJob);
     if (filterSource !== 'all') l = l.filter(i => i.source_type === filterSource);
@@ -82,7 +113,51 @@ export default function Invoices() {
       customer: (a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''),
     };
     return [...l].sort(sortFns[sort] || sortFns.newest);
-  }, [invoices, filterStatus, filterJob, filterSource, filterOverdue, search, sort]);
+  }, [invoices, filterStatus, filterJob, filterSource, filterOverdue, filterArchived, search, sort]);
+
+  // ── Handlers ──
+  const handleSaveNew = (data) => createInvoice.mutate(data);
+
+  const handleSaveEdit = (data) => {
+    const inv = editingInvoice;
+    const oldStatus = inv.status;
+    updateInvoice.mutate({ id: inv.id, data });
+    audit.invoice.edited(inv.id, role || 'Admin', inv.invoice_number || inv.id, {
+      job_id: inv.job_id, job_address: inv.job_address,
+      old_value: oldStatus !== data.status ? `status: ${oldStatus}` : undefined,
+      new_value: oldStatus !== data.status ? `status: ${data.status}` : undefined,
+    });
+    if (oldStatus !== data.status) {
+      audit.invoice.statusChanged(inv.id, role || 'Admin', inv.invoice_number || inv.id, oldStatus, data.status, { job_id: inv.job_id, job_address: inv.job_address });
+    }
+    setEditingInvoice(null);
+    toast.success('Invoice updated');
+  };
+
+  const handleStatusChange = (inv, status) => {
+    const oldStatus = inv.status;
+    updateInvoice.mutate({ id: inv.id, data: { status } });
+    audit.invoice.statusChanged(inv.id, role || 'Admin', inv.invoice_number || inv.id, oldStatus, status, { job_id: inv.job_id, job_address: inv.job_address });
+  };
+
+  const handleArchiveConfirm = async () => {
+    const inv = confirmDialog.invoice;
+    updateInvoice.mutate({ id: inv.id, data: { status: 'closed' } });
+    audit.invoice.archived(inv.id, role || 'Admin', inv.invoice_number || inv.id, { job_id: inv.job_id, job_address: inv.job_address });
+    toast.success('Invoice archived');
+    if (editingInvoice?.id === inv.id) setEditingInvoice(null);
+    setConfirmDialog(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const inv = confirmDialog.invoice;
+    await base44.entities.Invoice.delete(inv.id);
+    invalidate();
+    audit.invoice.deleted(inv.id, role || 'Admin', inv.invoice_number || inv.id, { job_id: inv.job_id, job_address: inv.job_address });
+    toast.success('Invoice deleted');
+    if (editingInvoice?.id === inv.id) setEditingInvoice(null);
+    setConfirmDialog(null);
+  };
 
   if (!isOwnerOrAdmin) {
     return (
@@ -106,7 +181,7 @@ export default function Invoices() {
             <h1 className="text-base font-semibold text-foreground">Invoices</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Billing & receivables by job</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowForm(true)}>
+          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => { setEditingInvoice(null); setShowForm(true); }}>
             <Plus className="w-3.5 h-3.5" /> New Invoice
           </Button>
         </div>
@@ -140,7 +215,7 @@ export default function Invoices() {
                   estimates={estimates}
                   changeOrders={changeOrders}
                   existingNums={existingNums}
-                  onSave={createInvoice.mutate}
+                  onSave={handleSaveNew}
                   onCancel={() => setShowForm(false)}
                 />
               </div>
@@ -155,6 +230,15 @@ export default function Invoices() {
             <Input placeholder="Search invoice #, customer, job..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
           </div>
           <div className="flex gap-2 flex-wrap">
+            {/* Archived visibility filter — prominent */}
+            <Select value={filterArchived} onValueChange={setFilterArchived}>
+              <SelectTrigger className={`h-8 text-xs rounded-lg w-auto min-w-[120px] ${filterArchived !== 'active' ? 'border-amber-400 text-amber-700' : ''}`}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="archived">Archived Only</SelectItem>
+                <SelectItem value="all">Show All</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -205,21 +289,29 @@ export default function Invoices() {
         <AnimatePresence>
           {editingInvoice && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-              <div className="bg-card border border-border rounded-2xl p-5">
+              <div className="bg-card border border-primary/30 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-semibold text-foreground">Edit Invoice #{editingInvoice.invoice_number}</p>
-                  <button onClick={() => setEditingInvoice(null)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+                  <p className="text-sm font-semibold text-foreground">Edit Invoice <span className="font-mono text-primary">{editingInvoice.invoice_number}</span></p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setConfirmDialog({ type: 'archive', invoice: editingInvoice })}
+                      className="flex items-center gap-1 text-xs text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      <Archive className="w-3 h-3" /> Archive
+                    </button>
+                    <button onClick={() => setEditingInvoice(null)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <InvoiceFullForm
                   jobs={activeJobs}
                   estimates={estimates}
                   changeOrders={changeOrders}
-                  existingNums={existingNums}
+                  existingNums={existingNums.filter(n => n !== editingInvoice.invoice_number)}
                   initialData={editingInvoice}
-                  onSave={(data) => { updateInvoice.mutate({ id: editingInvoice.id, data }); setEditingInvoice(null); toast.success('Invoice saved'); }}
+                  onSave={handleSaveEdit}
                   onCancel={() => setEditingInvoice(null)}
-                  onArchive={() => { updateInvoice.mutate({ id: editingInvoice.id, data: { status: 'closed' } }); setEditingInvoice(null); toast.success('Invoice archived'); }}
-                  onDelete={() => { base44.entities.Invoice.delete(editingInvoice.id).then(() => { queryClient.invalidateQueries({ queryKey: ['invoices'] }); setEditingInvoice(null); toast.success('Invoice deleted'); }); }}
                 />
               </div>
             </motion.div>
@@ -232,23 +324,46 @@ export default function Invoices() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-14 space-y-2">
             <FileText className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-            <p className="text-sm text-muted-foreground">No invoices found.</p>
+            <p className="text-sm text-muted-foreground">
+              {filterArchived === 'archived' ? 'No archived invoices.' : 'No invoices found.'}
+            </p>
+            {filterArchived === 'archived' && (
+              <button onClick={() => setFilterArchived('active')} className="text-xs text-primary hover:underline">Back to active invoices</button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
+            {filterArchived === 'archived' && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <Archive className="w-3.5 h-3.5 shrink-0" />
+                Showing archived invoices. These are preserved for historical/accounting traceability.
+              </div>
+            )}
             {filtered.map(inv => (
               <InvoiceCard
                 key={inv.id}
                 invoice={inv}
                 payments={payments.filter(p => p.invoice_id === inv.id)}
                 isOverdue={isOverdueFn(inv)}
-                onStatusChange={(status) => updateInvoice.mutate({ id: inv.id, data: { status } })}
-                onEdit={() => setEditingInvoice(inv)}
+                onStatusChange={(status) => handleStatusChange(inv, status)}
+                onEdit={() => { setShowForm(false); setEditingInvoice(inv); }}
+                onArchive={() => setConfirmDialog({ type: 'archive', invoice: inv })}
+                onDelete={() => setConfirmDialog({ type: 'delete', invoice: inv })}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Confirmation dialogs */}
+      {confirmDialog && (
+        <InvoiceConfirmDialog
+          type={confirmDialog.type}
+          invoice={confirmDialog.invoice}
+          onConfirm={confirmDialog.type === 'delete' ? handleDeleteConfirm : handleArchiveConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </AppLayout>
   );
 }

@@ -219,6 +219,17 @@ export default function NewJobModal({ open, onClose }) {
                   onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                   className="h-10 rounded-xl text-sm"
                 />
+                {/* Job Type */}
+                {jobTypes.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Job Type</p>
+                    <Select value={form.job_type || ''} onValueChange={v => setForm(f => ({ ...f, job_type: v }))}>
+                      <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue placeholder="Select job type..." /></SelectTrigger>
+                      <SelectContent>{jobTypes.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1.5">Job Group</p>

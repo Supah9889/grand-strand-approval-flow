@@ -320,6 +320,7 @@ export default function TimeEntries() {
                     <span className="text-xs text-muted-foreground shrink-0">#{entry.employee_code}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {entry.geo_flagged && <MapPin className="w-3.5 h-3.5 text-red-500" title="Out-of-range punch" />}
                     {entry.manual_adjustment && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" title="Manually edited" />}
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       entry.status === 'clocked_in' ? 'bg-primary/10 text-primary' :

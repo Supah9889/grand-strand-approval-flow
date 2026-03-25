@@ -44,13 +44,15 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
 
   const defaultSender = approvedEmails.find(e => e.is_default) || approvedEmails[0];
 
-  const token = generateToken();
+  const [token] = useState(generateToken);
   const verifyLink = buildVerifyLink(token);
 
   const [fromEmail, setFromEmail] = useState('');
   const [subject, setSubject] = useState(`Welcome to the Team — ${employee.name}`);
   const [body, setBody] = useState('');
-  const [sending, setSending] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [marked, setMarked] = useState(false);
 
   // Set defaults once approved emails load
   useEffect(() => {
@@ -65,23 +67,19 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
 
   const isResend = employee.invite_status && employee.invite_status !== 'not_sent';
 
-  const handleSend = async () => {
-    if (!fromEmail) { toast.error('Select a sender email'); return; }
-    if (!employee.email) { toast.error('Employee has no email address'); return; }
+  const handleCopyMessage = () => {
+    navigator.clipboard.writeText(body);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success('Message copied to clipboard');
+  };
 
-    setSending(true);
+  const handleMarkSent = async () => {
+    if (!fromEmail) { toast.error('Select a sender email first'); return; }
+    setSaving(true);
     const now = new Date().toISOString();
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Send the email
-    await base44.integrations.Core.SendEmail({
-      from_name: 'Grand Strand Custom Painting',
-      to: employee.email,
-      subject,
-      body,
-    });
-
-    // Update employee invite status
     const updateFields = {
       invite_status: isResend ? 'resent' : 'pending_confirmation',
       invite_sent_from: fromEmail,
@@ -98,10 +96,10 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
     await base44.entities.Employee.update(employee.id, updateFields);
     queryClient.invalidateQueries({ queryKey: ['employees'] });
 
-    setSending(false);
-    toast.success(isResend ? 'Invite resent successfully' : 'Invite sent successfully');
-    onSent?.();
-    onClose();
+    setSaving(false);
+    setMarked(true);
+    toast.success('Invite marked as sent');
+    setTimeout(() => { onSent?.(); onClose(); }, 800);
   };
 
   const handleSaveLater = async () => {

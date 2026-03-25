@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Loader2, Mail, Clock, RotateCcw, Copy, CheckCheck } from 'lucide-react';
+import { X, Loader2, Mail, Clock, RotateCcw, Copy, CheckCheck, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -34,6 +34,24 @@ Thank you,
 Grand Strand Custom Painting Management`;
 }
 
+async function recordInviteSent({ employee, token, fromEmail, isResend }) {
+  const now = new Date().toISOString();
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const updateFields = {
+    invite_status: isResend ? 'resent' : 'pending_confirmation',
+    invite_sent_from: fromEmail,
+    invite_token: token,
+    invite_token_expires: expires,
+    verification_status: 'unverified',
+  };
+  if (!isResend) {
+    updateFields.invite_sent_date = now;
+  } else {
+    updateFields.last_invite_resent_date = now;
+  }
+  await base44.entities.Employee.update(employee.id, updateFields);
+}
+
 export default function EmployeeInviteModal({ employee, onClose, onSent }) {
   const queryClient = useQueryClient();
 
@@ -50,15 +68,11 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
   const [fromEmail, setFromEmail] = useState('');
   const [subject, setSubject] = useState(`Welcome to the Team — ${employee.name}`);
   const [body, setBody] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [marked, setMarked] = useState(false);
 
-  // Set defaults once approved emails load
   useEffect(() => {
-    if (defaultSender && !fromEmail) {
-      setFromEmail(defaultSender.email);
-    }
+    if (defaultSender && !fromEmail) setFromEmail(defaultSender.email);
   }, [defaultSender]);
 
   useEffect(() => {
@@ -66,6 +80,46 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
   }, [employee.id]);
 
   const isResend = employee.invite_status && employee.invite_status !== 'not_sent';
+  const senderRecord = approvedEmails.find(e => e.email === fromEmail);
+
+  const handleSend = async () => {
+    if (!employee.email) { toast.error('Employee has no email address on file'); return; }
+    if (!fromEmail) { toast.error('Please select a sender email'); return; }
+    setSending(true);
+    try {
+      await base44.integrations.Core.SendEmail({
+        from_name: senderRecord?.display_name || 'Grand Strand Custom Painting',
+        to: employee.email,
+        subject,
+        body,
+      });
+      await recordInviteSent({ employee, token, fromEmail, isResend });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success(isResend ? 'Invite resent!' : 'Invite sent!');
+      onSent?.();
+      onClose();
+    } catch (err) {
+      // SendEmail may fail for external addresses on current plan.
+      // Fall through so user can use the manual fallback below.
+      toast.error(
+        'Email could not be sent automatically. Use "Copy Message" below to send manually, then click "Mark as Sent".',
+        { duration: 6000 }
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleMarkSent = async () => {
+    if (!fromEmail) { toast.error('Select a sender email first'); return; }
+    setSending(true);
+    await recordInviteSent({ employee, token, fromEmail, isResend });
+    queryClient.invalidateQueries({ queryKey: ['employees'] });
+    setSending(false);
+    toast.success('Invite marked as sent');
+    onSent?.();
+    onClose();
+  };
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(body);
@@ -74,44 +128,17 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
     toast.success('Message copied to clipboard');
   };
 
-  const handleMarkSent = async () => {
-    if (!fromEmail) { toast.error('Select a sender email first'); return; }
-    setSaving(true);
-    const now = new Date().toISOString();
-    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    const updateFields = {
-      invite_status: isResend ? 'resent' : 'pending_confirmation',
-      invite_sent_from: fromEmail,
-      invite_token: token,
-      invite_token_expires: expires,
-      verification_status: 'unverified',
-    };
-    if (!isResend) {
-      updateFields.invite_sent_date = now;
-    } else {
-      updateFields.last_invite_resent_date = now;
-    }
-
-    await base44.entities.Employee.update(employee.id, updateFields);
-    queryClient.invalidateQueries({ queryKey: ['employees'] });
-
-    setSaving(false);
-    setMarked(true);
-    toast.success('Invite marked as sent');
-    setTimeout(() => { onSent?.(); onClose(); }, 800);
-  };
-
-  const handleSaveLater = async () => {
-    toast.success('Invite saved — you can resend from the employee file later');
+  const handleSaveLater = () => {
+    toast.success('Invite saved — you can send from the employee file later');
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
             <p className="text-sm font-semibold">{isResend ? 'Resend Invite' : 'Send Employee Invite'}</p>
@@ -122,13 +149,16 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
         </div>
 
         <div className="p-5 space-y-4">
+
           {/* Recipient */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">To (Recipient)</label>
             <div className="flex items-center gap-2 h-10 px-3 bg-muted/40 rounded-xl border border-border text-sm text-foreground">
               <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <span>{employee.name}</span>
-              {employee.email ? <span className="text-muted-foreground">— {employee.email}</span> : <span className="text-destructive text-xs">(no email on file)</span>}
+              {employee.email
+                ? <span className="text-muted-foreground">— {employee.email}</span>
+                : <span className="text-destructive text-xs">(no email on file)</span>}
             </div>
           </div>
 
@@ -168,25 +198,21 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
             <Textarea value={body} onChange={e => setBody(e.target.value)} className="rounded-xl text-sm min-h-48 font-mono text-xs" />
           </div>
 
-          {/* Platform notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-700 space-y-1">
-            <p className="font-medium">How to send this invite:</p>
-            <p>Copy the message below and paste it into your email client, SMS, or messaging app to send it to the employee. Then click <strong>"Mark as Sent"</strong> to update their invite status.</p>
-          </div>
-
           {/* Invite link preview */}
           <div className="bg-muted/40 border border-border rounded-xl px-3 py-2">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-medium text-muted-foreground">Verification Link</p>
+              <p className="text-xs font-medium text-muted-foreground">Verification Link (included in message)</p>
               <button onClick={() => { navigator.clipboard.writeText(verifyLink); toast.success('Link copied'); }}
                 className="text-xs text-primary hover:underline flex items-center gap-1">
-                <Copy className="w-3 h-3" />Copy Link
+                <Copy className="w-3 h-3" /> Copy Link
               </button>
             </div>
             <p className="text-xs text-primary break-all">{verifyLink}</p>
             <div className="flex items-center gap-1 mt-1">
               <Clock className="w-3 h-3 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Expires in 7 days · {format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'MMM d, yyyy')}</p>
+              <p className="text-xs text-muted-foreground">
+                Expires in 7 days · {format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'MMM d, yyyy')}
+              </p>
             </div>
           </div>
 
@@ -197,22 +223,43 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
               <span>Previously sent {format(new Date(employee.invite_sent_date), 'MMM d, yyyy')} from {employee.invite_sent_from || '—'}</span>
             </div>
           )}
+
+          {/* Manual fallback notice — clearly separated */}
+          <div className="border-t border-border pt-3 space-y-2">
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
+              <p>
+                If automatic sending fails (e.g. plan limitation), copy the message and send it manually via your email client, then click <strong>Mark as Sent</strong> to record the invite.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs" onClick={handleCopyMessage}>
+                {copied ? <><CheckCheck className="w-3.5 h-3.5 mr-1" /> Copied!</> : <><Copy className="w-3.5 h-3.5 mr-1" /> Copy Message</>}
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs" onClick={handleMarkSent} disabled={sending}>
+                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Mark as Sent'}
+              </Button>
+            </div>
+          </div>
+
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col gap-2 px-5 pb-5">
-          <div className="flex items-center gap-2">
-            <Button className="flex-1 h-10 rounded-xl" onClick={handleCopyMessage}>
-              {copied ? <><CheckCheck className="w-3.5 h-3.5 mr-1.5" />Copied!</> : <><Copy className="w-3.5 h-3.5 mr-1.5" />Copy Full Message</>}
-            </Button>
-            <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={handleMarkSent} disabled={saving || marked}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : marked ? <><CheckCheck className="w-3.5 h-3.5 mr-1.5" />Marked!</> : 'Mark as Sent'}
-            </Button>
-          </div>
-          <Button variant="ghost" className="w-full h-9 rounded-xl text-xs text-muted-foreground" onClick={onClose}>
-            Save for Later / Cancel
+        {/* Primary Actions */}
+        <div className="flex items-center gap-2 px-5 pb-5">
+          <Button
+            className="flex-1 h-10 rounded-xl gap-2"
+            onClick={handleSend}
+            disabled={sending || !employee.email || approvedEmails.length === 0}
+          >
+            {sending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <><Send className="w-3.5 h-3.5" /> {isResend ? 'Resend Invite' : 'Send Invite'}</>}
+          </Button>
+          <Button variant="ghost" className="h-10 rounded-xl px-4 text-sm" onClick={handleSaveLater}>
+            Save for Later
           </Button>
         </div>
+
       </div>
     </div>
   );

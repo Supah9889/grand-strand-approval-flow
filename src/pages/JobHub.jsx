@@ -8,7 +8,8 @@ import AppLayout from '../components/AppLayout';
 import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
-import JobLinkedRecords from '../components/jobs/JobLinkedRecords';
+import JobRelatedRecords from '../components/jobs/JobRelatedRecords';
+import { fetchJobRelatedRecords, calculateJobRollups } from '@/lib/recordLinking';
 import JobInternalUsersTab from '../components/jobs/JobInternalUsersTab';
 import JobDetailsExpandedTab from '../components/jobs/JobDetailsExpandedTab';
 import ClientPortalManager from '../components/portal/ClientPortalManager';
@@ -94,6 +95,14 @@ export default function JobHub() {
     enabled: !!jobId && activeTab === 'notes',
   });
 
+  // Fetch all related records for the job
+  const { data: relatedRecords, isLoading: isLoadingRelated } = useQuery({
+    queryKey: ['job-related-records', jobId],
+    queryFn: () => fetchJobRelatedRecords(jobId),
+    enabled: !!jobId && activeTab === 'details' && isAdmin,
+  });
+
+  const jobRollups = relatedRecords ? calculateJobRollups(relatedRecords) : null;
   const visibleTabs = TABS.filter(t => !t.adminOnly || isAdmin);
 
   if (!jobId) return (
@@ -171,7 +180,30 @@ export default function JobHub() {
           {activeTab === 'details' && (
             <div className="space-y-3">
               <JobDetailsExpandedTab job={job} isAdmin={isAdmin} />
-              {isAdmin && <JobLinkedRecords jobId={job.id} isAdmin={isAdmin} />}
+              {isAdmin && jobRollups && (
+                <div className="bg-card border border-border rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Related Records Summary</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-4">
+                    <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                      <p className="text-blue-700 font-medium">{jobRollups.invoiceCount}</p>
+                      <p className="text-muted-foreground">Active Invoices</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg p-2 border border-amber-200">
+                      <p className="text-amber-700 font-medium">${Number(jobRollups.invoiceTotal).toLocaleString()}</p>
+                      <p className="text-muted-foreground">Invoice Total</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                      <p className="text-green-700 font-medium">${Number(jobRollups.expenseTotal).toLocaleString()}</p>
+                      <p className="text-muted-foreground">Total Expenses</p>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
+                      <p className="text-purple-700 font-medium">{jobRollups.totalHours}h</p>
+                      <p className="text-muted-foreground">Time Logged</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {isAdmin && <JobRelatedRecords related={relatedRecords} isLoading={isLoadingRelated} />}
             </div>
           )}
           {activeTab === 'team' && isAdmin && (

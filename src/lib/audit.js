@@ -543,6 +543,11 @@ export const audit = {
 
   // ── VENDOR COMPLIANCE ────────────────────────────────────
   vendor: {
+    created: (id, actor, vendorName, opts = {}) =>
+      logAudit(id, 'record_created', actor,
+        `${actor} created vendor/subcontractor: ${vendorName}.`,
+        { module: 'vendor', record_id: id, ...opts }),
+
     complianceExpirationUpdated: (id, actor, vendorName, docType, oldDate, newDate, opts = {}) =>
       logAudit(id, 'compliance_field_updated', actor,
         `${actor} updated ${docType} expiration for ${vendorName}: ${oldDate || 'not set'} → ${newDate}.`,

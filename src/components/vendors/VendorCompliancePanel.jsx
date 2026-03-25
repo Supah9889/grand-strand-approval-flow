@@ -64,6 +64,10 @@ export default function VendorCompliancePanel({ vendor, onUpdate }) {
 
   const handleUpload = async (docType, file) => {
     if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Only PDF files are allowed');
+      return;
+    }
     try {
       const uploaded = await base44.integrations.Core.UploadFile({ file });
       const docData = {
@@ -77,12 +81,6 @@ export default function VendorCompliancePanel({ vendor, onUpdate }) {
         upload_date: new Date().toISOString(),
         is_current: true,
       };
-
-      // Mark old documents of this type as not current
-      const oldDocs = docs.filter((d) => d.document_type === docType && d.is_current);
-      for (const oldDoc of oldDocs) {
-        await base44.entities.VendorComplianceDocument.update(oldDoc.id, { is_current: false });
-      }
 
       await uploadDocMutation.mutate(docData);
       const docTypeLabel = docType === 'certificate_of_insurance' ? 'COI' : 'Workers\' Comp';
@@ -133,8 +131,8 @@ export default function VendorCompliancePanel({ vendor, onUpdate }) {
     return null;
   }
 
-  const coiDoc = docs.find((d) => d.document_type === 'certificate_of_insurance' && d.is_current);
-  const wcDoc = docs.find((d) => d.document_type === 'workers_compensation' && d.is_current);
+  const coiDocs = docs.filter((d) => d.document_type === 'certificate_of_insurance' && d.is_current);
+  const wcDocs = docs.filter((d) => d.document_type === 'workers_compensation' && d.is_current);
   const coiExpired = isDateExpired(coiExpiryDate);
   const wcExpired = isDateExpired(wcExpiryDate);
 
@@ -197,69 +195,64 @@ export default function VendorCompliancePanel({ vendor, onUpdate }) {
           )}
         </div>
 
-        {/* COI Document */}
+        {/* COI Documents */}
         <div className="space-y-2 mb-4 bg-secondary/30 rounded-lg p-3">
-          <p className="text-xs font-medium text-muted-foreground">COI Document</p>
-          {coiDoc ? (
-            <div className="flex items-center justify-between bg-white rounded-lg p-2">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <File className="w-3.5 h-3.5 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate">{coiDoc.file_name}</p>
-                  <p className="text-[10px] text-muted-foreground">Uploaded {format(parseISO(coiDoc.upload_date), 'MMM d, yyyy')}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <a href={coiDoc.file_url} target="_blank" rel="noopener noreferrer">
-                  <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                </a>
-                {isOwnerOrAdmin && (
-                  <>
-                    <input
-                      type="file"
-                      ref={(el) => (fileInputRef.current.coi = el)}
-                      onChange={(e) => handleUpload('certificate_of_insurance', e.target.files?.[0])}
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    />
-                    <button
-                      onClick={() => fileInputRef.current.coi?.click()}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-                      title="Replace"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDoc(coiDoc.id, 'certificate_of_insurance')}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      title="Remove"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">COI Documents</p>
+            {isOwnerOrAdmin && (
               <input
                 type="file"
-                ref={(el) => (fileInputRef.current.coi_new = el)}
+                ref={(el) => (fileInputRef.current.coi_add = el)}
                 onChange={(e) => handleUpload('certificate_of_insurance', e.target.files?.[0])}
                 className="hidden"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                accept=".pdf"
               />
-              <button
-                onClick={() => fileInputRef.current.coi_new?.click()}
-                disabled={uploadDocMutation.isPending}
-                className="flex items-center gap-2 text-xs text-primary hover:underline"
-              >
-                {uploadDocMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                Upload COI
-              </button>
+            )}
+          </div>
+
+          {coiDocs.length > 0 ? (
+            <div className="space-y-2">
+              {coiDocs.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between bg-white rounded-lg p-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <File className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{doc.file_name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(parseISO(doc.upload_date), 'MMM d, yyyy')} • {doc.uploaded_by}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                      <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </a>
+                    {isOwnerOrAdmin && (
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id, 'certificate_of_insurance')}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
+          ) : null}
+
+          {isOwnerOrAdmin && (
+            <button
+              onClick={() => fileInputRef.current.coi_add?.click()}
+              disabled={uploadDocMutation.isPending}
+              className="flex items-center gap-2 text-xs text-primary hover:underline pt-1"
+            >
+              {uploadDocMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {coiDocs.length > 0 ? 'Add another COI' : 'Upload COI'}
+            </button>
           )}
         </div>
 
@@ -317,69 +310,64 @@ export default function VendorCompliancePanel({ vendor, onUpdate }) {
           )}
         </div>
 
-        {/* Workers' Comp Document */}
+        {/* Workers' Comp Documents */}
         <div className="space-y-2 bg-secondary/30 rounded-lg p-3">
-          <p className="text-xs font-medium text-muted-foreground">Workers' Compensation Document</p>
-          {wcDoc ? (
-            <div className="flex items-center justify-between bg-white rounded-lg p-2">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <File className="w-3.5 h-3.5 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate">{wcDoc.file_name}</p>
-                  <p className="text-[10px] text-muted-foreground">Uploaded {format(parseISO(wcDoc.upload_date), 'MMM d, yyyy')}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <a href={wcDoc.file_url} target="_blank" rel="noopener noreferrer">
-                  <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                </a>
-                {isOwnerOrAdmin && (
-                  <>
-                    <input
-                      type="file"
-                      ref={(el) => (fileInputRef.current.wc = el)}
-                      onChange={(e) => handleUpload('workers_compensation', e.target.files?.[0])}
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    />
-                    <button
-                      onClick={() => fileInputRef.current.wc?.click()}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-                      title="Replace"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDoc(wcDoc.id, 'workers_compensation')}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      title="Remove"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">Workers' Comp Documents</p>
+            {isOwnerOrAdmin && (
               <input
                 type="file"
-                ref={(el) => (fileInputRef.current.wc_new = el)}
+                ref={(el) => (fileInputRef.current.wc_add = el)}
                 onChange={(e) => handleUpload('workers_compensation', e.target.files?.[0])}
                 className="hidden"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                accept=".pdf"
               />
-              <button
-                onClick={() => fileInputRef.current.wc_new?.click()}
-                disabled={uploadDocMutation.isPending}
-                className="flex items-center gap-2 text-xs text-primary hover:underline"
-              >
-                {uploadDocMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                Upload Workers' Comp
-              </button>
+            )}
+          </div>
+
+          {wcDocs.length > 0 ? (
+            <div className="space-y-2">
+              {wcDocs.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between bg-white rounded-lg p-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <File className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{doc.file_name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(parseISO(doc.upload_date), 'MMM d, yyyy')} • {doc.uploaded_by}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                      <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </a>
+                    {isOwnerOrAdmin && (
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id, 'workers_compensation')}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
+          ) : null}
+
+          {isOwnerOrAdmin && (
+            <button
+              onClick={() => fileInputRef.current.wc_add?.click()}
+              disabled={uploadDocMutation.isPending}
+              className="flex items-center gap-2 text-xs text-primary hover:underline pt-1"
+            >
+              {uploadDocMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {wcDocs.length > 0 ? 'Add another Workers\' Comp' : 'Upload Workers\' Comp'}
+            </button>
           )}
         </div>
       </div>

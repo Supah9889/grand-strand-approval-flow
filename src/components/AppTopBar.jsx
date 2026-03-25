@@ -6,7 +6,7 @@ import CompanyLogo from './CompanyLogo';
 
 export default function AppTopBar({ onMenuOpen, title }) {
   const navigate = useNavigate();
-  const { popRoute } = useNavigation();
+  const { getTabStack, popRoute } = useNavigation();
 
   const handleBack = () => {
     const tabName = getTabFromPath(window.location.pathname);
@@ -16,8 +16,10 @@ export default function AppTopBar({ onMenuOpen, title }) {
     }
   };
 
-  // Detect if we should show back button (basic heuristic: /path/:param or nested routes)
-  const showBackButton = /\/[^/]+\/[^/]+/.test(window.location.pathname);
+  // Show back button if current stack depth > 1 (not at primary tab route)
+  const tabName = getTabFromPath(window.location.pathname);
+  const stack = getTabStack(tabName);
+  const showBackButton = stack.length > 1;
 
   return (
     <div className="sticky top-0 z-30 bg-white border-b border-border flex items-center h-14 px-4 gap-3 shadow-sm">

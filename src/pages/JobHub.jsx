@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import PullToRefresh from '@/components/PullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { Loader2, ArrowLeft, MapPin, User, DollarSign, Calendar, CheckSquare, FileDiff, FileText, Clock, BookOpen, ShieldCheck, FolderOpen, StickyNote, Lock, Receipt, Users, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -32,11 +33,20 @@ const TABS = [
 
 export default function JobHub() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const role = getInternalRole();
-  const isAdmin = getIsAdmin(); // true for admin + owner
+  const isAdmin = getIsAdmin();
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
   const [activeTab, setActiveTab] = useState('details');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['job-hub', jobId] });
+    await queryClient.refetchQueries({ queryKey: ['job-related-records', jobId] });
+    setIsRefreshing(false);
+  };
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job-hub', jobId],
@@ -129,7 +139,8 @@ export default function JobHub() {
 
   return (
     <AppLayout title="Job Hub">
-      <div className="max-w-2xl mx-auto w-full px-4 py-4 space-y-4">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
+        <div className="max-w-2xl mx-auto w-full px-4 py-4 space-y-4">
 
         {/* Back */}
         <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -280,6 +291,7 @@ export default function JobHub() {
           )} />}
         </div>
       </div>
+    </PullToRefresh>
     </AppLayout>
   );
 }

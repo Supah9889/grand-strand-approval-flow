@@ -4,7 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useQueryClient } from '@tanstack/react-query';
+import BottomSheetSelect from '@/components/BottomSheetSelect';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Plus, Search, Loader2, ChevronRight, AlertCircle, Calendar, BarChart2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isPast, isToday } from 'date-fns';
@@ -51,6 +53,7 @@ export default function Sales() {
   const [filterSource, setFilterSource] = useState('all');
   const [sort, setSort] = useState('newest');
   const [activeStat, setActiveStat] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -61,6 +64,13 @@ export default function Sales() {
     queryKey: ['vendors'],
     queryFn: () => base44.entities.Vendor.list('company_name'),
   });
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['leads'] });
+    await queryClient.refetchQueries({ queryKey: ['vendors'] });
+    setIsRefreshing(false);
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
@@ -139,7 +149,8 @@ export default function Sales() {
 
   return (
     <AppLayout title="Sales / CRM">
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
+        <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -207,31 +218,25 @@ export default function Sales() {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[110px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                {['low','medium','high','urgent'].map(p => <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="follow_up">Follow-Up Date</SelectItem>
-                <SelectItem value="priority">Highest Priority</SelectItem>
-                <SelectItem value="alpha_contact">A–Z by Contact</SelectItem>
-                <SelectItem value="updated">Recently Updated</SelectItem>
-              </SelectContent>
-            </Select>
+            <BottomSheetSelect value={filterStatus} onChange={setFilterStatus} label="Status" options={[
+              { label: 'All Statuses', value: 'all' },
+              ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
+            ]} />
+            <BottomSheetSelect value={filterPriority} onChange={setFilterPriority} label="Priority" options={[
+              { label: 'All Priorities', value: 'all' },
+              { label: 'Low', value: 'low' },
+              { label: 'Medium', value: 'medium' },
+              { label: 'High', value: 'high' },
+              { label: 'Urgent', value: 'urgent' },
+            ]} />
+            <BottomSheetSelect value={sort} onChange={setSort} label="Sort" options={[
+              { label: 'Newest First', value: 'newest' },
+              { label: 'Oldest First', value: 'oldest' },
+              { label: 'Follow-Up Date', value: 'follow_up' },
+              { label: 'Highest Priority', value: 'priority' },
+              { label: 'A–Z by Contact', value: 'alpha_contact' },
+              { label: 'Recently Updated', value: 'updated' },
+            ]} />
           </div>
         </div>
 
@@ -312,6 +317,7 @@ export default function Sales() {
           </div>
         )}
       </div>
+    </PullToRefresh>
     </AppLayout>
   );
 }

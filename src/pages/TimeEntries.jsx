@@ -47,7 +47,7 @@ export default function TimeEntries() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: () => base44.entities.Employee.list('name'),
-    enabled: isAdmin,
+    enabled: isAdmin, // now correctly includes owner
   });
 
   const createEntry = useMutation({

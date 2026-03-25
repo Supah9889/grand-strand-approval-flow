@@ -9,7 +9,7 @@ import { Loader2, Clock, Search, User, MapPin, Plus, X, AlertTriangle } from 'lu
 import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, isToday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import AdminManualEntryForm from '../components/timeclock/AdminManualEntryForm';
 import { toast } from 'sonner';
 

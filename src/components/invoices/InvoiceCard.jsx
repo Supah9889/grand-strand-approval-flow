@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 const SOURCE_LABELS = { estimate: 'From Estimate', change_order: 'Change Order', manual: 'Manual' };
 
-export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange }) {
+export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange, onEdit }) {
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
   const cfg = INVOICE_STATUS_CONFIG[inv.status] || INVOICE_STATUS_CONFIG.draft;
@@ -67,6 +67,11 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
             <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>{Object.entries(INVOICE_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
           </Select>
+          {onEdit && (
+            <button onClick={onEdit} className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-muted">
+              <Pencil className="w-3 h-3" /> Edit
+            </button>
+          )}
         </div>
       </div>
 

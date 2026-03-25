@@ -12,7 +12,9 @@ import { base44 } from '@/api/base44Client';
 const LOCKED_FIELDS = ['address', 'customer_name', 'description', 'price'];
 
 export default function JobEditModal({ job, open, onClose, onSave, saving }) {
-  const [form, setForm] = useState({ ...job });
+  // Derive street-only from existing address (strip city/state/zip if present)
+  const initialStreet = job.city ? job.address?.split(',')[0]?.trim() || job.address : job.address;
+  const [form, setForm] = useState({ ...job, _street: initialStreet });
   const [unlocked, setUnlocked] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
 
@@ -29,10 +31,9 @@ export default function JobEditModal({ job, open, onClose, onSave, saving }) {
 
   const handleSave = async () => {
     const wasLocked = job.locked;
-    // Re-assemble address from structured fields before saving
-    const street = form._street ?? (job.city || job.zip ? job.address?.split(',')[0]?.trim() : form.address);
-    const fullAddress = [form._street ?? form.address, form.city, form.state && form.zip ? `${form.state} ${form.zip}` : (form.state || form.zip)].filter(Boolean).join(', ');
-    onSave({ ...form, price: Number(form.price), address: fullAddress || form.address });
+    const fullAddress = [form._street, form.city, form.state && form.zip ? `${form.state} ${form.zip}` : (form.state || form.zip)].filter(Boolean).join(', ');
+    const { _street, ...rest } = form;
+    onSave({ ...rest, price: Number(rest.price), address: fullAddress || rest.address });
     // log after save — parent calls invalidate then closes modal
     // We log optimistically here
     if (wasLocked) {

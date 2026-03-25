@@ -126,6 +126,7 @@ export default function InvoiceFullForm({
 
   const handleSave = async () => {
     if (!form.customer_name) { toast.error('Customer name is required'); return; }
+    if (!form.job_id) { toast.error('Job linking is required. Please select a job.'); return; }
     setSaving(true);
     await onSave({
       ...form,

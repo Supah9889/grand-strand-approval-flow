@@ -29,7 +29,10 @@ export default function JobEditModal({ job, open, onClose, onSave, saving }) {
 
   const handleSave = async () => {
     const wasLocked = job.locked;
-    onSave({ ...form, price: Number(form.price) });
+    // Re-assemble address from structured fields before saving
+    const street = form._street ?? (job.city || job.zip ? job.address?.split(',')[0]?.trim() : form.address);
+    const fullAddress = [form._street ?? form.address, form.city, form.state && form.zip ? `${form.state} ${form.zip}` : (form.state || form.zip)].filter(Boolean).join(', ');
+    onSave({ ...form, price: Number(form.price), address: fullAddress || form.address });
     // log after save — parent calls invalidate then closes modal
     // We log optimistically here
     if (wasLocked) {

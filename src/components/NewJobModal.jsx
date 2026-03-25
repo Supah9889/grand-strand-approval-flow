@@ -27,6 +27,9 @@ const JOB_COLORS = [
 const empty = {
   title: '',
   address: '',
+  city: '',
+  state: '',
+  zip: '',
   customer_name: '',
   phone: '',
   email: '',
@@ -44,9 +47,14 @@ export default function NewJobModal({ open, onClose }) {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
+      // Assemble a full address string for downstream display/geo use
+      const fullAddress = [data.address, data.city, data.state && data.zip ? `${data.state} ${data.zip}` : (data.state || data.zip)].filter(Boolean).join(', ');
       const job = await base44.entities.Job.create({
         ...data,
         price: data.price ? Number(data.price) : 0,
+        // Keep `address` as the full assembled string for all display/geo usage;
+        // city/state/zip are stored separately in their own fields.
+        address: fullAddress || data.address,
       });
       await logAudit(job.id, 'job_created', 'Admin', `New job created: ${data.address}`);
       return job;

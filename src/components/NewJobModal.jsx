@@ -149,13 +149,34 @@ export default function NewJobModal({ open, onClose }) {
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   className="h-10 rounded-xl text-sm"
                 />
+                {/* Structured address fields */}
                 <Input
-                  placeholder="Address *"
+                  placeholder="Street Address *"
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                   className="h-10 rounded-xl text-sm"
-                  required
                 />
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    placeholder="City *"
+                    value={form.city}
+                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    className="h-10 rounded-xl text-sm col-span-1"
+                  />
+                  <Input
+                    placeholder="State *"
+                    value={form.state}
+                    onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+                    className="h-10 rounded-xl text-sm"
+                    maxLength={2}
+                  />
+                  <Input
+                    placeholder="ZIP *"
+                    value={form.zip}
+                    onChange={e => setForm(f => ({ ...f, zip: e.target.value }))}
+                    className="h-10 rounded-xl text-sm"
+                  />
+                </div>
                 <Input
                   placeholder="Customer Name *"
                   value={form.customer_name}

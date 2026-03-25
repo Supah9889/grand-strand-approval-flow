@@ -9,7 +9,7 @@ import {
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, Briefcase
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
 import NewJobModal from './NewJobModal';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';

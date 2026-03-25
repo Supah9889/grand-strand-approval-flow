@@ -293,6 +293,15 @@ export default function TimeEntries() {
                 <SelectItem value="edited">Edited</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterApproval} onValueChange={setFilterApproval}>
+              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Approvals</SelectItem>
+                <SelectItem value="pending">Pending Approval</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
             <Input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="h-8 text-xs rounded-lg w-auto" />
             <Select value={sort} onValueChange={setSort}>
               <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>

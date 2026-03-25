@@ -7,17 +7,20 @@ import EmployeeInviteStatus from './EmployeeInviteStatus';
 import EmployeeInviteModal from './EmployeeInviteModal';
 import PermissionSwitchboard from './PermissionSwitchboard';
 import { toast } from 'sonner';
-import { isAdmin, isOwnerOnly } from '@/lib/adminAuth';
+import { isAdmin, isOwnerOnly, getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 
 export default function EmployeeDetailPanel({ employee, onClose }) {
   const [showInvite, setShowInvite] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false); // 'deactivate' | 'delete' | null
   const queryClient = useQueryClient();
+  const actor = getInternalRole() || 'Admin';
 
   const deactivateMutation = useMutation({
     mutationFn: () => base44.entities.Employee.update(employee.id, { active: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      audit.employee.archived(employee.id, actor, employee.name);
       setDeleteConfirm(null);
       toast.success('Employee deactivated');
       onClose();
@@ -28,6 +31,7 @@ export default function EmployeeDetailPanel({ employee, onClose }) {
     mutationFn: () => base44.entities.Employee.delete(employee.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      audit.employee.deleted(employee.id, actor, employee.name);
       setDeleteConfirm(null);
       toast.success('Employee permanently deleted');
       onClose();
@@ -46,6 +50,7 @@ export default function EmployeeDetailPanel({ employee, onClose }) {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      audit.employee.inviteConfirmed(employee.id, actor, employee.name);
       toast.success('Employee marked as verified');
     },
   });

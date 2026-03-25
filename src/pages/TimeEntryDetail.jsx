@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Save, Clock, User, MapPin, AlertTriangle, History }
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { formatDuration } from './TimeEntries';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';

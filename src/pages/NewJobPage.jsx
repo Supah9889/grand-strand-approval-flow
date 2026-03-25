@@ -282,11 +282,11 @@ export default function NewJobPage() {
   };
 
   // ── Assignment helpers ──
-  const addAssignment = (empId, roleVal) => {
+  const addAssignment = (empId, roleVal, notify = true) => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
     if (pendingAssignments.find(a => a.emp.id === empId)) return;
-    setPendingAssignments(p => [...p, { emp, role: roleVal, notify: true }]);
+    setPendingAssignments(p => [...p, { emp, role: roleVal, notify }]);
   };
   const removeAssignment = (empId) => setPendingAssignments(p => p.filter(a => a.emp.id !== empId));
   const toggleNotify = (empId) => setPendingAssignments(p => p.map(a => a.emp.id === empId ? { ...a, notify: !a.notify } : a));

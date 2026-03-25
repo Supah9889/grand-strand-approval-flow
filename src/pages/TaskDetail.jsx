@@ -14,6 +14,7 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskStatusBadge, { STATUS_CONFIG, PRIORITY_CONFIG } from '../components/tasks/TaskStatusBadge';
 import PhotoLightbox from '../components/dailylogs/PhotoLightbox';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 const TYPE_LABEL = { todo: 'To-Do', task: 'Task', punch_list: 'Punch List' };
@@ -50,18 +51,31 @@ export default function TaskDetail() {
   });
 
   const changeStatus = (newStatus) => {
-    updateMutation.mutate({ status: newStatus });
+    const oldStatus = task?.status;
+    updateMutation.mutate({ status: newStatus }, {
+      onSuccess: () => {
+        audit.task.statusChanged(taskId, role || 'Admin', task?.title, oldStatus, newStatus, { job_id: task?.job_id, job_address: task?.job_address });
+      }
+    });
     toast.success(`Status updated to ${STATUS_CONFIG[newStatus]?.label}`);
   };
 
   const saveEdits = (data) => {
     updateMutation.mutate(data, {
-      onSuccess: () => { setEditing(false); toast.success('Task updated'); }
+      onSuccess: () => {
+        audit.task.edited(taskId, role || 'Admin', data.title || task?.title, { job_id: task?.job_id, job_address: task?.job_address });
+        setEditing(false);
+        toast.success('Task updated');
+      }
     });
   };
 
   const saveCompletionNote = () => {
-    updateMutation.mutate({ completion_notes: completionNote, status: 'completed' });
+    updateMutation.mutate({ completion_notes: completionNote, status: 'completed' }, {
+      onSuccess: () => {
+        audit.task.statusChanged(taskId, role || 'Admin', task?.title, task?.status, 'completed', { job_id: task?.job_id, job_address: task?.job_address });
+      }
+    });
     setStatusNoteShown(false);
     toast.success('Task marked complete');
   };

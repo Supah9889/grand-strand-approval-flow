@@ -13,6 +13,7 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
 import TaskStatusBadge, { STATUS_CONFIG, PRIORITY_CONFIG } from '../components/tasks/TaskStatusBadge';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 const STAT_GROUPS = [
@@ -61,6 +62,7 @@ export default function Tasks() {
     onSuccess: (t) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setShowForm(false);
+      audit.task.created(t.id, role || 'Admin', t.title, t.job_address || t.job_title, { job_id: t.job_id, job_address: t.job_address });
       toast.success('Task created');
       navigate(`/tasks/${t.id}`);
     },

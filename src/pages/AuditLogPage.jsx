@@ -7,7 +7,7 @@ import { Loader2, Shield, AlertTriangle, Search } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import { ACTION_LABELS } from '@/lib/audit';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { useNavigate } from 'react-router-dom';
 
 const MODULES = ['job','signature','estimate','change_order','invoice','payment','bill','purchase_order','budget','time_entry','warranty','task','daily_log','lead','employee','portal','expense','system'];

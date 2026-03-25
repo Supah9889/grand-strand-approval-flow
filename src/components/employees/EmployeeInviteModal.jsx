@@ -14,7 +14,7 @@ function generateToken() {
 }
 
 function buildVerifyLink(token) {
-  return `${window.location.origin}/gate?verify_token=${token}`;
+  return `${window.location.origin}/verify-invite?verify_token=${token}`;
 }
 
 function buildDefaultMessage(employee, verifyLink) {

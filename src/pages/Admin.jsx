@@ -305,6 +305,15 @@ export default function Admin() {
               </div>
             </TabsContent>
           )}
+
+          {/* ── JOB TYPES TAB (admin only) ── */}
+          {isAdminRole && (
+            <TabsContent value="jobtypes" className="mt-0">
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <JobTypesManager actorName={role} />
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>

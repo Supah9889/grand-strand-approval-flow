@@ -2,16 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Loader2, ArrowLeft, MapPin, User, DollarSign, Calendar, CheckSquare, FileDiff, FileText, Clock, BookOpen, ShieldCheck, FolderOpen, StickyNote, Lock, Receipt } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, User, DollarSign, Calendar, CheckSquare, FileDiff, FileText, Clock, BookOpen, ShieldCheck, FolderOpen, StickyNote, Lock, Receipt, Users, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import JobLinkedRecords from '../components/jobs/JobLinkedRecords';
+import JobInternalUsersTab from '../components/jobs/JobInternalUsersTab';
+import JobDetailsExpandedTab from '../components/jobs/JobDetailsExpandedTab';
 
 const TABS = [
-  { key: 'overview',      label: 'Overview',      icon: MapPin,       adminOnly: false },
+  { key: 'details',       label: 'Details',       icon: Info,         adminOnly: false },
+  { key: 'team',          label: 'Team',          icon: Users,        adminOnly: true  },
   { key: 'tasks',         label: 'Tasks',         icon: CheckSquare,  adminOnly: false },
   { key: 'logs',          label: 'Daily Logs',    icon: BookOpen,     adminOnly: false },
   { key: 'files',         label: 'Files',         icon: FolderOpen,   adminOnly: false },

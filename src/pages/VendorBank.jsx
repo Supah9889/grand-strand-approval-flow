@@ -5,13 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Plus, Search, Building2, Phone, Mail, X } from 'lucide-react';
+import { Loader2, Plus, Search, Building2, Phone, Mail, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { parseISO, isPast, isToday, format } from 'date-fns';
 import AppLayout from '../components/AppLayout';
+import VendorDetailPanel from '../components/vendors/VendorDetailPanel';
 import { toast } from 'sonner';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 
 const TYPES = [
   { value: 'vendor', label: 'Vendor' },
+  { value: 'subcontractor', label: 'Subcontractor' },
   { value: 'builder', label: 'Builder' },
   { value: 'property_manager', label: 'Property Manager' },
   { value: 'insurance', label: 'Insurance' },
@@ -20,11 +25,15 @@ const TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-const emptyVendor = { company_name: '', contact_name: '', phone: '', email: '', address: '', type: 'vendor', notes: '', active: true };
+const emptyVendor = { company_name: '', contact_name: '', phone: '', email: '', address: '', type: 'vendor', notes: '', active: true, coi_expiration_date: '', workers_comp_expiration_date: '' };
 
 export default function VendorBank() {
+  const role = getInternalRole();
+  const isOwnerOrAdmin = getIsAdmin();
+
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState(null);
   const [form, setForm] = useState(emptyVendor);
   const queryClient = useQueryClient();
 
@@ -35,13 +44,24 @@ export default function VendorBank() {
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Vendor.create(data),
-    onSuccess: () => {
+    onSuccess: (vendor) => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      audit.vendor.created(vendor.id, role || 'Admin', vendor.company_name, { vendor_id: vendor.id });
       setForm(emptyVendor);
       setShowForm(false);
       toast.success('Vendor added');
     },
   });
+
+  const isDateExpired = (dateStr) => {
+    if (!dateStr) return false;
+    try {
+      const date = parseISO(dateStr);
+      return isPast(date) && !isToday(date);
+    } catch {
+      return false;
+    }
+  };
 
   const filtered = vendors.filter(v => {
     const q = search.toLowerCase();
@@ -91,6 +111,23 @@ export default function VendorBank() {
               </div>
               <Input placeholder="Address" value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="h-10 rounded-xl text-sm" />
               <Textarea placeholder="Notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="rounded-xl text-sm min-h-14" />
+              
+              {isOwnerOrAdmin && (
+                <>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Insurance Compliance (Optional)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">COI Expiration</label>
+                      <Input type="date" value={form.coi_expiration_date} onChange={e => setForm({...form, coi_expiration_date: e.target.value})} className="h-10 rounded-xl text-sm mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Workers' Comp Expiration</label>
+                      <Input type="date" value={form.workers_comp_expiration_date} onChange={e => setForm({...form, workers_comp_expiration_date: e.target.value})} className="h-10 rounded-xl text-sm mt-1" />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <Button className="w-full h-10 rounded-xl" disabled={!form.company_name || createMutation.isPending} onClick={() => createMutation.mutate(form)}>
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Vendor'}
               </Button>
@@ -109,25 +146,59 @@ export default function VendorBank() {
           <p className="text-sm text-muted-foreground text-center py-12">No vendors found.</p>
         ) : (
           <div className="space-y-2">
-            {filtered.map(v => (
-              <div key={v.id} className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-primary shrink-0" />
-                    <p className="text-sm font-semibold text-foreground">{v.company_name}</p>
+            {filtered.map(v => {
+              const coiExpired = isDateExpired(v.coi_expiration_date);
+              const wcExpired = isDateExpired(v.workers_comp_expiration_date);
+              const hasExpiredCompliance = coiExpired || wcExpired;
+
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => setSelectedVendor(v)}
+                  className="bg-card border border-border rounded-xl p-4 w-full text-left hover:bg-secondary/20 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Building2 className="w-4 h-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">{v.company_name}</p>
+                        {hasExpiredCompliance && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <AlertCircle className="w-3 h-3 text-destructive" />
+                            <span className="text-xs text-destructive font-medium">Compliance expired</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground shrink-0">
+                      {TYPES.find(t => t.value === v.type)?.label || v.type}
+                    </span>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                    {TYPES.find(t => t.value === v.type)?.label || v.type}
-                  </span>
-                </div>
-                {v.contact_name && <p className="text-xs text-muted-foreground mt-1 pl-6">{v.contact_name}</p>}
-                <div className="flex items-center gap-4 mt-2 pl-6">
-                  {v.phone && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" />{v.phone}</span>}
-                  {v.email && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="w-3 h-3" />{v.email}</span>}
-                </div>
-                {v.notes && <p className="text-xs text-muted-foreground italic mt-2 pl-6">{v.notes}</p>}
-              </div>
-            ))}
+                  {v.contact_name && <p className="text-xs text-muted-foreground mt-1 pl-6">{v.contact_name}</p>}
+                  <div className="flex items-center gap-4 mt-2 pl-6 flex-wrap">
+                    {v.phone && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" />{v.phone}</span>}
+                    {v.email && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="w-3 h-3" />{v.email}</span>}
+                  </div>
+                  {(v.coi_expiration_date || v.workers_comp_expiration_date) && (
+                    <div className="flex items-center gap-4 mt-2 pl-6 text-xs flex-wrap">
+                      {v.coi_expiration_date && (
+                        <span className={coiExpired ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                          COI: {format(parseISO(v.coi_expiration_date), 'MMM d, yyyy')}
+                          {coiExpired && ' (Expired)'}
+                        </span>
+                      )}
+                      {v.workers_comp_expiration_date && (
+                        <span className={wcExpired ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                          WC: {format(parseISO(v.workers_comp_expiration_date), 'MMM d, yyyy')}
+                          {wcExpired && ' (Expired)'}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {v.notes && <p className="text-xs text-muted-foreground italic mt-2 pl-6">{v.notes}</p>}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

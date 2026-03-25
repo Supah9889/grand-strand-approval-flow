@@ -140,7 +140,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="dashboard">
-          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-7' : 'grid grid-cols-1'}`}>
+          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-8' : 'grid grid-cols-1'}`}>
             <TabsTrigger value="dashboard" className="flex-1 rounded-lg text-sm gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
@@ -170,6 +170,10 @@ export default function Admin() {
                 <TabsTrigger value="geo" className="flex-1 rounded-lg text-sm gap-2">
                   <MapPin className="w-4 h-4" />
                   Geo
+                </TabsTrigger>
+                <TabsTrigger value="jobtypes" className="flex-1 rounded-lg text-sm gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  Job Types
                 </TabsTrigger>
               </>
             )}

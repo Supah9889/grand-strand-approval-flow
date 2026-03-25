@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
-import NewJobModal from './NewJobModal';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 
@@ -175,8 +174,6 @@ export default function Sidebar({ open, onClose }) {
     onClose();
     navigate('/gate', { replace: true });
   };
-  const [showNewJob, setShowNewJob] = useState(false);
-
   // Persistent group open state (session-level memory)
   const [openGroups, setOpenGroups] = useState(() => {
     const stored = getStoredOpenGroups();
@@ -251,7 +248,7 @@ export default function Sidebar({ open, onClose }) {
               {(role === 'admin' || role === 'owner') && (
                 <div className="px-4 pt-4 pb-2">
                   <button
-                    onClick={() => { setShowNewJob(true); onClose(); }}
+                    onClick={() => { onClose(); navigate('/new-job'); }}
                     className="w-full flex items-center justify-center gap-2 h-10 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl transition-colors shadow-sm"
                   >
                     <Plus className="w-4 h-4" />
@@ -301,7 +298,6 @@ export default function Sidebar({ open, onClose }) {
         )}
       </AnimatePresence>
 
-      <NewJobModal open={showNewJob} onClose={() => setShowNewJob(false)} />
     </>
   );
 }

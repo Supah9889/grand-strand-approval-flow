@@ -51,6 +51,7 @@ import AuditLogPage from './pages/AuditLogPage';
 import JobHub from './pages/JobHub';
 import AdminOverview from './pages/AdminOverview';
 import VerifyInvite from './pages/VerifyInvite';
+import GlobalSearch from './pages/GlobalSearch';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -124,6 +125,7 @@ const AuthenticatedApp = () => {
       <Route path="/job-hub" element={<JobHub />} />
       <Route path="/admin-overview" element={<AdminOverview />} />
       <Route path="/verify-invite" element={<VerifyInvite />} />
+      <Route path="/global-search" element={<GlobalSearch />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

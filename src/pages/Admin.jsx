@@ -121,7 +121,7 @@ export default function Admin() {
   });
 
   return (
-    <AppLayout title={isAdminRole ? 'Admin Mode' : 'Staff Mode'}>
+    <AppLayout title={role === 'owner' ? 'Owner Mode' : isAdminRole ? 'Admin Mode' : 'Staff Mode'}>
       <div className="max-w-2xl mx-auto px-4 py-6">
 
         {/* Role badge + sign out */}

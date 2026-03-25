@@ -14,7 +14,7 @@ import { format, parseISO } from 'date-fns';
 export default function AdminOverview() {
   const navigate = useNavigate();
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = getIsAdmin(); // true for admin + owner
   const [activeSection, setActiveSection] = useState(null);
 
   // Redirect non-admins

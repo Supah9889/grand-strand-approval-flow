@@ -15,7 +15,7 @@ const todayISO = new Date().toISOString().split('T')[0];
 export default function Dashboard() {
   const navigate = useNavigate();
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = getIsAdmin(); // true for admin + owner
   const [activeSection, setActiveSection] = useState(null);
 
   // All data loads

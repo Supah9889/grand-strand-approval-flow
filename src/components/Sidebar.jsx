@@ -270,10 +270,12 @@ export default function Sidebar({ open, onClose }) {
               {role && (
                 <div className="px-5 py-4 border-t border-border">
                   <div className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
-                    role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'
+                    role === 'owner' ? 'bg-amber-100 text-amber-700' :
+                    role === 'admin' ? 'bg-primary/10 text-primary' :
+                    'bg-secondary text-secondary-foreground'
                   }`}>
                     <ShieldAlert className="w-3 h-3" />
-                    {role === 'admin' ? 'Admin' : 'Staff'} Session
+                    {role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Staff'} Session
                   </div>
                 </div>
               )}

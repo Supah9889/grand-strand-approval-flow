@@ -1,77 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigation } from '@/lib/NavigationContext';
 import { Home, Search, Clock, DollarSign, Settings } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/dashboard', icon: Home },
-  { label: 'Search', path: '/search', icon: Search },
-  { label: 'Time', path: '/time-entries', icon: Clock },
-  { label: 'Financials', path: '/financials', icon: DollarSign },
-  { label: 'Admin', path: '/admin', icon: Settings },
+  { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
+  { label: 'Search', tabName: 'search', primaryPath: '/search', icon: Search },
+  { label: 'Time', tabName: 'time', primaryPath: '/time-entries', icon: Clock },
+  { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign },
+  { label: 'Admin', tabName: 'admin', primaryPath: '/admin', icon: Settings },
 ];
 
-const TAB_HISTORY = {
-  '/dashboard': ['/dashboard'],
-  '/search': ['/search'],
-  '/time-entries': ['/time-entries'],
-  '/financials': ['/financials'],
-  '/admin': ['/admin'],
-};
+function getActiveTab(pathname) {
+  if (/^\/(dashboard|job-hub|admin-overview)/.test(pathname)) return 'dashboard';
+  if (/^\/search/.test(pathname)) return 'search';
+  if (/^\/(time-entries|time-clock)/.test(pathname)) return 'time';
+  if (/^\/(financials|invoices|expenses|payments)/.test(pathname)) return 'finance';
+  if (/^\/admin/.test(pathname)) return 'admin';
+  return 'dashboard';
+}
 
 export default function BottomNav() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const [tabHistories, setTabHistories] = useState(TAB_HISTORY);
+  const location = useLocation();
+  const { getTabStack } = useNavigation();
 
-  const getActiveTab = () => {
-    const mainPaths = NAV_ITEMS.map(item => item.path);
-    return mainPaths.find(path => location.pathname.startsWith(path)) || '/dashboard';
-  };
+  const activeTab = getActiveTab(location.pathname);
 
-  const handleNavClick = (path) => {
-    const currentTab = getActiveTab();
-    
-    if (currentTab === path) {
-      // Same tab: navigate to first route in history or reset
-      navigate(path);
-    } else {
-      // Different tab: restore last route for this tab or go to its main path
-      const lastRoute = tabHistories[path]?.[tabHistories[path].length - 1] || path;
-      navigate(lastRoute);
-      
-      // Update tab histories
-      setTabHistories(prev => ({
-        ...prev,
-        [path]: prev[path] || [path],
-      }));
+  const handleTabClick = (tabName, primaryPath) => {
+    const stack = getTabStack(tabName);
+    const lastRoute = stack.length > 0 ? stack[stack.length - 1] : primaryPath;
+
+    if (lastRoute !== location.pathname) {
+      navigate(lastRoute || primaryPath);
     }
   };
 
-  // Track route changes for current tab
-  useEffect(() => {
-    const activeTab = getActiveTab();
-    setTabHistories(prev => {
-      const history = prev[activeTab] || [activeTab];
-      if (!history.includes(location.pathname)) {
-        return {
-          ...prev,
-          [activeTab]: [...history, location.pathname],
-        };
-      }
-      return prev;
-    });
-  }, [location.pathname]);
-
-  const activeTab = getActiveTab();
-
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around items-center h-16 safe-area-bottom">
-      {NAV_ITEMS.map(({ label, path, icon: Icon }) => (
+      {NAV_ITEMS.map(({ label, tabName, primaryPath, icon: Icon }) => (
         <button
-          key={path}
-          onClick={() => handleNavClick(path)}
+          key={tabName}
+          onClick={() => handleTabClick(tabName, primaryPath)}
           className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-            activeTab === path
+            activeTab === tabName
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
           }`}

@@ -111,6 +111,7 @@ export default function TimeEntries() {
       if (filterEmployee !== 'all') l = l.filter(e => e.employee_name === filterEmployee);
       if (filterCode !== 'all') l = l.filter(e => e.cost_code === filterCode);
       if (filterStatus !== 'all') l = l.filter(e => e.status === filterStatus);
+      if (filterApproval !== 'all') l = l.filter(e => (e.approval_status || 'pending') === filterApproval);
       if (filterDate) l = l.filter(e => e.clock_in?.startsWith(filterDate));
       if (search) {
         const q = search.toLowerCase();

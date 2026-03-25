@@ -13,6 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 const STATUS_CFG = {
@@ -56,7 +57,9 @@ export default function PortalManager() {
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const token = generateToken();
-      return base44.entities.PortalUser.create({
+      const linkedJobs = jobs.filter(j => (data.job_ids || []).includes(j.id));
+      const jobLabel = linkedJobs.map(j => j.address || j.title).join(', ') || '';
+      const pu = await base44.entities.PortalUser.create({
         name: data.name,
         email: data.email,
         portal_type: data.portal_type,
@@ -67,6 +70,8 @@ export default function PortalManager() {
         access_token: token,
         internal_notes: data.internal_notes,
       });
+      audit.portal.created(pu.id, role || 'Admin', data.name, jobLabel);
+      return pu;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal-users'] });
@@ -77,13 +82,21 @@ export default function PortalManager() {
   });
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status }) => {
+    mutationFn: ({ id, status, user }) => {
       const patch = { access_status: status };
       if (status === 'active') patch.activated_date = new Date().toISOString();
       return base44.entities.PortalUser.update(id, patch);
     },
-    onSuccess: () => {
+    onSuccess: (_, { id, status, user }) => {
       queryClient.invalidateQueries({ queryKey: ['portal-users'] });
+      const u = portalUsers.find(p => p.id === id) || user;
+      const clientName = u?.name || id;
+      const oldStatus = u?.access_status || 'unknown';
+      if (status === 'revoked') {
+        audit.portal.revoked(id, role || 'Admin', clientName);
+      } else {
+        audit.portal.statusChanged(id, role || 'Admin', clientName, oldStatus, status);
+      }
       toast.success('Access updated');
     },
   });
@@ -113,7 +126,12 @@ export default function PortalManager() {
     mutationFn: (id) => base44.entities.PortalUser.update(id, {
       access_token: Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2),
     }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['portal-users'] }); toast.success('New link generated'); },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['portal-users'] });
+      const u = portalUsers.find(p => p.id === id);
+      if (u) audit.portal.linkRegenerated(id, role || 'Admin', u.name);
+      toast.success('New link generated');
+    },
   });
 
   const getPortalUrl = (user) => {
@@ -300,19 +318,19 @@ export default function PortalManager() {
                   <div className="flex gap-2 flex-wrap pt-1 border-t border-border/60">
                     {user.access_status !== 'active' && (
                       <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs gap-1 text-green-700 border-green-200 hover:bg-green-50"
-                        onClick={() => updateStatus.mutate({ id: user.id, status: 'active' })}>
+                        onClick={() => updateStatus.mutate({ id: user.id, status: 'active', user })}>
                         <CheckCircle2 className="w-3 h-3" /> Activate
                       </Button>
                     )}
                     {user.access_status === 'active' && (
                       <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs gap-1"
-                        onClick={() => updateStatus.mutate({ id: user.id, status: 'disabled' })}>
+                        onClick={() => updateStatus.mutate({ id: user.id, status: 'disabled', user })}>
                         <ShieldOff className="w-3 h-3" /> Disable
                       </Button>
                     )}
                     {user.access_status !== 'revoked' && (
                       <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() => updateStatus.mutate({ id: user.id, status: 'revoked' })}>
+                        onClick={() => updateStatus.mutate({ id: user.id, status: 'revoked', user })}>
                         <X className="w-3 h-3" /> Revoke
                       </Button>
                     )}

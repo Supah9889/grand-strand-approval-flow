@@ -165,6 +165,7 @@ function NavGroup({ group, role, location, onClose, unreadNotes, isOpen, onToggl
 export default function Sidebar({ open, onClose }) {
   const location = useLocation();
   const role = getInternalRole();
+  const sessionEmployee = getSessionEmployee();
   const [showNewJob, setShowNewJob] = useState(false);
 
   // Persistent group open state (session-level memory)

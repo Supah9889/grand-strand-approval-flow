@@ -22,7 +22,7 @@ const NAV_GROUPS = [
     items: [
       { label: 'Dashboard',     to: '/dashboard',     icon: LayoutDashboard },
       { label: 'Job Search',    to: '/search',         icon: Search },
-      { label: 'Global Search', to: '/global-search', icon: Search },
+      { label: 'Global Search', to: '/global-search', icon: Globe },
     ],
   },
   {

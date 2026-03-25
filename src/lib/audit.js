@@ -131,4 +131,7 @@ export const ACTION_LABELS = {
   override_action:          { label: 'Admin Override',            color: 'text-destructive' },
   permission_change:        { label: 'Permission Changed',        color: 'text-destructive' },
   system_event:             { label: 'System Event',              color: 'text-muted-foreground' },
+  // Assignment-specific (reuse generic keys with meaningful detail strings)
+  employee_assigned:        { label: 'Employee Assigned',         color: 'text-primary' },
+  employee_unassigned:      { label: 'Employee Removed',          color: 'text-amber-600' },
 };

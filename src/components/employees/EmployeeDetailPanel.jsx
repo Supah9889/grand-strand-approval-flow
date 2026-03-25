@@ -81,6 +81,13 @@ export default function EmployeeDetailPanel({ employee, onClose }) {
             </div>
           </div>
 
+          {/* Permission Switchboard — visible to admin + owner */}
+          {isAdmin() && (
+            <div className="border-t border-border pt-4">
+              <PermissionSwitchboard employee={employee} />
+            </div>
+          )}
+
           {/* Notes */}
           {employee.notes && (
             <div className="border-t border-border pt-4">

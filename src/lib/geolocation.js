@@ -4,6 +4,17 @@
  */
 
 /**
+ * Assemble a full formatted address string from structured job fields.
+ * Falls back gracefully to whatever is available.
+ * Returns null if nothing useful is present.
+ */
+export function assembleAddress(job) {
+  if (!job) return null;
+  const parts = [job.address, job.city, job.state && job.zip ? `${job.state} ${job.zip}` : (job.state || job.zip)].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
+/**
  * Request the device's current position.
  * Returns { lat, lng, accuracy_meters, status }
  *   status: 'captured' | 'denied' | 'unavailable'

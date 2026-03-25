@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Save, Clock, User, MapPin, AlertTriangle, History } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Clock, User, MapPin, AlertTriangle, History, Navigation } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 import { validateTimeEntry } from '@/lib/validation';
 import ValidationPanel from '@/components/shared/ValidationPanel';
+import PunchLocationMap from '@/components/timeclock/PunchLocationMap';
 
 const COST_CODES = ['Carpentry Labor/Sub','Drywall Labor/Sub','Other Labor/Sub','Paint Expenses','Painting Labor/Sub'];
 

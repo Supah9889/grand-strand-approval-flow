@@ -626,7 +626,7 @@ export default function NewJobPage() {
                         </div>
                         <button type="button" onClick={() => toggleNotify(a.emp.id)}
                           className={`p-1.5 rounded-lg transition-colors ${a.notify ? 'text-primary' : 'text-muted-foreground'}`}
-                          title={a.notify ? 'Notifications on' : 'Notifications off'}>
+                          title={a.notify ? 'Will notify on save' : 'No notification'}>
                           {a.notify ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                         </button>
                         <button type="button" onClick={() => removeAssignment(a.emp.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive">

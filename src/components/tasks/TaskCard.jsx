@@ -14,14 +14,18 @@ function dueDateState(due_date, status) {
   return 'upcoming';
 }
 
-export default function TaskCard({ task, onClick }) {
+export default function TaskCard({ task, onClick, 'aria-label': ariaLabel }) {
   const photos = (() => { try { return JSON.parse(task.photos || '[]'); } catch { return []; } })();
   const TypeIcon = TYPE_ICON[task.task_type] || CheckSquare;
   const pCfg = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.normal;
   const dueState = dueDateState(task.due_date, task.status);
 
   return (
-    <button onClick={onClick} className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+    <button 
+      onClick={onClick} 
+      aria-label={ariaLabel}
+      className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

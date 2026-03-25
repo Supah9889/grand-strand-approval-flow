@@ -27,6 +27,7 @@ export default function Invoices() {
   const [showForm, setShowForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null); // { type: 'archive'|'delete', invoice }
+  const [ariaLiveMessage, setAriaLiveMessage] = useState('');
 
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -60,9 +61,13 @@ export default function Invoices() {
     },
   });
 
-  const updateInvoice = useMutation({
+  const updateInvoice = useOptimisticMutation({
     mutationFn: ({ id, data }) => base44.entities.Invoice.update(id, data),
-    onSuccess: (_, { id, data, _invoice }) => {
+    queryKey: ['invoices'],
+    optimisticUpdate: (prev, { id, data }) =>
+      prev.map(inv => inv.id === id ? { ...inv, ...data } : inv),
+    rollback: (prev) => prev,
+    onSuccess: () => {
       invalidate();
     },
   });
@@ -166,6 +171,7 @@ export default function Invoices() {
   const handleStatusChange = (inv, status) => {
     const oldStatus = inv.status;
     updateInvoice.mutate({ id: inv.id, data: { status } });
+    setAriaLiveMessage(`Invoice ${inv.invoice_number || inv.id} status changed from ${oldStatus} to ${status}`);
     audit.invoice.statusChanged(inv.id, role || 'Admin', inv.invoice_number || inv.id, oldStatus, status, { job_id: inv.job_id, job_address: inv.job_address });
   };
 
@@ -203,6 +209,11 @@ export default function Invoices() {
 
   return (
     <AppLayout title="Invoices">
+      {/* Aria live region for status announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {ariaLiveMessage}
+      </div>
+      
       <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
         <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
@@ -367,17 +378,18 @@ export default function Invoices() {
               </div>
             )}
             {filtered.map(inv => (
-              <InvoiceCard
-                key={inv.id}
-                invoice={inv}
-                payments={payments.filter(p => p.invoice_id === inv.id)}
-                isOverdue={isOverdueFn(inv)}
-                onStatusChange={(status) => handleStatusChange(inv, status)}
-                onEdit={() => { setShowForm(false); setEditingInvoice(inv); }}
-                onArchive={() => setConfirmDialog({ type: 'archive', invoice: inv })}
-                onDelete={() => setConfirmDialog({ type: 'delete', invoice: inv })}
-              />
-            ))}
+               <InvoiceCard
+                 key={inv.id}
+                 invoice={inv}
+                 payments={payments.filter(p => p.invoice_id === inv.id)}
+                 isOverdue={isOverdueFn(inv)}
+                 onStatusChange={(status) => handleStatusChange(inv, status)}
+                 onEdit={() => { setShowForm(false); setEditingInvoice(inv); }}
+                 onArchive={() => setConfirmDialog({ type: 'archive', invoice: inv })}
+                 onDelete={() => setConfirmDialog({ type: 'delete', invoice: inv })}
+                 aria-label={`Invoice ${inv.invoice_number}: $${inv.amount} from ${inv.customer_name}, Status: ${inv.status}`}
+               />
+             ))}
           </div>
         )}
       </div>

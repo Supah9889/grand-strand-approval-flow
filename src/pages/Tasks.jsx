@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -47,6 +48,7 @@ export default function Tasks() {
   const [filterJob, setFilterJob] = useState('all');
   const [sort, setSort] = useState('due_asc');
   const [activeStat, setActiveStat] = useState(null);
+  const [ariaLiveMessage, setAriaLiveMessage] = useState('');
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks'],
@@ -57,15 +59,22 @@ export default function Tasks() {
     queryFn: () => base44.entities.Job.list('-created_date', 200),
   });
 
-  const createMutation = useMutation({
+  const createMutation = useOptimisticMutation({
     mutationFn: (data) => base44.entities.Task.create(data),
+    queryKey: ['tasks'],
+    optimisticUpdate: (prev, taskData) => [
+      { ...taskData, id: `temp-${Date.now()}`, created_date: new Date().toISOString(), updated_date: new Date().toISOString() },
+      ...prev,
+    ],
+    rollback: (prev) => prev,
     onSuccess: (t) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setShowForm(false);
       audit.task.created(t.id, role || 'Admin', t.title, t.job_address || t.job_title, { job_id: t.job_id, job_address: t.job_address });
       toast.success('Task created');
+      setAriaLiveMessage(`New task "${t.title}" created`);
       navigate(`/tasks/${t.id}`);
     },
+    onError: () => toast.error('Failed to create task'),
   });
 
   const stats = useMemo(() => {
@@ -117,6 +126,11 @@ export default function Tasks() {
 
   return (
     <AppLayout title="Tasks">
+      {/* Aria live region for status announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {ariaLiveMessage}
+      </div>
+      
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
@@ -134,11 +148,13 @@ export default function Tasks() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2">
-          {STAT_GROUPS.map(g => (
-            <button key={g.key}
-              onClick={() => setActiveStat(activeStat === g.key ? null : g.key)}
-              className={`text-left p-3 rounded-xl border-2 transition-all ${activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20'}`}>
+         <div className="grid grid-cols-4 gap-2">
+           {STAT_GROUPS.map(g => (
+             <button key={g.key}
+               onClick={() => setActiveStat(activeStat === g.key ? null : g.key)}
+               aria-label={`Filter by ${g.label}, ${stats[g.key] || 0} items`}
+               aria-pressed={activeStat === g.key}
+               className={`text-left p-3 rounded-xl border-2 transition-all ${activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20'}`}>
               <p className={`text-lg font-bold leading-none ${g.color}`}>{stats[g.key] || 0}</p>
               <p className="text-xs text-muted-foreground mt-1 leading-tight">{g.label}</p>
             </button>
@@ -207,7 +223,13 @@ export default function Tasks() {
         {activeStat && (
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-foreground">Showing: {STAT_GROUPS.find(g => g.key === activeStat)?.label}</p>
-            <button onClick={() => setActiveStat(null)} className="text-xs text-muted-foreground underline underline-offset-2">Clear</button>
+            <button 
+              onClick={() => setActiveStat(null)} 
+              aria-label="Clear task filter"
+              className="text-xs text-muted-foreground underline underline-offset-2"
+            >
+              Clear
+            </button>
           </div>
         )}
 
@@ -220,10 +242,15 @@ export default function Tasks() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map(task => (
-              <TaskCard key={task.id} task={task} onClick={() => navigate(`/tasks/${task.id}`)} />
-            ))}
-          </div>
+             {filtered.map(task => (
+               <TaskCard 
+                 key={task.id} 
+                 task={task} 
+                 onClick={() => navigate(`/tasks/${task.id}`)} 
+                 aria-label={`Task: ${task.title}${task.assigned_to ? ` assigned to ${task.assigned_to}` : ''}, Status: ${task.status}`}
+               />
+             ))}
+           </div>
         )}
       </div>
     </AppLayout>

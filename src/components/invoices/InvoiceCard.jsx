@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 const SOURCE_LABELS = { estimate: 'From Estimate', change_order: 'Change Order', manual: 'Manual' };
 
-export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange, onEdit, onArchive, onDelete }) {
+export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, onStatusChange, onEdit, onArchive, onDelete, 'aria-label': ariaLabel }) {
   const [expanded, setExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const navigate = useNavigate();
@@ -38,7 +38,11 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
   const isArchived = inv.status === 'closed';
 
   return (
-    <div className={`bg-card border rounded-xl overflow-hidden ${isOverdue ? 'border-red-200' : isArchived ? 'border-slate-200 opacity-75' : 'border-border'}`}>
+    <div 
+      role="article"
+      aria-label={ariaLabel}
+      className={`bg-card border rounded-xl overflow-hidden ${isOverdue ? 'border-red-200' : isArchived ? 'border-slate-200 opacity-75' : 'border-border'}`}
+    >
       {/* Clickable header row */}
       <div
         className="p-4 cursor-pointer hover:bg-muted/20 transition-colors"
@@ -77,23 +81,35 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
       {/* Action bar */}
       <div className="flex items-center gap-2 px-4 pb-3 pt-0 border-t border-border/60" onClick={e => e.stopPropagation()}>
         <Select value={inv.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]" aria-label={`Change status for invoice ${inv.invoice_number}`}><SelectValue /></SelectTrigger>
           <SelectContent>{Object.entries(INVOICE_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
         </Select>
 
         <div className="ml-auto flex items-center gap-1">
           {onEdit && (
-            <button onClick={onEdit} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-muted">
+            <button 
+              onClick={onEdit} 
+              aria-label={`Edit invoice ${inv.invoice_number}`}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-muted"
+            >
               <Pencil className="w-3 h-3" /> Edit
             </button>
           )}
           {isAdmin && onArchive && (
-            <button onClick={onArchive} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600 transition-colors px-2 py-1 rounded-lg hover:bg-amber-50">
+            <button 
+              onClick={onArchive}
+              aria-label={`Archive invoice ${inv.invoice_number}`}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600 transition-colors px-2 py-1 rounded-lg hover:bg-amber-50"
+            >
               <Archive className="w-3 h-3" /> Archive
             </button>
           )}
           {isAdmin && onDelete && (
-            <button onClick={onDelete} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5">
+            <button 
+              onClick={onDelete}
+              aria-label={`Delete invoice ${inv.invoice_number}`}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5"
+            >
               <Trash2 className="w-3 h-3" /> Delete
             </button>
           )}
@@ -152,6 +168,7 @@ export default function InvoiceCard({ invoice: inv, payments = [], isOverdue, on
             <div className="pt-3">
               <button
                 onClick={() => navigate(`/job-hub?jobId=${inv.job_id}`)}
+                aria-label={`View job details for ${inv.job_address || inv.job_id}`}
                 className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
               >
                 <ExternalLink className="w-3 h-3" /> View Job: {inv.job_address || inv.job_id}

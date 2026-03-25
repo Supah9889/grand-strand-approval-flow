@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
@@ -53,6 +54,7 @@ export default function Sales() {
   const [sort, setSort] = useState('newest');
   const [activeStat, setActiveStat] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [ariaLiveMessage, setAriaLiveMessage] = useState('');
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -71,7 +73,7 @@ export default function Sales() {
     setIsRefreshing(false);
   };
 
-  const createMutation = useMutation({
+  const createMutation = useOptimisticMutation({
     mutationFn: async (data) => {
       const lead = await base44.entities.Lead.create(data);
       await base44.entities.LeadActivity.create({
@@ -83,11 +85,18 @@ export default function Sales() {
       });
       return lead;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    queryKey: ['leads'],
+    optimisticUpdate: (prev, leadData) => [
+      { ...leadData, id: `temp-${Date.now()}`, created_date: new Date().toISOString(), updated_date: new Date().toISOString() },
+      ...prev,
+    ],
+    rollback: (prev) => prev,
+    onSuccess: (lead) => {
       setShowForm(false);
       toast.success('Lead created');
+      setAriaLiveMessage(`New lead "${lead.contact_name}" created with status ${lead.status}`);
     },
+    onError: () => toast.error('Failed to create lead'),
   });
 
   // Stats
@@ -148,6 +157,11 @@ export default function Sales() {
 
   return (
     <AppLayout title="Sales / CRM">
+      {/* Aria live region for lead status announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {ariaLiveMessage}
+      </div>
+      
       <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
         <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
@@ -284,7 +298,7 @@ export default function Sales() {
                 <button
                   key={lead.id}
                   onClick={() => navigate(`/sales/${lead.id}`)}
-                  aria-label={`View lead: ${lead.contact_name} from ${lead.property_address || 'unknown location'}`}
+                  aria-label={`View lead: ${lead.contact_name} from ${lead.property_address || 'unknown location'}, Status: ${lead.status}, Priority: ${lead.priority || 'unset'}`}
                   className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">

@@ -133,9 +133,15 @@ export default function Admin() {
               {role === 'owner' ? 'Owner Session' : isAdminRole ? 'Admin Session' : 'Staff Session'}
             </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground h-8">
-            <LogOut className="w-4 h-4 mr-1.5" />
-            Sign Out
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleLogout} 
+            aria-label="Sign Out"
+            className="text-muted-foreground h-8"
+          >
+           <LogOut className="w-4 h-4 mr-1.5" />
+           Sign Out
           </Button>
         </div>
 

@@ -25,6 +25,7 @@ export default function BottomSheetSelect({
       <button
         onClick={() => !disabled && setIsOpen(true)}
         disabled={disabled}
+        aria-label={`Select ${label.toLowerCase()}, currently ${selectedLabel}`}
         className={`w-full h-10 px-3 rounded-xl border border-input bg-background text-left flex items-center justify-between text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/20 ${className} ${
           error ? 'border-destructive' : ''
         }`}

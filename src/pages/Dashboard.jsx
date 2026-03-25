@@ -119,6 +119,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => navigate('/search')}
+            aria-label="Sign Job"
             className="flex items-center gap-1.5 h-8 px-3 bg-primary text-primary-foreground text-xs font-medium rounded-xl hover:bg-primary/90 transition-colors"
           >
             <ArrowRight className="w-3.5 h-3.5" /> Sign Job

@@ -106,7 +106,11 @@ export default function DailyLogs() {
             <h1 className="text-base font-semibold text-foreground">Daily Logs</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Field activity, jobsite photos & progress records</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowForm(true)}>
+          <Button 
+            className="h-9 rounded-xl text-sm gap-1.5" 
+            onClick={() => setShowForm(true)}
+            aria-label="Create new daily log"
+          >
             <Plus className="w-3.5 h-3.5" /> New Log
           </Button>
         </div>

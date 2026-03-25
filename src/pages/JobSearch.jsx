@@ -68,6 +68,7 @@ export default function JobSearch() {
               placeholder="Search address, customer, title..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search jobs by address or customer name"
               className="pl-10 h-12 rounded-xl bg-muted/40 border-border text-sm"
               autoFocus
             />
@@ -128,8 +129,20 @@ export default function JobSearch() {
                     <p className="text-xs text-muted-foreground/60 mt-1">BT# {job.buildertrend_id}</p>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <button onClick={() => navigate(`/approve?jobId=${job.id}`)} className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors">Sign / View</button>
-                    <button onClick={() => navigate(`/job-hub?jobId=${job.id}`)} className="text-xs bg-muted text-foreground px-2.5 py-1 rounded-lg hover:bg-muted/80 transition-colors">Job Hub</button>
+                    <button 
+                      onClick={() => navigate(`/approve?jobId=${job.id}`)} 
+                      aria-label={`Sign or view job at ${job.address}`}
+                      className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      Sign / View
+                    </button>
+                    <button 
+                      onClick={() => navigate(`/job-hub?jobId=${job.id}`)} 
+                      aria-label={`View hub for job at ${job.address}`}
+                      className="text-xs bg-muted text-foreground px-2.5 py-1 rounded-lg hover:bg-muted/80 transition-colors"
+                    >
+                      Job Hub
+                    </button>
                   </div>
                 </div>
               );

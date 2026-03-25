@@ -211,7 +211,11 @@ export default function Invoices() {
             <h1 className="text-base font-semibold text-foreground">Invoices</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Billing & receivables by job</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => { setEditingInvoice(null); setShowForm(true); }}>
+          <Button 
+            className="h-9 rounded-xl text-sm gap-1.5" 
+            onClick={() => { setEditingInvoice(null); setShowForm(true); }}
+            aria-label="Create new invoice"
+          >
             <Plus className="w-3.5 h-3.5" /> New Invoice
           </Button>
         </div>
@@ -238,7 +242,13 @@ export default function Invoices() {
               <div className="bg-card border border-border rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-semibold text-foreground">New Invoice</p>
-                  <button onClick={() => setShowForm(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+                  <button 
+                    onClick={() => setShowForm(false)} 
+                    aria-label="Close invoice form"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
                 <InvoiceFullForm
                   jobs={activeJobs}
@@ -256,8 +266,14 @@ export default function Invoices() {
         {/* Filters */}
         <div className="space-y-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search invoice #, customer, job..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search invoice #, customer, job..." 
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
+            aria-label="Search invoices"
+            className="pl-9 h-9 rounded-xl text-sm" 
+          />
           </div>
           <div className="flex gap-2 flex-wrap">
             <BottomSheetSelect value={filterArchived} onChange={setFilterArchived} label="Visibility" options={[

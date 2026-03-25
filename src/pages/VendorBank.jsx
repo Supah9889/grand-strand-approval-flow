@@ -79,7 +79,11 @@ export default function VendorBank() {
             <h1 className="text-lg font-semibold text-foreground">Vendor / Referral Bank</h1>
             <p className="text-xs text-muted-foreground mt-0.5">{vendors.length} records</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm" onClick={() => setShowForm(!showForm)}>
+          <Button 
+            className="h-9 rounded-xl text-sm" 
+            onClick={() => setShowForm(!showForm)}
+            aria-label={showForm ? "Close vendor form" : "Add new vendor"}
+          >
             <Plus className="w-4 h-4 mr-1.5" />
             Add
           </Button>
@@ -95,7 +99,12 @@ export default function VendorBank() {
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold">New Vendor / Referral</p>
-                <button onClick={() => setShowForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+                <button 
+                  onClick={() => setShowForm(false)}
+                  aria-label="Close vendor form"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
               </div>
               <Input placeholder="Company Name *" value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} className="h-10 rounded-xl text-sm" />
               <div className="grid grid-cols-2 gap-3">
@@ -155,6 +164,7 @@ export default function VendorBank() {
                 <button
                   key={v.id}
                   onClick={() => setSelectedVendor(v)}
+                  aria-label={`View details for ${v.company_name}`}
                   className="bg-card border border-border rounded-xl p-4 w-full text-left hover:bg-secondary/20 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">

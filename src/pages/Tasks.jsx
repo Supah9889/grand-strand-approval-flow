@@ -124,7 +124,11 @@ export default function Tasks() {
             <h1 className="text-base font-semibold text-foreground">Tasks / To-Dos / Punch List</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Action items, assignments & job closeout</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowForm(true)}>
+          <Button 
+            className="h-9 rounded-xl text-sm gap-1.5" 
+            onClick={() => setShowForm(true)}
+            aria-label="Create new task"
+          >
             <Plus className="w-3.5 h-3.5" /> New Task
           </Button>
         </div>

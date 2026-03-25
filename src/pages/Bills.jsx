@@ -115,7 +115,11 @@ export default function Bills() {
             <h1 className="text-base font-semibold text-foreground">Bills</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Vendor bills & payables by job</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowForm(true)}>
+          <Button 
+            className="h-9 rounded-xl text-sm gap-1.5" 
+            onClick={() => setShowForm(true)}
+            aria-label="Create new bill"
+          >
             <Plus className="w-3.5 h-3.5" /> New Bill
           </Button>
         </div>
@@ -142,7 +146,13 @@ export default function Bills() {
               <div className="bg-card border border-border rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-semibold text-foreground">New Bill</p>
-                  <button onClick={() => setShowForm(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+                  <button 
+                    onClick={() => setShowForm(false)} 
+                    aria-label="Close bill form"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
                 <BillDetailForm
                   jobs={activeJobs}
@@ -160,7 +170,13 @@ export default function Bills() {
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search bill #, vendor, job, amount..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
+            <Input 
+              placeholder="Search bill #, vendor, job, amount..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+              aria-label="Search bills"
+              className="pl-9 h-9 rounded-xl text-sm" 
+            />
           </div>
           <div className="flex gap-2 flex-wrap">
             <BottomSheetSelect value={filterStatus} onChange={setFilterStatus} label="Status" options={[

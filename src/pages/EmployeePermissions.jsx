@@ -35,6 +35,7 @@ function PermissionRow({ permKey, permDef, roleStates, onToggle, canEdit, defaul
             <button
               disabled={isOwner || !canEdit}
               onClick={() => !isOwner && canEdit && onToggle(role.key, permKey, !checked)}
+              aria-label={`Toggle permission for ${role.label}`}
               className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
                 ${checked
                   ? isOwner ? 'bg-amber-400 border-amber-400' : 'bg-primary border-primary'

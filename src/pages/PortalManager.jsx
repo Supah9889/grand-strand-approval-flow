@@ -7,7 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Textarea } from '@/components/ui/textarea';
 import {
   Plus, Search, Loader2, Users, Globe, X, CheckCircle2,
-  ShieldOff, Eye, Mail, Building2, User, Link as LinkIcon
+  ShieldOff, Eye, Mail, Building2, User, Link as LinkIcon, RefreshCw
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -109,9 +109,16 @@ export default function PortalManager() {
 
   const activeJobs = jobs.filter(j => j.status !== 'archived');
 
+  const regenerateMutation = useMutation({
+    mutationFn: (id) => base44.entities.PortalUser.update(id, {
+      access_token: Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2),
+    }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['portal-users'] }); toast.success('New link generated'); },
+  });
+
   const getPortalUrl = (user) => {
     const base = window.location.origin;
-    return `${base}/portal/${user.portal_type}?token=${user.access_token}`;
+    return `${base}/portal/client?token=${user.access_token}`;
   };
 
   const copyLink = (user) => {
@@ -275,6 +282,9 @@ export default function PortalManager() {
                     <div className="flex flex-col gap-1.5 shrink-0">
                       <button onClick={() => copyLink(user)} className="flex items-center gap-1 text-xs text-primary hover:underline">
                         <LinkIcon className="w-3 h-3" /> Copy Link
+                      </button>
+                      <button onClick={() => regenerateMutation.mutate(user.id)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                        <RefreshCw className="w-3 h-3" /> New Link
                       </button>
                     </div>
                   </div>

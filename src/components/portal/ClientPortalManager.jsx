@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { parseSections, SECTION_LABELS, DEFAULT_SECTIONS } from '@/lib/portalSections';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 
 function generateToken() {
   const a = Math.random().toString(36).slice(2);
@@ -61,19 +62,23 @@ export default function ClientPortalManager({ job }) {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => base44.entities.PortalUser.create({
-      name: form.name,
-      email: form.email,
-      portal_type: 'client',
-      access_status: 'active',
-      job_id: job.id,
-      job_address: job.address,
-      linked_job_ids: JSON.stringify([job.id]),
-      invited_by: role || 'admin',
-      invite_date: new Date().toISOString(),
-      access_token: generateToken(),
-      section_permissions: JSON.stringify(DEFAULT_SECTIONS),
-    }),
+    mutationFn: async () => {
+      const pu = await base44.entities.PortalUser.create({
+        name: form.name,
+        email: form.email,
+        portal_type: 'client',
+        access_status: 'active',
+        job_id: job.id,
+        job_address: job.address,
+        linked_job_ids: JSON.stringify([job.id]),
+        invited_by: role || 'admin',
+        invite_date: new Date().toISOString(),
+        access_token: generateToken(),
+        section_permissions: JSON.stringify(DEFAULT_SECTIONS),
+      });
+      audit.portal.created(pu.id, role || 'Admin', form.name, job.address || job.title, { job_id: job.id, job_address: job.address });
+      return pu;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-portal-users', job.id] });
       setShowForm(false);
@@ -93,20 +98,27 @@ export default function ClientPortalManager({ job }) {
     const current = parseSections(user.section_permissions);
     const next = { ...current, [key]: value };
     updateMutation.mutate({ id: user.id, patch: { section_permissions: JSON.stringify(next) } });
+    audit.portal.permissionsChanged(user.id, role || 'Admin', user.name, job.address || job.title, {
+      job_id: job.id, job_address: job.address,
+      old_value: `${key}: ${current[key]}`, new_value: `${key}: ${value}`,
+    });
   };
 
   const revokeAccess = (user) => {
     updateMutation.mutate({ id: user.id, patch: { access_status: 'revoked' } });
+    audit.portal.revoked(user.id, role || 'Admin', user.name, { job_id: job.id, job_address: job.address });
     toast.success('Access revoked');
   };
 
   const activateAccess = (user) => {
     updateMutation.mutate({ id: user.id, patch: { access_status: 'active' } });
+    audit.portal.statusChanged(user.id, role || 'Admin', user.name, user.access_status, 'active', { job_id: job.id, job_address: job.address });
     toast.success('Access activated');
   };
 
   const regenerateLink = (user) => {
     updateMutation.mutate({ id: user.id, patch: { access_token: generateToken() } });
+    audit.portal.linkRegenerated(user.id, role || 'Admin', user.name, { job_id: job.id, job_address: job.address });
     toast.success('New link generated');
   };
 

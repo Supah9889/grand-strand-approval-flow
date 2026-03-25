@@ -1,8 +1,9 @@
 // Role-based PIN auth for internal access.
-// Codes: 1234 = staff, 4321 = admin
+// Codes: 1234 = staff, 4321 = admin, 2341 = owner (temporary testing PINs)
 const CODES = {
   '1234': 'staff',
   '4321': 'admin',
+  '2341': 'owner',
 };
 
 const SESSION_KEY = 'gscp_internal_auth';

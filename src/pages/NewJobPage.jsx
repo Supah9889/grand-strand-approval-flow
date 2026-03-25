@@ -16,6 +16,7 @@ import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG } from '@/lib/jobHelpers';
 import { validateJob } from '@/lib/validation';
 import ValidationPanel from '@/components/shared/ValidationPanel';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import AppLayout from '../components/AppLayout';
 
 const JOB_COLORS = [
@@ -239,7 +240,27 @@ export default function NewJobPage() {
           role_on_job: pa.role,
           notify_on_updates: pa.notify,
           assigned_by: role || 'admin',
+          notes: pa.notify ? `Notification sent at job creation` : 'No notification at job creation',
         });
+
+        // Audit log each assignment
+        await audit.assignment.created(
+          job.id,
+          role || 'Admin',
+          pa.emp.name,
+          fullAddress || form.address || `Job ${job.id}`,
+          pa.notify,
+          { job_address: fullAddress || form.address }
+        );
+
+        // Send notification email if chosen
+        if (pa.notify && pa.emp.email) {
+          base44.integrations.Core.SendEmail({
+            to: pa.emp.email,
+            subject: `You've been assigned to a new job`,
+            body: `Hi ${pa.emp.name},\n\nYou have been assigned to the following job:\n\n${fullAddress || form.address}\nRole: ${pa.role}\n\nAssigned by: ${role || 'Admin'}\n\nPlease log in for details.`,
+          }).catch(() => {});
+        }
       }
 
       await logAudit(job.id, 'job_created', role || 'admin', `Master job file created: ${fullAddress || form.address}`);

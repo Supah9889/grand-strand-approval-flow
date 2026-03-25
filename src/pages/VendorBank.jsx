@@ -202,6 +202,18 @@ export default function VendorBank() {
           </div>
         )}
       </div>
+
+      {/* Vendor Detail Panel Modal */}
+      {selectedVendor && (
+        <VendorDetailPanel
+          vendor={selectedVendor}
+          onClose={() => setSelectedVendor(null)}
+          onUpdate={(updated) => {
+            setSelectedVendor(updated);
+            queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          }}
+        />
+      )}
     </AppLayout>
   );
 }

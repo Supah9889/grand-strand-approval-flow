@@ -18,8 +18,10 @@ import { toast } from 'sonner';
 export default function Invoices() {
   const queryClient = useQueryClient();
   const role = getInternalRole();
+  const isOwnerOrAdmin = getIsAdmin();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterJob, setFilterJob] = useState('all');
@@ -82,7 +84,7 @@ export default function Invoices() {
     return [...l].sort(sortFns[sort] || sortFns.newest);
   }, [invoices, filterStatus, filterJob, filterSource, filterOverdue, search, sort]);
 
-  if (role !== 'admin') {
+  if (!isOwnerOrAdmin) {
     return (
       <AppLayout title="Invoices">
         <div className="flex-1 flex items-center justify-center px-4">

@@ -158,14 +158,14 @@ export default function InvoiceFullForm({
         </div>
 
         <div className="col-span-2">
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Linked Job</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Linked Job <span className="text-destructive">*</span></label>
           <Select value={form.job_id || ''} onValueChange={handleJobSelect}>
-            <SelectTrigger className="h-9 rounded-lg text-sm"><SelectValue placeholder="Select job..." /></SelectTrigger>
+            <SelectTrigger className={`h-9 rounded-lg text-sm ${!form.job_id ? 'border-destructive/50' : ''}`}><SelectValue placeholder="Select job..." /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>No job linked</SelectItem>
               {jobs.map(j => <SelectItem key={j.id} value={j.id}>{j.address || j.title}</SelectItem>)}
             </SelectContent>
           </Select>
+          {!form.job_id && <p className="text-xs text-destructive mt-1">Job linking is required for all invoices.</p>}
         </div>
 
         <div>

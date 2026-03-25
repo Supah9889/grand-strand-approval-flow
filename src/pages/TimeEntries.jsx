@@ -326,8 +326,7 @@ export default function TimeEntries() {
             {filtered.map(entry => (
               <div
                 key={entry.id}
-                onClick={() => navigate(`/time-entries/${entry.id}`)}
-                className="bg-card border border-border rounded-xl p-4 space-y-2 cursor-pointer hover:border-primary/30 transition-colors"
+                className="bg-card border border-border rounded-xl p-4 space-y-2 hover:border-primary/30 transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -359,6 +358,28 @@ export default function TimeEntries() {
                     {entry.clock_in ? format(parseISO(entry.clock_in), 'MMM d · h:mm a') : '—'}
                     {entry.clock_out ? ` → ${format(parseISO(entry.clock_out), 'h:mm a')}` : ' → now'}
                   </span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    (entry.approval_status || 'pending') === 'approved' ? 'bg-green-100 text-green-700' :
+                    (entry.approval_status || 'pending') === 'rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-amber-50 text-amber-700'
+                  }`}>
+                    {(entry.approval_status || 'pending') === 'approved' ? '✓ Approved' : (entry.approval_status || 'pending') === 'rejected' ? 'Rejected' : 'Pending Approval'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {(entry.approval_status || 'pending') !== 'approved' && entry.status === 'clocked_out' && (
+                      <button
+                        onClick={() => approveMutation.mutate(entry.id)}
+                        className="text-[10px] px-2 py-0.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors"
+                      >
+                        Approve
+                      </button>
+                    )}
+                    <button onClick={() => navigate(`/time-entries/${entry.id}`)} className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-lg hover:bg-muted">
+                      View →
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

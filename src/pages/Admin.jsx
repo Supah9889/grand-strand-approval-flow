@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,7 @@ function exportCsv(jobs) {
 }
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [authed, setAuthed] = useState(isAdminAuthed());
   const [role, setRole] = useState(getInternalRole());
   const [showForm, setShowForm] = useState(false);
@@ -93,17 +95,12 @@ export default function Admin() {
 
   const handleLogout = () => {
     adminLogout();
-    setAuthed(false);
-    setRole(null);
-  };
-
-  const handleAuthed = (r) => {
-    setRole(r);
-    setAuthed(true);
+    navigate('/gate', { replace: true });
   };
 
   if (!authed) {
-    return <AdminPinGate onAuthed={handleAuthed} />;
+    navigate('/gate', { replace: true });
+    return null;
   }
 
   // Apply section filter first, then search/status/date filters

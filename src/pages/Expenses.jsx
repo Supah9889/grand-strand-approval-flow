@@ -171,13 +171,23 @@ export default function Expenses() {
     },
   });
 
-  // Delete (soft) mutation — archives the record
-  const deleteMutation = useMutation({
+  // Archive (soft) mutation
+  const archiveMutation = useMutation({
     mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'archived' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       setDeleteTarget(null);
       toast.success('Expense archived');
+    },
+  });
+
+  // Hard delete mutation — permanent
+  const hardDeleteMutation = useMutation({
+    mutationFn: ({ id }) => base44.entities.Expense.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      setDeleteTarget(null);
+      toast.success('Expense permanently deleted');
     },
   });
 
@@ -284,7 +294,8 @@ export default function Expenses() {
 
   // ── Delete / Restore ─────────────────────────────────────────────────────
   const handleDeleteRequest = (expense) => setDeleteTarget(expense);
-  const handleDeleteConfirm = () => deleteMutation.mutate({ id: deleteTarget.id });
+  const handleArchiveConfirm = () => archiveMutation.mutate({ id: deleteTarget.id });
+  const handleHardDeleteConfirm = () => hardDeleteMutation.mutate({ id: deleteTarget.id });
   const handleRestore = (expense) => restoreMutation.mutate({ id: expense.id });
 
   const resetToInbox = () => {
@@ -459,9 +470,10 @@ export default function Expenses() {
       {deleteTarget && (
         <DeleteExpenseDialog
           expense={deleteTarget}
-          onConfirm={handleDeleteConfirm}
+          onArchive={handleArchiveConfirm}
+          onDelete={handleHardDeleteConfirm}
           onCancel={() => setDeleteTarget(null)}
-          saving={deleteMutation.isPending}
+          saving={archiveMutation.isPending || hardDeleteMutation.isPending}
         />
       )}
 

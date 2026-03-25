@@ -12,6 +12,7 @@ import AppLayout from '../components/AppLayout';
 import LogForm from '../components/dailylogs/LogForm';
 import LogCard from '../components/dailylogs/LogCard';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 const STAT_GROUPS = [
@@ -48,6 +49,8 @@ export default function DailyLogs() {
     onSuccess: (log) => {
       queryClient.invalidateQueries({ queryKey: ['daily-logs'] });
       setShowForm(false);
+      const logDate = log.log_date || format(new Date(), 'yyyy-MM-dd');
+      audit.dailyLog.created(log.id, role || 'Admin', log.job_address || log.job_title || log.job_id || 'Unknown Job', logDate, { job_id: log.job_id, job_address: log.job_address });
       toast.success('Daily log saved');
       navigate(`/daily-logs/${log.id}`);
     },

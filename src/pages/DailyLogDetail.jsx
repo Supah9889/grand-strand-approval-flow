@@ -10,6 +10,7 @@ import AppLayout from '../components/AppLayout';
 import LogForm from '../components/dailylogs/LogForm';
 import PhotoLightbox from '../components/dailylogs/PhotoLightbox';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 const WEATHER_ICON = { sunny: Sun, cloudy: Cloud, rain: CloudRain, storm: CloudRain, windy: Wind, cold: Thermometer, hot: Thermometer, humid: Thermometer };
@@ -46,9 +47,17 @@ export default function DailyLogDetail() {
 
   const updateMutation = useMutation({
     mutationFn: (data) => base44.entities.DailyLog.update(logId, data),
-    onSuccess: () => {
+    onSuccess: (_, updatedData) => {
       queryClient.invalidateQueries({ queryKey: ['daily-log', logId] });
       queryClient.invalidateQueries({ queryKey: ['daily-logs'] });
+      const jobLabel = log?.job_address || log?.job_title || log?.job_id || 'Unknown Job';
+      const logDate = log?.log_date || '';
+      // If follow_up_status resolved, log that specifically; else log generic edit
+      if (updatedData?.follow_up_status === 'resolved') {
+        audit.dailyLog.followUpResolved(logId, role || 'Admin', jobLabel, { job_id: log?.job_id, job_address: log?.job_address });
+      } else {
+        audit.dailyLog.edited(logId, role || 'Admin', jobLabel, logDate, { job_id: log?.job_id, job_address: log?.job_address });
+      }
       setEditing(false);
       toast.success('Log updated');
     },

@@ -43,16 +43,38 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
 
   const F = ({ label: lbl, field, placeholder, type = 'text', half }) => (
     <div className={half ? '' : 'col-span-2'}>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{lbl}</label>
-      <Input type={type} placeholder={placeholder || lbl} value={form[field] || ''} onChange={e => set(field, e.target.value)} className="h-9 rounded-lg text-sm" />
+      <label 
+        htmlFor={field}
+        className="block text-xs font-medium text-muted-foreground mb-1"
+      >
+        {lbl}
+      </label>
+      <Input 
+        id={field}
+        type={type} 
+        placeholder={placeholder || lbl} 
+        value={form[field] || ''} 
+        onChange={e => set(field, e.target.value)} 
+        aria-label={lbl}
+        className="h-9 rounded-lg text-sm" 
+      />
     </div>
   );
 
   const S = ({ label: lbl, field, options, half }) => (
     <div className={half ? '' : 'col-span-2'}>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{lbl}</label>
-      <Select value={form[field] || ''} onValueChange={v => set(field, v)}>
-        <SelectTrigger className="h-9 rounded-lg text-sm"><SelectValue placeholder={`Select ${lbl}`} /></SelectTrigger>
+      <label 
+        htmlFor={field}
+        className="block text-xs font-medium text-muted-foreground mb-1"
+      >
+        {lbl}
+      </label>
+      <Select 
+        value={form[field] || ''} 
+        onValueChange={v => set(field, v)}
+        aria-label={lbl}
+      >
+        <SelectTrigger id={field} className="h-9 rounded-lg text-sm"><SelectValue placeholder={`Select ${lbl}`} /></SelectTrigger>
         <SelectContent>
           {options.map(o => (
             <SelectItem key={o} value={o}>{label(o)}</SelectItem>
@@ -78,8 +100,15 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
           <S label="Contact Type" field="contact_type" options={['lead','prospect','customer']} half />
           <S label="Preferred Contact" field="preferred_contact_method" options={CONTACT_METHODS} half />
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Best Time to Contact</label>
-            <Input placeholder="e.g. Mornings, After 3pm" value={form.best_time_to_contact || ''} onChange={e => set('best_time_to_contact', e.target.value)} className="h-9 rounded-lg text-sm" />
+            <label htmlFor="best_time_to_contact" className="block text-xs font-medium text-muted-foreground mb-1">Best Time to Contact</label>
+            <Input 
+              id="best_time_to_contact"
+              aria-label="Best time to contact" 
+              placeholder="e.g. Mornings, After 3pm" 
+              value={form.best_time_to_contact || ''} 
+              onChange={e => set('best_time_to_contact', e.target.value)} 
+              className="h-9 rounded-lg text-sm" 
+            />
           </div>
         </div>
       </div>
@@ -89,8 +118,15 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Location</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Property Address</label>
-            <Input placeholder="Property Address" value={form.property_address || ''} onChange={e => set('property_address', e.target.value)} className="h-9 rounded-lg text-sm" />
+            <label htmlFor="property_address" className="block text-xs font-medium text-muted-foreground mb-1">Property Address</label>
+            <Input 
+              id="property_address"
+              aria-label="Property address" 
+              placeholder="Property Address" 
+              value={form.property_address || ''} 
+              onChange={e => set('property_address', e.target.value)} 
+              className="h-9 rounded-lg text-sm" 
+            />
           </div>
           <F label="City" field="city" half />
           <F label="State" field="state" half />
@@ -104,16 +140,23 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
         <div className="grid grid-cols-2 gap-3">
           <S label="Lead Source" field="lead_source" options={SOURCES} half />
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Referral Source</label>
+            <label htmlFor="referral_source" className="block text-xs font-medium text-muted-foreground mb-1">Referral Source</label>
             {vendors.length > 0 ? (
-              <Select value={form.referral_source || ''} onValueChange={v => set('referral_source', v)}>
-                <SelectTrigger className="h-9 rounded-lg text-sm"><SelectValue placeholder="Select source" /></SelectTrigger>
+              <Select value={form.referral_source || ''} onValueChange={v => set('referral_source', v)} aria-label="Referral source">
+                <SelectTrigger id="referral_source" className="h-9 rounded-lg text-sm"><SelectValue placeholder="Select source" /></SelectTrigger>
                 <SelectContent>
                   {vendors.map(v => <SelectItem key={v.id} value={v.company_name}>{v.company_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             ) : (
-              <Input placeholder="Referral source name" value={form.referral_source || ''} onChange={e => set('referral_source', e.target.value)} className="h-9 rounded-lg text-sm" />
+              <Input 
+                id="referral_source"
+                aria-label="Referral source name" 
+                placeholder="Referral source name" 
+                value={form.referral_source || ''} 
+                onChange={e => set('referral_source', e.target.value)} 
+                className="h-9 rounded-lg text-sm" 
+              />
             )}
           </div>
           <F label="Assigned To" field="assigned_to" half />
@@ -127,20 +170,41 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Presale Info</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Presale Job Title</label>
-            <Input placeholder="e.g. Full Exterior Repaint" value={form.presale_job_title || ''} onChange={e => set('presale_job_title', e.target.value)} className="h-9 rounded-lg text-sm" />
+            <label htmlFor="presale_job_title" className="block text-xs font-medium text-muted-foreground mb-1">Presale Job Title</label>
+            <Input 
+              id="presale_job_title"
+              aria-label="Presale job title" 
+              placeholder="e.g. Full Exterior Repaint" 
+              value={form.presale_job_title || ''} 
+              onChange={e => set('presale_job_title', e.target.value)} 
+              className="h-9 rounded-lg text-sm" 
+            />
           </div>
           <S label="Service Type" field="service_type" options={SERVICE_TYPES} half />
           <F label="Approx. Value ($)" field="approximate_value" type="number" half />
           <S label="Billing Type" field="billing_type" options={BILLING} half />
           <S label="Urgency" field="urgency_level" options={URGENCY} half />
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Requested Timeline</label>
-            <Input placeholder="e.g. Spring 2025, ASAP" value={form.requested_timeline || ''} onChange={e => set('requested_timeline', e.target.value)} className="h-9 rounded-lg text-sm" />
+            <label htmlFor="requested_timeline" className="block text-xs font-medium text-muted-foreground mb-1">Requested Timeline</label>
+            <Input 
+              id="requested_timeline"
+              aria-label="Requested timeline" 
+              placeholder="e.g. Spring 2025, ASAP" 
+              value={form.requested_timeline || ''} 
+              onChange={e => set('requested_timeline', e.target.value)} 
+              className="h-9 rounded-lg text-sm" 
+            />
           </div>
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Scope Summary</label>
-            <Textarea placeholder="Brief description of work needed..." value={form.work_scope_summary || ''} onChange={e => set('work_scope_summary', e.target.value)} className="rounded-lg text-sm min-h-16" />
+            <label htmlFor="work_scope_summary" className="block text-xs font-medium text-muted-foreground mb-1">Scope Summary</label>
+            <Textarea 
+              id="work_scope_summary"
+              aria-label="Scope summary" 
+              placeholder="Brief description of work needed..." 
+              value={form.work_scope_summary || ''} 
+              onChange={e => set('work_scope_summary', e.target.value)} 
+              className="rounded-lg text-sm min-h-16" 
+            />
           </div>
         </div>
       </div>
@@ -152,8 +216,15 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
           <F label="Follow-Up Date" field="follow_up_date" type="date" half />
           <F label="Follow-Up Time" field="follow_up_time" type="time" half />
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Follow-Up Notes</label>
-            <Input placeholder="What to follow up about..." value={form.follow_up_notes || ''} onChange={e => set('follow_up_notes', e.target.value)} className="h-9 rounded-lg text-sm" />
+            <label htmlFor="follow_up_notes" className="block text-xs font-medium text-muted-foreground mb-1">Follow-Up Notes</label>
+            <Input 
+              id="follow_up_notes"
+              aria-label="Follow-up notes" 
+              placeholder="What to follow up about..." 
+              value={form.follow_up_notes || ''} 
+              onChange={e => set('follow_up_notes', e.target.value)} 
+              className="h-9 rounded-lg text-sm" 
+            />
           </div>
         </div>
       </div>
@@ -161,7 +232,14 @@ export default function LeadForm({ initial = {}, onSubmit, onCancel, isLoading, 
       {/* Internal Notes */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Internal Notes</p>
-        <Textarea placeholder="Internal notes about this lead..." value={form.internal_notes || ''} onChange={e => set('internal_notes', e.target.value)} className="rounded-lg text-sm min-h-24" />
+        <Textarea 
+          id="internal_notes"
+          aria-label="Internal notes" 
+          placeholder="Internal notes about this lead..." 
+          value={form.internal_notes || ''} 
+          onChange={e => set('internal_notes', e.target.value)} 
+          className="rounded-lg text-sm min-h-24" 
+        />
       </div>
 
       <div className="flex gap-2 pt-1">

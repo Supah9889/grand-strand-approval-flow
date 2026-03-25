@@ -67,26 +67,39 @@ export function NavigationProvider({ children }) {
     logNavigation('clear', { tabName });
   };
 
-  // Handle hardware back button via Cordova
+  // Handle hardware back button via Cordova/native Android
   useEffect(() => {
     if (!isCordovaAvailable()) {
       return;
     }
 
     const handleBackButton = () => {
-      // Try to pop from the current tab stack
+      // Strict navigation stack-based back button handling
       const tabName = getCurrentTabName(location.pathname);
-      const didPop = popRoute(tabName);
-
-      if (!didPop) {
-        // If we can't pop further, exit the app or navigate to home
-        if (location.pathname !== '/') {
-          navigate('/');
+      const stack = tabStacksRef.current[tabName] || [];
+      
+      // Always respect the navigation stack: only pop if stack depth > 1
+      if (stack.length > 1) {
+        // Pop from stack and navigate to previous route
+        const didPop = popRoute(tabName);
+        if (didPop) {
+          logNavigation('back_button_pop', { tabName, stackLength: stack.length });
+        }
+      } else {
+        // At root of current tab - check if we can go to default home
+        if (location.pathname !== '/dashboard') {
+          // Not already at dashboard, navigate there (graceful fallback)
+          navigate('/dashboard', { replace: true });
+          logNavigation('back_button_home_fallback', { tabName });
         } else {
-          // Last route in stack - could minimize app or trigger native close
-          if (navigator.app) {
+          // Already at home - let native app handle (minimize/exit)
+          logNavigation('back_button_app_exit', { tabName });
+          if (navigator.app?.exitApp) {
             navigator.app.exitApp();
+          } else if (navigator.device?.exitApp) {
+            navigator.device.exitApp();
           }
+          // Graceful web browser fallback: just log, don't crash
         }
       }
     };

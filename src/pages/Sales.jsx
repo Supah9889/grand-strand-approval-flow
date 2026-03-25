@@ -172,6 +172,8 @@ export default function Sales() {
             <button
               key={g.key}
               onClick={() => setActiveStat(activeStat === g.key ? null : g.key)}
+              aria-label={`Filter by ${g.label}, ${stats[g.key] || 0} items`}
+              aria-pressed={activeStat === g.key}
               className={`text-left p-3 rounded-xl border-2 transition-all ${
                 activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20'
               }`}
@@ -194,7 +196,11 @@ export default function Sales() {
               <div className="bg-card border border-border rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-semibold text-foreground">New Lead</p>
-                  <button onClick={() => setShowForm(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
+                  <button 
+                    onClick={() => setShowForm(false)} 
+                    aria-label="Close new lead form"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -214,10 +220,11 @@ export default function Sales() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, phone, email, address..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 h-9 rounded-xl text-sm"
+             placeholder="Search by name, phone, email, address..."
+             value={search}
+             onChange={e => setSearch(e.target.value)}
+             aria-label="Search leads by name, phone, email, or address"
+             className="pl-9 h-9 rounded-xl text-sm"
             />
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -249,7 +256,13 @@ export default function Sales() {
             <p className="text-xs font-medium text-foreground">
               Showing: {STAT_GROUPS.find(g => g.key === activeStat)?.label}
             </p>
-            <button onClick={() => setActiveStat(null)} className="text-xs text-muted-foreground underline underline-offset-2">Clear</button>
+            <button 
+              onClick={() => setActiveStat(null)} 
+              aria-label="Clear active filter"
+              className="text-xs text-muted-foreground underline underline-offset-2"
+            >
+              Clear
+            </button>
           </div>
         )}
 
@@ -271,6 +284,7 @@ export default function Sales() {
                 <button
                   key={lead.id}
                   onClick={() => navigate(`/sales/${lead.id}`)}
+                  aria-label={`View lead: ${lead.contact_name} from ${lead.property_address || 'unknown location'}`}
                   className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">

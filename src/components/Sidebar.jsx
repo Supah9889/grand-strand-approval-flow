@@ -93,10 +93,10 @@ function saveOpenGroups(groups) {
 }
 
 function getDefaultOpen(role) {
+  const isAdminLike = role === 'admin' || role === 'owner';
   const defaults = {};
   NAV_GROUPS.forEach(g => {
-    if (g.adminOnly && role !== 'admin') return;
-    // Main always open; others closed by default unless path matches
+    if (g.adminOnly && !isAdminLike) return;
     defaults[g.label] = g.label === 'Main';
   });
   return defaults;

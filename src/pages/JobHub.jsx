@@ -27,7 +27,7 @@ const TABS = [
 export default function JobHub() {
   const navigate = useNavigate();
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = getIsAdmin(); // true for admin + owner
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
   const [activeTab, setActiveTab] = useState('overview');

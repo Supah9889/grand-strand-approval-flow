@@ -25,7 +25,7 @@ export function formatDuration(mins) {
 export default function TimeEntries() {
   const navigate = useNavigate();
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = getIsAdmin(); // true for admin + owner
 
   const [search, setSearch] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('all');

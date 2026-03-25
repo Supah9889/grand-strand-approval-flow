@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Loader2, StickyNote, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 
 function roleLabel(role) {
   if (role === 'admin') return 'Admin';

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Search, ShieldAlert, Clock,
   FileText, Building2, Receipt, CalendarDays, Users,
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
-  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, Briefcase
+  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, Briefcase, LogOut
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
-import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
+import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
 import NewJobModal from './NewJobModal';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -165,8 +165,15 @@ function NavGroup({ group, role, location, onClose, unreadNotes, isOpen, onToggl
 
 export default function Sidebar({ open, onClose }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const role = getInternalRole();
   const sessionEmployee = getSessionEmployee();
+
+  const handleSignOut = () => {
+    adminLogout();
+    onClose();
+    navigate('/gate', { replace: true });
+  };
   const [showNewJob, setShowNewJob] = useState(false);
 
   // Persistent group open state (session-level memory)
@@ -268,9 +275,9 @@ export default function Sidebar({ open, onClose }) {
                 ))}
               </nav>
 
-              {/* Role badge */}
+              {/* Role badge + sign out */}
               {role && (
-                <div className="px-5 py-4 border-t border-border">
+                <div className="px-5 py-4 border-t border-border flex items-center justify-between gap-2">
                   <div className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
                     role === 'owner' ? 'bg-amber-100 text-amber-700' :
                     role === 'admin' ? 'bg-primary/10 text-primary' :
@@ -279,6 +286,13 @@ export default function Sidebar({ open, onClose }) {
                     <ShieldAlert className="w-3 h-3" />
                     {sessionEmployee ? sessionEmployee.name : role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Staff'} Session
                   </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Sign Out
+                  </button>
                 </div>
               )}
             </motion.div>

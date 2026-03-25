@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
   ArrowLeft, Briefcase, Loader2, User, Building2, Users,
-  Settings2, CheckCircle2, Plus, X, Bell, BellOff, Search, ExternalLink
+  Settings2, CheckCircle2, Plus, X, Bell, BellOff, Search, ExternalLink, Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';

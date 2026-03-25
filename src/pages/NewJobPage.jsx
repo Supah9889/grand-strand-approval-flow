@@ -293,6 +293,7 @@ export default function NewJobPage() {
 
   const [addEmpId, setAddEmpId] = useState('');
   const [addEmpRole, setAddEmpRole] = useState('crew');
+  const [addEmpNotify, setAddEmpNotify] = useState(true);
   const assignedIds = pendingAssignments.map(a => a.emp.id);
   const availableEmps = employees.filter(e => !assignedIds.includes(e.id));
 

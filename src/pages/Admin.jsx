@@ -16,7 +16,7 @@ import JobFilters from '../components/admin/JobFilters';
 import ReportingPanel from '../components/admin/ReportingPanel';
 import QBExportPanel from '../components/admin/QBExportPanel';
 import CostCodeManager from '../components/costcodes/CostCodeManager';
-import { isAdminAuthed, adminLogout, getInternalRole } from '@/lib/adminAuth';
+import { isAdminAuthed, adminLogout, getInternalRole, isAdmin } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { format } from 'date-fns';

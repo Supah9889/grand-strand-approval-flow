@@ -179,7 +179,7 @@ export default function Sidebar({ open, onClose }) {
     setOpenGroups(prev => {
       const next = { ...prev };
       NAV_GROUPS.forEach(g => {
-        if (g.adminOnly && role !== 'admin') return;
+        if (g.adminOnly && role !== 'admin' && role !== 'owner') return;
         const hasActive = g.items.some(item => location.pathname === item.to || location.pathname.startsWith(item.to + '/'));
         if (hasActive) next[g.label] = true;
       });

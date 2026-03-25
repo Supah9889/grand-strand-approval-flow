@@ -247,6 +247,64 @@ export default function TimeEntryDetail() {
         {/* Linked Job */}
         {isAdmin && entry.job_id && <LinkedJobPanel jobId={entry.job_id} />}
 
+        {/* Geolocation panel (admin only) */}
+        {isAdmin && (entry.punch_in_location_status || entry.punch_out_location_status) && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 space-y-3">
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Navigation className="w-3.5 h-3.5 text-primary" /> Punch Locations
+            </p>
+
+            {/* Out-of-range flag banner */}
+            {entry.geo_flagged && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <p className="text-xs text-amber-700 font-medium">One or more punches were outside the allowed job site radius.</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Clock-in location */}
+              <div className="bg-secondary/40 rounded-xl p-3 space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Clock In
+                </p>
+                {entry.punch_in_location_status === 'captured' ? (
+                  <>
+                    <p className="text-xs text-foreground font-medium">
+                      {entry.punch_in_distance_miles != null ? `${entry.punch_in_distance_miles} mi from job` : 'Location captured'}
+                    </p>
+                    {entry.punch_in_flagged && <p className="text-[10px] text-amber-600 font-semibold">⚠️ Out of range</p>}
+                    {entry.punch_in_accuracy_meters && <p className="text-[10px] text-muted-foreground">±{entry.punch_in_accuracy_meters}m accuracy</p>}
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground capitalize">{entry.punch_in_location_status || '—'}</p>
+                )}
+              </div>
+
+              {/* Clock-out location */}
+              <div className="bg-secondary/40 rounded-xl p-3 space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Clock Out
+                </p>
+                {entry.punch_out_location_status === 'captured' ? (
+                  <>
+                    <p className="text-xs text-foreground font-medium">
+                      {entry.punch_out_distance_miles != null ? `${entry.punch_out_distance_miles} mi from job` : 'Location captured'}
+                    </p>
+                    {entry.punch_out_flagged && <p className="text-[10px] text-amber-600 font-semibold">⚠️ Out of range</p>}
+                    {entry.punch_out_accuracy_meters && <p className="text-[10px] text-muted-foreground">±{entry.punch_out_accuracy_meters}m accuracy</p>}
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground capitalize">{entry.punch_out_location_status || 'Not yet recorded'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Map */}
+            <PunchLocationMap entry={entry} />
+          </motion.div>
+        )}
+
         {/* Edit history (admin only) */}
         {isAdmin && editHistory.length > 0 && (
           <div className="bg-card border border-border rounded-2xl p-5">

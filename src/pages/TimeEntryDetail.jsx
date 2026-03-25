@@ -31,7 +31,7 @@ export default function TimeEntryDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = getIsAdmin(); // true for admin + owner
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);

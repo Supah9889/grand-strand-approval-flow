@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { attemptLogin } from '@/lib/adminAuth';
+import { attemptOverrideLogin, loginAsEmployee } from '@/lib/adminAuth';
+import { base44 } from '@/api/base44Client';
 import CompanyLogo from '../components/CompanyLogo';
+import { Loader2 } from 'lucide-react';
 
 export default function AccessGate() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
@@ -15,17 +18,40 @@ export default function AccessGate() {
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const role = attemptLogin(code);
-    if (role) {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+
+    // 1. Try override codes first (owner / admin / staff)
+    const overrideRole = attemptOverrideLogin(trimmed);
+    if (overrideRole) {
       navigate('/dashboard', { replace: true });
-    } else {
-      setError('Invalid access code. Please try again.');
-      setShaking(true);
-      setCode('');
-      setTimeout(() => setShaking(false), 500);
+      return;
     }
+
+    // 2. Look up employee by their personal code
+    setLoading(true);
+    try {
+      const matches = await base44.entities.Employee.filter({ employee_code: trimmed, active: true });
+      const employee = matches?.[0];
+
+      if (employee) {
+        loginAsEmployee(employee);
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+    } catch {
+      // Fall through to error
+    } finally {
+      setLoading(false);
+    }
+
+    // 3. No match
+    setError('Invalid access code. Please try again.');
+    setShaking(true);
+    setCode('');
+    setTimeout(() => setShaking(false), 500);
   };
 
   return (
@@ -57,7 +83,7 @@ export default function AccessGate() {
               ref={inputRef}
               type="password"
               inputMode="numeric"
-              maxLength={6}
+              maxLength={8}
               value={code}
               onChange={e => { setCode(e.target.value); setError(''); }}
               placeholder="••••"
@@ -77,10 +103,10 @@ export default function AccessGate() {
 
             <button
               type="submit"
-              disabled={!code}
-              className="w-full h-11 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-sm font-semibold rounded-xl transition-colors"
+              disabled={!code || loading}
+              className="w-full h-11 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              Continue
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue'}
             </button>
           </form>
         </motion.div>

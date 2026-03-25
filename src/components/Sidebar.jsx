@@ -20,8 +20,9 @@ const NAV_GROUPS = [
     label: 'Main',
     adminOnly: false,
     items: [
-      { label: 'Dashboard',  to: '/dashboard', icon: LayoutDashboard },
-      { label: 'Job Search', to: '/search',    icon: Search },
+      { label: 'Dashboard',     to: '/dashboard',     icon: LayoutDashboard },
+      { label: 'Job Search',    to: '/search',         icon: Search },
+      { label: 'Global Search', to: '/global-search', icon: Search },
     ],
   },
   {

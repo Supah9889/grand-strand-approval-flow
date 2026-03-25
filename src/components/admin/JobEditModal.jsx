@@ -90,12 +90,38 @@ export default function JobEditModal({ job, open, onClose, onSave, saving }) {
         )}
 
         <div className="space-y-4 py-2">
+          {/* Structured address fields */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Address *</Label>
+            <Label className="text-xs">Street Address *</Label>
             <Input
-              value={form.address || ''} onChange={e => set('address', e.target.value)}
+              value={form._street || ''} onChange={e => set('_street', e.target.value)}
               className="h-10 rounded-xl text-sm" disabled={isLocked && LOCKED_FIELDS.includes('address')}
+              placeholder="123 Main St"
             />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1.5 col-span-1">
+              <Label className="text-xs">City *</Label>
+              <Input
+                value={form.city || ''} onChange={e => set('city', e.target.value)}
+                className="h-10 rounded-xl text-sm" disabled={isLocked && LOCKED_FIELDS.includes('address')}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">State *</Label>
+              <Input
+                value={form.state || ''} onChange={e => set('state', e.target.value)}
+                className="h-10 rounded-xl text-sm" disabled={isLocked && LOCKED_FIELDS.includes('address')}
+                maxLength={2} placeholder="SC"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">ZIP *</Label>
+              <Input
+                value={form.zip || ''} onChange={e => set('zip', e.target.value)}
+                className="h-10 rounded-xl text-sm" disabled={isLocked && LOCKED_FIELDS.includes('address')}
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Customer Name *</Label>

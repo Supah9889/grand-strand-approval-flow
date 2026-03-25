@@ -583,6 +583,21 @@ export const audit = {
 // ─────────────────────────────────────────────────────────────────
 //  ACTION LABELS — human-readable display map for the Audit Log UI
 // ─────────────────────────────────────────────────────────────────
+export const audit_linking = {
+  jobLinked: (recordId, actor, recordType, jobId, jobAddress) => logAudit(
+    recordId, 'record_linked', actor, `${recordType} linked to job ${jobAddress || jobId}`,
+    { related_type: recordType, job_id: jobId, job_address: jobAddress }
+  ),
+  jobUnlinked: (recordId, actor, recordType, jobId, jobAddress) => logAudit(
+    recordId, 'record_unlinked', actor, `${recordType} unlinked from job ${jobAddress || jobId}`,
+    { related_type: recordType, job_id: jobId, job_address: jobAddress }
+  ),
+  jobChanged: (recordId, actor, recordType, oldJobId, newJobId, oldAddr, newAddr) => logAudit(
+    recordId, 'linked_job_changed', actor, `${recordType} job changed from ${oldAddr || oldJobId} to ${newAddr || newJobId}`,
+    { related_type: recordType, old_job_id: oldJobId, new_job_id: newJobId }
+  ),
+};
+
 export const ACTION_LABELS = {
   record_created:                   { label: 'Record Created',                    color: 'text-primary' },
   record_edited:                    { label: 'Record Edited',                     color: 'text-foreground' },

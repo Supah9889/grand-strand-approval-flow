@@ -570,30 +570,44 @@ export default function NewJobPage() {
                 </div>
 
                 {/* Add employee */}
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Field label="Employee">
-                      <Select value={addEmpId} onValueChange={setAddEmpId}>
-                        <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue placeholder="Select employee..." /></SelectTrigger>
-                        <SelectContent>
-                          {availableEmps.map(e => <SelectItem key={e.id} value={e.id}>{e.name} — {e.employee_code}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Field label="Employee">
+                        <Select value={addEmpId} onValueChange={setAddEmpId}>
+                          <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue placeholder="Select employee..." /></SelectTrigger>
+                          <SelectContent>
+                            {availableEmps.map(e => <SelectItem key={e.id} value={e.id}>{e.name} — {e.employee_code}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <div className="w-40">
+                      <Field label="Role">
+                        <Select value={addEmpRole} onValueChange={setAddEmpRole}>
+                          <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>{ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <Button type="button" size="sm" className="h-10 rounded-xl px-4 shrink-0"
+                      onClick={() => { addAssignment(addEmpId, addEmpRole, addEmpNotify); setAddEmpId(''); }}
+                      disabled={!addEmpId}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <div className="w-40">
-                    <Field label="Role">
-                      <Select value={addEmpRole} onValueChange={setAddEmpRole}>
-                        <SelectTrigger className="h-10 rounded-xl text-sm"><SelectValue /></SelectTrigger>
-                        <SelectContent>{ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
-                  <Button type="button" size="sm" className="h-10 rounded-xl px-4 shrink-0"
-                    onClick={() => { addAssignment(addEmpId, addEmpRole, addEmpNotify); setAddEmpId(''); }}
-                    disabled={!addEmpId}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                  {addEmpId && (
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-border">
+                      <div className="flex items-center gap-2">
+                        <Send className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-xs font-medium text-foreground">Send notification on save</span>
+                      </div>
+                      <button type="button" onClick={() => setAddEmpNotify(v => !v)}
+                        className={`w-9 h-5 rounded-full transition-colors relative ${addEmpNotify ? 'bg-primary' : 'bg-muted'}`}>
+                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${addEmpNotify ? 'left-[18px]' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Assigned list */}

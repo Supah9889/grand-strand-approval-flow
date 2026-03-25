@@ -70,6 +70,7 @@ export default function NewJobModal({ open, onClose }) {
   });
 
   const [touched, setTouched] = useState(false);
+  // Validate using `address` as street field; city/state/zip are separate
   const issues = validateJob({ ...form, price: form.price ? Number(form.price) : 0 });
   const errors = issues.filter(i => i.level === 'error');
 

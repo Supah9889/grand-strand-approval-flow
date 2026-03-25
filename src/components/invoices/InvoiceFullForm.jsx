@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Plus, Trash2, Loader2, Send } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateNumber, INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
@@ -13,26 +13,64 @@ function newLine() {
   return { id: Date.now(), description: '', qty: 1, unit: 'ea', unit_price: 0, total: 0 };
 }
 
-export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrders = [], existingNums = [], onSave, onCancel, prefillJobId }) {
+export default function InvoiceFullForm({
+  jobs = [], estimates = [], changeOrders = [], existingNums = [],
+  onSave, onCancel, prefillJobId, initialData,
+}) {
   const role = getInternalRole();
-  const [form, setForm] = useState({
-    invoice_number: generateNumber('INV', existingNums),
-    job_id: prefillJobId || '',
-    job_address: '',
-    customer_name: '',
-    invoice_date: new Date().toISOString().split('T')[0],
-    due_date: '',
-    status: 'draft',
-    source_type: 'manual',
-    source_id: '',
-    title: '',
-    notes: '',
-    internal_notes: '',
-    tax_rate: 0,
-    created_by_name: role || 'admin',
-    qb_sync_status: 'not_synced',
+  const isEdit = !!initialData;
+
+  const [form, setForm] = useState(() => {
+    if (initialData) {
+      return {
+        invoice_number: initialData.invoice_number || '',
+        job_id: initialData.job_id || '',
+        job_address: initialData.job_address || '',
+        customer_name: initialData.customer_name || '',
+        invoice_date: initialData.invoice_date || new Date().toISOString().split('T')[0],
+        due_date: initialData.due_date || '',
+        status: initialData.status || 'draft',
+        source_type: initialData.source_type || 'manual',
+        source_id: initialData.source_id || '',
+        title: initialData.title || '',
+        notes: initialData.notes || '',
+        internal_notes: initialData.internal_notes || '',
+        tax_rate: initialData.tax_rate || 0,
+        created_by_name: initialData.created_by_name || role || 'admin',
+        qb_sync_status: initialData.qb_sync_status || 'not_synced',
+      };
+    }
+    return {
+      invoice_number: generateNumber('INV', existingNums),
+      job_id: prefillJobId || '',
+      job_address: '',
+      customer_name: '',
+      invoice_date: new Date().toISOString().split('T')[0],
+      due_date: '',
+      status: 'draft',
+      source_type: 'manual',
+      source_id: '',
+      title: '',
+      notes: '',
+      internal_notes: '',
+      tax_rate: 0,
+      created_by_name: role || 'admin',
+      qb_sync_status: 'not_synced',
+    };
   });
-  const [lines, setLines] = useState([newLine()]);
+
+  const [lines, setLines] = useState(() => {
+    if (initialData?.line_items) {
+      try {
+        const parsed = JSON.parse(initialData.line_items);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(l => ({ ...l, id: l.id || Date.now() + Math.random() }));
+        }
+      } catch {}
+    }
+    return [newLine()];
+  });
+
   const [saving, setSaving] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -50,7 +88,6 @@ export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrder
   const taxAmt = subtotal * (Number(form.tax_rate) / 100);
   const total = subtotal + taxAmt;
 
-  // Auto-populate from job selection
   const handleJobSelect = (jobId) => {
     const job = jobs.find(j => j.id === jobId);
     set('job_id', jobId);
@@ -60,7 +97,6 @@ export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrder
     }
   };
 
-  // Auto-populate from estimate
   const handleEstimateSelect = (estId) => {
     set('source_id', estId);
     const est = estimates.find(e => e.id === estId);
@@ -97,8 +133,8 @@ export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrder
       subtotal,
       tax_amount: taxAmt,
       amount: total,
-      balance_due: total,
-      amount_paid: 0,
+      balance_due: isEdit ? (initialData.balance_due ?? total) : total,
+      amount_paid: isEdit ? (initialData.amount_paid ?? 0) : 0,
     });
     setSaving(false);
   };
@@ -123,7 +159,7 @@ export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrder
 
         <div className="col-span-2">
           <label className="block text-xs font-medium text-muted-foreground mb-1">Linked Job</label>
-          <Select value={form.job_id} onValueChange={handleJobSelect}>
+          <Select value={form.job_id || ''} onValueChange={handleJobSelect}>
             <SelectTrigger className="h-9 rounded-lg text-sm"><SelectValue placeholder="Select job..." /></SelectTrigger>
             <SelectContent>
               <SelectItem value={null}>No job linked</SelectItem>
@@ -211,7 +247,6 @@ export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrder
           ))}
         </div>
 
-        {/* Totals */}
         <div className="mt-3 space-y-1.5 border-t border-border pt-3">
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">${subtotal.toFixed(2)}</span></div>
           <div className="flex items-center justify-between">
@@ -238,7 +273,7 @@ export default function InvoiceFullForm({ jobs = [], estimates = [], changeOrder
       <div className="flex gap-2 border-t border-border pt-4 sticky bottom-0 bg-card pb-1">
         <Button variant="outline" className="flex-1 h-9 rounded-xl" onClick={onCancel}>Cancel</Button>
         <Button className="flex-1 h-9 rounded-xl gap-2" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Save Invoice</>}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> {isEdit ? 'Save Changes' : 'Save Invoice'}</>}
         </Button>
       </div>
     </div>

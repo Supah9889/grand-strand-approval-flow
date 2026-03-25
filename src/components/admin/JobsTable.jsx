@@ -9,6 +9,7 @@ import {
   Pencil, Trash2, Archive, CheckCircle2, Clock, ArchiveX,
   Search, Loader2, MapPin, User, Mail, Phone, Lock, History, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import JobEditModal from './JobEditModal';
 import JobAuditLog from './JobAuditLog';

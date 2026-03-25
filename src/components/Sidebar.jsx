@@ -64,6 +64,7 @@ const NAV_GROUPS = [
       { label: 'Payments',        to: '/payments',        icon: CreditCard },
       { label: 'Vendor Bank',     to: '/vendors',         icon: Building2 },
       { label: 'Employees',       to: '/employees',       icon: Users },
+      { label: 'Emp. Permissions',to: '/employee-permissions', icon: ShieldCheck },
       { label: 'Expenses',        to: '/expenses',        icon: Receipt },
       { label: 'Custom Fields',   to: '/custom-fields',   icon: Settings2 },
       { label: 'Doc Templates',   to: '/templates',       icon: FileText },

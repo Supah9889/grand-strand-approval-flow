@@ -670,6 +670,10 @@ export const ACTION_LABELS = {
   employee_deleted:                 { label: 'Employee Deleted',                  color: 'text-destructive' },
   employee_role_changed:            { label: 'Employee Role Changed',             color: 'text-destructive' },
 
+  compliance_field_updated:         { label: 'Compliance Field Updated',          color: 'text-amber-600' },
+  compliance_document_uploaded:     { label: 'Compliance Document Uploaded',      color: 'text-primary' },
+  compliance_document_removed:      { label: 'Compliance Document Removed',       color: 'text-destructive' },
+
   expense_deleted:                  { label: 'Expense Deleted',                   color: 'text-destructive' },
   duplicate_override:               { label: 'Duplicate Warning Overridden',      color: 'text-amber-600' },
 

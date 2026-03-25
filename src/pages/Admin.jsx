@@ -128,10 +128,11 @@ export default function Admin() {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+              role === 'owner' ? 'bg-amber-100 text-amber-700' :
               isAdminRole ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'
             }`}>
               {isAdminRole ? <ShieldAlert className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-              {isAdminRole ? 'Admin Session' : 'Staff Session'}
+              {role === 'owner' ? 'Owner Session' : isAdminRole ? 'Admin Session' : 'Staff Session'}
             </span>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground h-8">

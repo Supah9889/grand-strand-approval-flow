@@ -237,8 +237,8 @@ export default function Sidebar({ open, onClose }) {
                 </button>
               </div>
 
-              {/* New Job button (admin only) */}
-              {role === 'admin' && (
+              {/* New Job button (admin + owner) */}
+              {(role === 'admin' || role === 'owner') && (
                 <div className="px-4 pt-4 pb-2">
                   <button
                     onClick={() => { setShowNewJob(true); onClose(); }}

@@ -276,7 +276,7 @@ export default function Sidebar({ open, onClose }) {
                     'bg-secondary text-secondary-foreground'
                   }`}>
                     <ShieldAlert className="w-3 h-3" />
-                    {role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Staff'} Session
+                    {sessionEmployee ? sessionEmployee.name : role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Staff'} Session
                   </div>
                 </div>
               )}

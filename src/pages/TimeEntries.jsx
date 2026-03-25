@@ -31,6 +31,7 @@ export default function TimeEntries() {
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [filterCode, setFilterCode] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterApproval, setFilterApproval] = useState('all');
   const [filterDate, setFilterDate] = useState('');
   const [sort, setSort] = useState('newest');
   const [showManual, setShowManual] = useState(false);

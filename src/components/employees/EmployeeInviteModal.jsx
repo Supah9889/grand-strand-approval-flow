@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { X, Loader2, Mail, Clock, RotateCcw, Copy, CheckCheck, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { audit } from '@/lib/audit';
+import { getInternalRole } from '@/lib/adminAuth';
 
 function generateToken() {
   return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -82,6 +84,8 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
   const isResend = employee.invite_status && employee.invite_status !== 'not_sent';
   const senderRecord = approvedEmails.find(e => e.email === fromEmail);
 
+  const actor = getInternalRole() || 'Admin';
+
   const handleSend = async () => {
     if (!employee.email) { toast.error('Employee has no email address on file'); return; }
     if (!fromEmail) { toast.error('Please select a sender email'); return; }
@@ -95,6 +99,11 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
       });
       await recordInviteSent({ employee, token, fromEmail, isResend });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      if (isResend) {
+        audit.employee.inviteResent(employee.id, actor, employee.name, employee.email);
+      } else {
+        audit.employee.inviteSent(employee.id, actor, employee.name, employee.email);
+      }
       toast.success(isResend ? 'Invite resent!' : 'Invite sent!');
       onSent?.();
       onClose();
@@ -115,6 +124,11 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
     setSending(true);
     await recordInviteSent({ employee, token, fromEmail, isResend });
     queryClient.invalidateQueries({ queryKey: ['employees'] });
+    if (isResend) {
+      audit.employee.inviteResent(employee.id, actor, employee.name, employee.email);
+    } else {
+      audit.employee.inviteSent(employee.id, actor, employee.name, employee.email);
+    }
     setSending(false);
     toast.success('Invite marked as sent');
     onSent?.();

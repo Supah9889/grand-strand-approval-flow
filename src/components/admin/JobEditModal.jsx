@@ -175,7 +175,7 @@ export default function JobEditModal({ job, open, onClose, onSave, saving }) {
             <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
             <Button
               className="flex-1 rounded-xl"
-              disabled={!form.address || !form.customer_name || !form.description || !form.price || saving || (job.locked && !unlocked)}
+              disabled={!form._street || !form.city || !form.state || !form.zip || !form.customer_name || !form.description || !form.price || saving || (job.locked && !unlocked)}
               onClick={handleSave}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Changes'}

@@ -200,15 +200,17 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 px-5 pb-5">
-          <Button className="flex-1 h-10 rounded-xl" onClick={handleSend} disabled={sending || !employee.email || approvedEmails.length === 0}>
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-3.5 h-3.5 mr-1.5" />{isResend ? 'Resend Invite' : 'Send Invite'}</>}
-          </Button>
-          <Button variant="outline" className="h-10 rounded-xl px-4" onClick={handleSaveLater}>
-            Save for Later
-          </Button>
-          <Button variant="ghost" className="h-10 rounded-xl px-3" onClick={onClose}>
-            Cancel
+        <div className="flex flex-col gap-2 px-5 pb-5">
+          <div className="flex items-center gap-2">
+            <Button className="flex-1 h-10 rounded-xl" onClick={handleCopyMessage}>
+              {copied ? <><CheckCheck className="w-3.5 h-3.5 mr-1.5" />Copied!</> : <><Copy className="w-3.5 h-3.5 mr-1.5" />Copy Full Message</>}
+            </Button>
+            <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={handleMarkSent} disabled={saving || marked}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : marked ? <><CheckCheck className="w-3.5 h-3.5 mr-1.5" />Marked!</> : 'Mark as Sent'}
+            </Button>
+          </div>
+          <Button variant="ghost" className="w-full h-9 rounded-xl text-xs text-muted-foreground" onClick={onClose}>
+            Save for Later / Cancel
           </Button>
         </div>
       </div>

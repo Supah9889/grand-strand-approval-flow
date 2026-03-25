@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { X, Loader2, Search, ChevronDown, Clock } from 'lucide-react';
+import { X, Loader2, Search, ChevronDown, Clock, UserPlus, Send, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { BLOCK_PRESETS, EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG } from '@/lib/calendarHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
+import { format } from 'date-fns';
 
 const empty = {
   title: '', job_id: '', job_address: '', color: '',
@@ -18,19 +20,90 @@ const empty = {
   status: 'scheduled', event_type: 'job_visit', visibility: 'internal',
 };
 
+// Small inline employee search dropdown
+function EmployeeSearch({ employees, selectedId, onSelect }) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    if (!q) return employees.slice(0, 15);
+    return employees.filter(e =>
+      e.name.toLowerCase().includes(q.toLowerCase()) ||
+      (e.employee_code || '').toLowerCase().includes(q.toLowerCase())
+    ).slice(0, 15);
+  }, [employees, q]);
+
+  const selected = employees.find(e => e.id === selectedId);
+
+  const choose = (emp) => {
+    onSelect(emp);
+    setQ(emp.name);
+    setOpen(false);
+  };
+
+  const clear = () => { onSelect(null); setQ(''); };
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          value={selected && !open ? selected.name : q}
+          onChange={e => { setQ(e.target.value); setOpen(true); if (!e.target.value) onSelect(null); }}
+          onFocus={() => { setOpen(true); if (selected) setQ(''); }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Search employees..."
+          className="w-full h-10 pl-8 pr-8 rounded-xl border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        {(selected || q) && (
+          <button type="button" onMouseDown={clear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 w-full bg-popover border border-border rounded-xl shadow-lg overflow-hidden max-h-44 overflow-y-auto">
+          {filtered.length === 0
+            ? <p className="px-3 py-2 text-xs text-muted-foreground">No employees found</p>
+            : filtered.map(e => (
+              <button key={e.id} type="button" onMouseDown={() => choose(e)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="font-medium">{e.name}</span>
+                <span className="text-xs text-muted-foreground ml-auto">#{e.employee_code}</span>
+              </button>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CalendarEventModal({ open, onClose, jobs = [], prefilledDate = '' }) {
   const [step, setStep] = useState('job');
   const [jobSearch, setJobSearch] = useState('');
   const [form, setForm] = useState(empty);
   const [hourlyMode, setHourlyMode] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
+  const [assignedEmployee, setAssignedEmployee] = useState(null);
+  const [sendNotification, setSendNotification] = useState(true);
   const queryClient = useQueryClient();
   const role = getInternalRole();
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-active'],
+    queryFn: () => base44.entities.Employee.filter({ active: true }, 'name'),
+    enabled: open,
+  });
 
   useEffect(() => {
     if (open) {
       setStep('job'); setJobSearch(''); setSelectedPreset(null); setHourlyMode(false);
       setForm({ ...empty, start_date: prefilledDate || '' });
+      setAssignedEmployee(null);
+      setSendNotification(true);
     }
   }, [open, prefilledDate]);
 
@@ -50,12 +123,13 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
   };
 
   const createMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: async (data) => {
       let startDate = data.start_date;
       if (data.start_time) startDate = `${data.start_date}T${data.start_time}`;
       let endDate = data.start_date;
       if (data.end_time) endDate = `${data.start_date}T${data.end_time}`;
-      return base44.entities.CalendarEvent.create({
+
+      const event = await base44.entities.CalendarEvent.create({
         title: data.title,
         event_type: data.event_type,
         job_id: data.job_id,
@@ -63,7 +137,10 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
         job_title: data.job_title,
         start_date: startDate,
         end_date: endDate || startDate,
-        assigned_to: data.assigned_to,
+        // Store structured assignment: employee ID + name
+        assigned_to: assignedEmployee
+          ? `${assignedEmployee.name} (${assignedEmployee.employee_code})`
+          : data.assigned_to || '',
         notes: data.notes,
         internal_notes: data.internal_notes,
         status: data.status,
@@ -72,11 +149,43 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
         all_day: !data.start_time,
         created_by_name: role || 'admin',
       });
+
+      // Audit log event assignment
+      if (assignedEmployee) {
+        await audit.assignment.eventCreated(
+          event.id,
+          role || 'Admin',
+          assignedEmployee.name,
+          data.title,
+          sendNotification,
+          { job_id: data.job_id, job_address: data.job_address }
+        );
+
+        // Send notification if chosen
+        if (sendNotification && assignedEmployee.email) {
+          base44.integrations.Core.SendEmail({
+            to: assignedEmployee.email,
+            subject: `You've been assigned to an event`,
+            body: `Hi ${assignedEmployee.name},\n\nYou have been assigned to the following event:\n\n"${data.title}"\nDate: ${data.start_date}${data.start_time ? ' at ' + data.start_time : ''}\nJob: ${data.job_address || 'N/A'}\n\nAssigned by: ${role || 'Admin'}\n\nPlease log in for details.`,
+          }).catch(() => {});
+        }
+      }
+
+      return event;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['calendar-events'] }); toast.success('Event added'); handleClose(); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(assignedEmployee && sendNotification ? 'Event saved & employee notified' : 'Event saved');
+      handleClose();
+    },
   });
 
-  const handleClose = () => { setForm(empty); setStep('job'); setJobSearch(''); setHourlyMode(false); setSelectedPreset(null); onClose(); };
+  const handleClose = () => {
+    setForm(empty); setStep('job'); setJobSearch('');
+    setHourlyMode(false); setSelectedPreset(null);
+    setAssignedEmployee(null); setSendNotification(true);
+    onClose();
+  };
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   return (
@@ -174,7 +283,35 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
                     </div>
                   )}
 
-                  <Input placeholder="Assigned To" value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)} className="h-10 rounded-xl text-sm" />
+                  {/* ── Structured employee assignment ── */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <UserPlus className="w-3.5 h-3.5 text-muted-foreground" />
+                      <p className="text-xs font-medium text-muted-foreground">Assign Employee</p>
+                    </div>
+                    <EmployeeSearch
+                      employees={employees}
+                      selectedId={assignedEmployee?.id || ''}
+                      onSelect={setAssignedEmployee}
+                    />
+
+                    {/* Notification toggle — only shown when an employee is selected */}
+                    {assignedEmployee && (
+                      <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-border">
+                        <div className="flex items-center gap-2">
+                          <Send className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-xs font-medium text-foreground">Send notification</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSendNotification(v => !v)}
+                          className={`w-9 h-5 rounded-full transition-colors relative ${sendNotification ? 'bg-primary' : 'bg-muted'}`}
+                        >
+                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${sendNotification ? 'left-[18px]' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={form.status} onValueChange={v => set('status', v)}>

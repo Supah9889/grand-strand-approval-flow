@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Plus, Users, X, Settings2, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import { isAdminAuthed } from '@/lib/adminAuth';
+import { isAdminAuthed, getInternalRole } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 import EmployeeInviteModal from '../components/employees/EmployeeInviteModal';
 import EmployeeDetailPanel from '../components/employees/EmployeeDetailPanel';
@@ -25,6 +26,7 @@ export default function EmployeeManager() {
   const [selectedEmployee, setSelectedEmployee] = useState(null); // opens detail panel
   const [showSettings, setShowSettings] = useState(false);
   const queryClient = useQueryClient();
+  const actor = getInternalRole() || 'Admin';
 
   if (!isAdminAuthed()) {
     return (
@@ -47,16 +49,20 @@ export default function EmployeeManager() {
     mutationFn: (data) => base44.entities.Employee.create(data),
     onSuccess: (newEmployee) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      audit.employee.created(newEmployee.id, actor, newEmployee.name, newEmployee.role);
       setForm(emptyForm);
       setShowForm(false);
-      // Immediately open invite modal for the new employee
       setPendingInviteEmployee(newEmployee);
     },
   });
 
   const toggleActive = useMutation({
     mutationFn: ({ id, active }) => base44.entities.Employee.update(id, { active }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['employees'] }),
+    onSuccess: (_, { id, active }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      const emp = employees.find(e => e.id === id);
+      if (emp) audit.employee.activeToggled(id, actor, emp.name, active);
+    },
   });
 
   return (

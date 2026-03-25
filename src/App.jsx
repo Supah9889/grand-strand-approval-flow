@@ -23,6 +23,7 @@ import Expenses from './pages/Expenses';
 import CalendarPage from './pages/CalendarPage';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EmployeeManager from './pages/EmployeeManager';
+import EmployeePermissions from './pages/EmployeePermissions';
 import Financials from './pages/Financials';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Bills from './pages/Bills';
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/templates" element={<DocumentTemplates />} />
       <Route path="/employees" element={<EmployeeManager />} />
+      <Route path="/employee-permissions" element={<EmployeePermissions />} />
       <Route path="/financials" element={<Financials />} />
       <Route path="/purchase-orders" element={<PurchaseOrders />} />
       <Route path="/bills" element={<Bills />} />

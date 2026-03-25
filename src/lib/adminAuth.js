@@ -23,12 +23,23 @@ export function isAdminAuthed() {
   return !!getInternalRole();
 }
 
+export function isOwner() {
+  return getInternalRole() === 'owner';
+}
+
+/** Returns true for both admin AND owner — owner is a superset of admin */
 export function isAdmin() {
-  return getInternalRole() === 'admin';
+  const role = getInternalRole();
+  return role === 'admin' || role === 'owner';
 }
 
 export function isStaff() {
   return getInternalRole() === 'staff';
+}
+
+/** Returns true only for owner — for owner-exclusive actions */
+export function isOwnerOnly() {
+  return getInternalRole() === 'owner';
 }
 
 /** Attempt login by code. Returns role string or null. */

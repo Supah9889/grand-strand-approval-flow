@@ -120,6 +120,56 @@ export default function EmployeeDetailPanel({ employee, onClose }) {
               <p className="text-xs text-foreground whitespace-pre-wrap">{employee.notes}</p>
             </div>
           )}
+
+          {/* Owner-only: Deactivate / Delete */}
+          {isOwnerOnly() && (
+            <div className="border-t border-border pt-4 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Owner Actions</p>
+
+              {!deleteConfirm ? (
+                <div className="flex gap-2">
+                  {employee.active && (
+                    <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                      onClick={() => setDeleteConfirm('deactivate')}>
+                      <UserX className="w-3.5 h-3.5 mr-1.5" />Deactivate
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs border-destructive/30 text-destructive hover:bg-destructive/5"
+                    onClick={() => setDeleteConfirm('delete')}>
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />Delete
+                  </Button>
+                </div>
+              ) : deleteConfirm === 'deactivate' ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />Deactivate {employee.name}?
+                  </p>
+                  <p className="text-xs text-amber-700">They will no longer be able to clock in. Their records will be preserved.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 h-8 rounded-xl text-xs" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                    <Button size="sm" className="flex-1 h-8 rounded-xl text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={() => deactivateMutation.mutate()} disabled={deactivateMutation.isPending}>
+                      {deactivateMutation.isPending ? 'Saving…' : 'Confirm Deactivate'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-destructive flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />Permanently delete {employee.name}?
+                  </p>
+                  <p className="text-xs text-destructive">This cannot be undone. If this employee has linked time entries or records, deletion may fail — deactivate instead.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 h-8 rounded-xl text-xs" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                    <Button variant="destructive" size="sm" className="flex-1 h-8 rounded-xl text-xs"
+                      onClick={() => hardDeleteMutation.mutate()} disabled={hardDeleteMutation.isPending}>
+                      {hardDeleteMutation.isPending ? 'Deleting…' : 'Delete Forever'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

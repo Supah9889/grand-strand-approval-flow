@@ -84,7 +84,11 @@ export async function logAudit(recordIdOrJobId, action, actor = 'System', detail
   }
 
   // Fire-and-forget — never block primary user action on audit failure
-  base44.entities.AuditLog.create(entry).catch(() => {});
+  try {
+    await base44.entities.AuditLog.create(entry);
+  } catch {
+    // Silently fail — never block primary user action on audit failure
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

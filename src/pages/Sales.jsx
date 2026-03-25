@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useQueryClient } from '@tanstack/react-query';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Plus, Search, Loader2, ChevronRight, AlertCircle, Calendar, BarChart2, X } from 'lucide-react';

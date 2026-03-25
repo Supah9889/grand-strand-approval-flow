@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2, Database, Tag } from 'lucide-react';
+import { Plus, Loader2, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2, Database, Tag, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import CsvImportFlow from '../components/admin/CsvImportFlow';
@@ -16,6 +16,7 @@ import JobFilters from '../components/admin/JobFilters';
 import ReportingPanel from '../components/admin/ReportingPanel';
 import QBExportPanel from '../components/admin/QBExportPanel';
 import CostCodeManager from '../components/costcodes/CostCodeManager';
+import GeoSettingsPanel from '../components/timeclock/GeoSettingsPanel';
 import { isAdminAuthed, adminLogout, getInternalRole, isAdmin } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
@@ -138,7 +139,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="dashboard">
-          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-6' : 'grid grid-cols-1'}`}>
+          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-7' : 'grid grid-cols-1'}`}>
             <TabsTrigger value="dashboard" className="flex-1 rounded-lg text-sm gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Dashboard

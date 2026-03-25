@@ -590,7 +590,7 @@ export default function NewJobPage() {
                     </Field>
                   </div>
                   <Button type="button" size="sm" className="h-10 rounded-xl px-4 shrink-0"
-                    onClick={() => { addAssignment(addEmpId, addEmpRole); setAddEmpId(''); }}
+                    onClick={() => { addAssignment(addEmpId, addEmpRole, addEmpNotify); setAddEmpId(''); }}
                     disabled={!addEmpId}>
                     <Plus className="w-4 h-4" />
                   </Button>

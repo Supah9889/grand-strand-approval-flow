@@ -13,22 +13,27 @@ export function NavigationProvider({ children }) {
     historyStackRef.current.push(location.pathname);
   }, [location.pathname]);
 
-  // Handle Android hardware back button
+  // Handle Android hardware back button and browser back
   useEffect(() => {
     const handleBackButton = (event) => {
       const stack = historyStackRef.current;
       
-      // Remove current route from stack
       if (stack.length > 1) {
-        stack.pop(); // Remove current
+        stack.pop();
         const previousRoute = stack[stack.length - 1];
         navigate(previousRoute, { replace: true });
       }
     };
 
+    // Cordova/PhoneGap back button
     document.addEventListener('backbutton', handleBackButton);
+    
+    // Browser back button via popstate
+    window.addEventListener('popstate', handleBackButton);
+
     return () => {
       document.removeEventListener('backbutton', handleBackButton);
+      window.removeEventListener('popstate', handleBackButton);
     };
   }, [navigate]);
 

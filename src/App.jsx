@@ -57,6 +57,7 @@ import AdminOverview from './pages/AdminOverview';
 import VerifyInvite from './pages/VerifyInvite';
 import GlobalSearch from './pages/GlobalSearch';
 import NewJobPage from './pages/NewJobPage';
+import MobileSettings from './pages/MobileSettings';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -143,6 +144,7 @@ const AuthenticatedApp = () => {
       <Route path="/verify-invite" element={<VerifyInvite />} />
       <Route path="/global-search" element={<GlobalSearch />} />
       <Route path="/new-job" element={<NewJobPage />} />
+      <Route path="/mobile-settings" element={<MobileSettings />} />
       <Route path="*" element={<PageNotFound />} />
           </Routes>
         </motion.div>

@@ -166,6 +166,10 @@ export default function Admin() {
                   <Tag className="w-4 h-4" />
                   Cost Codes
                 </TabsTrigger>
+                <TabsTrigger value="geo" className="flex-1 rounded-lg text-sm gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Geo
+                </TabsTrigger>
               </>
             )}
           </TabsList>

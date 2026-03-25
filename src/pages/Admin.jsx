@@ -62,7 +62,7 @@ export default function Admin() {
   const [filters, setFilters] = useState({ search: '', status: 'all', date: '' });
   const queryClient = useQueryClient();
 
-  const isAdminRole = role === 'admin';
+  const isAdminRole = isAdmin(); // true for both 'admin' and 'owner'
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['admin-jobs'],

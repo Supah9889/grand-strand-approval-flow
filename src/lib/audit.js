@@ -62,6 +62,20 @@ export const audit = {
   warranty: (id, action, actor, detail, opts = {}) => logAudit(id, action, actor, detail, { module: 'warranty', record_id: id, ...opts }),
   task: (id, action, actor, detail, opts = {}) => logAudit(id, action, actor, detail, { module: 'task', record_id: id, ...opts }),
   financial: (id, module, action, actor, detail, opts = {}) => logAudit(id, action, actor, detail, { module, record_id: id, is_sensitive: true, ...opts }),
+  assignment: {
+    created: (jobId, actor, employeeName, recordLabel, notified, opts = {}) =>
+      logAudit(jobId, 'record_created', actor,
+        `${actor} assigned ${employeeName} to ${recordLabel}. Notification sent: ${notified ? 'Yes' : 'No'}.`,
+        { module: 'job', record_id: jobId, job_id: jobId, ...opts }),
+    removed: (jobId, actor, employeeName, recordLabel, opts = {}) =>
+      logAudit(jobId, 'record_deleted', actor,
+        `${actor} removed ${employeeName} from ${recordLabel}.`,
+        { module: 'job', record_id: jobId, job_id: jobId, ...opts }),
+    eventCreated: (eventId, actor, employeeName, eventTitle, notified, opts = {}) =>
+      logAudit(eventId, 'record_created', actor,
+        `${actor} assigned ${employeeName} to event "${eventTitle}". Notification sent: ${notified ? 'Yes' : 'No'}.`,
+        { module: 'system', record_id: eventId, ...opts }),
+  },
 };
 
 // Human-readable labels for all action types

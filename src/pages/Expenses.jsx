@@ -14,6 +14,8 @@ import DeleteExpenseDialog from '@/components/expenses/DeleteExpenseDialog';
 import DuplicateWarningModal from '@/components/expenses/DuplicateWarningModal';
 import { parseReceiptFile } from '@/components/expenses/ReceiptParser';
 import { detectDuplicates } from '@/lib/duplicateDetection';
+import { audit } from '@/lib/audit';
+import { getInternalRole } from '@/lib/adminAuth';
 
 /**
  * LLM call to detect if a file has multiple receipts and return them all.
@@ -123,6 +125,7 @@ Return: { "receipts": [...] }`,
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function Expenses() {
   const queryClient = useQueryClient();
+  const actor = getInternalRole() || 'Admin';
 
   // view: 'inbox' | 'upload' | 'review' | 'multi' | 'edit'
   const [view, setView] = useState('inbox');
@@ -157,14 +160,19 @@ export default function Expenses() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Expense.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+    onSuccess: (exp) => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      audit.expense.created(exp.id, actor, exp.vendor_name || 'Unknown', exp.total_amount || 0, { job_id: exp.job_id, job_address: exp.job_address });
+    },
   });
 
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      const label = editingExpense?.vendor_name || data?.vendor_name || id;
+      audit.expense.edited(id, actor, label, { job_id: editingExpense?.job_id, job_address: editingExpense?.job_address });
       setView('inbox');
       setEditingExpense(null);
       toast.success('Expense updated');
@@ -174,8 +182,10 @@ export default function Expenses() {
   // Archive (soft) mutation
   const archiveMutation = useMutation({
     mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'archived' }),
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      const label = deleteTarget?.vendor_name || id;
+      audit.expense.archived(id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
       setDeleteTarget(null);
       toast.success('Expense archived');
     },
@@ -184,8 +194,10 @@ export default function Expenses() {
   // Hard delete mutation — permanent
   const hardDeleteMutation = useMutation({
     mutationFn: ({ id }) => base44.entities.Expense.delete(id),
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      const label = deleteTarget?.vendor_name || id;
+      audit.expense.deleted(id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
       setDeleteTarget(null);
       toast.success('Expense permanently deleted');
     },
@@ -262,12 +274,15 @@ export default function Expenses() {
     const data = pendingSaveData;
     const type = pendingSaveType;
     setDupeMatches(null); setPendingSaveData(null); setPendingSaveType(null);
+    audit.expense.duplicateOverride('pending', actor, data?.vendor_name || 'Unknown');
     doSave(data, type, 'ignored');
     toast.success('Saved — duplicate warning ignored');
   };
 
   const handleDupeDiscard = () => {
+    const data = pendingSaveData;
     setDupeMatches(null); setPendingSaveData(null); setPendingSaveType(null);
+    audit.expense.duplicateDiscarded(actor, data?.vendor_name || 'Unknown');
     toast('New entry discarded');
   };
 

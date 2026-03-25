@@ -12,7 +12,7 @@ import AppLayout from '../components/AppLayout';
 import InvoiceFullForm from '../components/invoices/InvoiceFullForm';
 import InvoiceCard from '../components/invoices/InvoiceCard';
 import { INVOICE_STATUS_CONFIG, fmt, generateNumber } from '@/lib/financialHelpers';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 
 export default function Invoices() {

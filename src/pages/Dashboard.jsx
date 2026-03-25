@@ -6,7 +6,7 @@ import { Loader2, PenLine, CheckCircle2, TrendingUp, Clock, ClipboardList, FileD
 import AppLayout from '../components/AppLayout';
 import { StatCard, SectionHeader } from '../components/dashboard/DashSection';
 import DrillDownList from '../components/dashboard/DrillDownList';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { format } from 'date-fns';
 
 const todayStr = new Date().toDateString();

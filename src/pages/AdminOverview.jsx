@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { StatCard, SectionHeader } from '../components/dashboard/DashSection';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { format, parseISO } from 'date-fns';
 
 export default function AdminOverview() {

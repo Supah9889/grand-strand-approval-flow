@@ -75,7 +75,7 @@ export default function CustomFields() {
     saveMutation.mutate(form);
   };
 
-  if (role !== 'admin') {
+  if (!getIsAdmin()) {
     return (
       <AppLayout title="Custom Fields">
         <div className="flex-1 flex items-center justify-center px-4">

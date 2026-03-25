@@ -103,7 +103,7 @@ function getDefaultOpen(role) {
 }
 
 function NavGroup({ group, role, location, onClose, unreadNotes, isOpen, onToggle }) {
-  if (group.adminOnly && role !== 'admin') return null;
+  if (group.adminOnly && role !== 'admin' && role !== 'owner') return null;
 
   // Auto-open group if current path is one of its items
   const isActiveGroup = group.items.some(item => location.pathname === item.to || location.pathname.startsWith(item.to + '/'));

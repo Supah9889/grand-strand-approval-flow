@@ -1,9 +1,13 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { NavigationProvider } from '@/lib/NavigationContext';
+import SafeAreaWrapper from '@/components/SafeAreaWrapper';
+import BottomNav from '@/components/BottomNav';
+import { motion, AnimatePresence } from 'framer-motion';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Splash from './pages/Splash';
 import AccessGate from './pages/AccessGate';
@@ -56,6 +60,7 @@ import NewJobPage from './pages/NewJobPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const location = useLocation();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -77,9 +82,19 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Render the main app
+  // Render the main app with slide transition animations
   return (
-    <Routes>
+    <SafeAreaWrapper>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -100 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="flex-1 overflow-y-auto pb-16"
+        >
+          <Routes>
       <Route path="/" element={<Splash />} />
       <Route path="/gate" element={<AccessGate />} />
       <Route path="/notes" element={<Notes />} />
@@ -129,7 +144,11 @@ const AuthenticatedApp = () => {
       <Route path="/global-search" element={<GlobalSearch />} />
       <Route path="/new-job" element={<NewJobPage />} />
       <Route path="*" element={<PageNotFound />} />
-    </Routes>
+          </Routes>
+        </motion.div>
+      </AnimatePresence>
+      <BottomNav />
+    </SafeAreaWrapper>
   );
 };
 
@@ -140,7 +159,9 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <NavigationProvider>
+            <AuthenticatedApp />
+          </NavigationProvider>
         </Router>
         <Toaster />
       </QueryClientProvider>

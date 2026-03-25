@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, LogIn, LogOut, User, MapPin, CheckCircle2 } from 'lucide-react';
+import { Loader2, Clock, LogIn, LogOut, User, MapPin, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
+import { runPunchGeoCheck, sendGeoAlert } from '@/lib/geolocation';
 
 const COST_CODES = [
   'Carpentry Labor/Sub',
@@ -19,6 +20,16 @@ const COST_CODES = [
   'Painting Labor/Sub',
 ];
 
+/** Fetch (or create) GeoSettings — returns { alert_radius_miles, alert_email, geo_tracking_enabled } */
+async function fetchGeoSettings() {
+  try {
+    const records = await base44.entities.GeoSettings.list();
+    return records[0] || { alert_radius_miles: 0.25, alert_email: null, geo_tracking_enabled: true };
+  } catch {
+    return { alert_radius_miles: 0.25, alert_email: null, geo_tracking_enabled: true };
+  }
+}
+
 export default function TimeClock() {
   const [step, setStep] = useState('code'); // code | select | clocked
   const [code, setCode] = useState('');
@@ -27,6 +38,7 @@ export default function TimeClock() {
   const [costCode, setCostCode] = useState('');
   const [note, setNote] = useState('');
   const [activeEntry, setActiveEntry] = useState(null);
+  const [geoStatus, setGeoStatus] = useState(null); // null | 'capturing' | 'captured' | 'denied' | 'unavailable'
   const queryClient = useQueryClient();
 
   const { data: jobs = [] } = useQuery({
@@ -48,7 +60,6 @@ export default function TimeClock() {
     onSuccess: async (emp) => {
       setEmployee(emp);
       if (emp.default_cost_code) setCostCode(emp.default_cost_code);
-      // Check if already clocked in
       const open = await base44.entities.TimeEntry.filter({ employee_id: emp.id, status: 'clocked_in' });
       if (open.length) {
         setActiveEntry(open[0]);
@@ -63,6 +74,30 @@ export default function TimeClock() {
   const clockInMutation = useMutation({
     mutationFn: async () => {
       const job = (allJobs.data || []).find(j => j.id === selectedJob);
+
+      // Geo capture (non-blocking)
+      setGeoStatus('capturing');
+      const geoSettings = await fetchGeoSettings();
+      let geoPayload = {};
+      if (geoSettings.geo_tracking_enabled !== false) {
+        const geo = await runPunchGeoCheck(job?.address, geoSettings.alert_radius_miles, 'punch_in');
+        setGeoStatus(geo.punch_in_location_status);
+        geoPayload = geo;
+
+        // Send alert if flagged
+        if (geo.punch_in_flagged && geoSettings.alert_email) {
+          sendGeoAlert({
+            base44Client: base44,
+            toEmail: geoSettings.alert_email,
+            employeeName: employee.name,
+            punchType: 'Clock In',
+            jobAddress: job?.address,
+            distanceMiles: geo.punch_in_distance_miles,
+            timestamp: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }
+
       return base44.entities.TimeEntry.create({
         employee_id: employee.id,
         employee_name: employee.name,
@@ -78,6 +113,8 @@ export default function TimeClock() {
         entry_source: 'employee_clock',
         status: 'clocked_in',
         created_by_name: employee.name,
+        geo_flagged: geoPayload.punch_in_flagged || false,
+        ...geoPayload,
       });
     },
     onSuccess: (entry) => {
@@ -93,6 +130,30 @@ export default function TimeClock() {
       const now = new Date();
       const inTime = new Date(activeEntry.clock_in);
       const mins = Math.round((now - inTime) / 60000);
+
+      // Geo capture (non-blocking)
+      setGeoStatus('capturing');
+      const geoSettings = await fetchGeoSettings();
+      let geoPayload = {};
+      if (geoSettings.geo_tracking_enabled !== false) {
+        const geo = await runPunchGeoCheck(activeEntry.job_address, geoSettings.alert_radius_miles, 'punch_out');
+        setGeoStatus(geo.punch_out_location_status);
+        geoPayload = geo;
+
+        if (geo.punch_out_flagged && geoSettings.alert_email) {
+          sendGeoAlert({
+            base44Client: base44,
+            toEmail: geoSettings.alert_email,
+            employeeName: employee?.name || activeEntry.employee_name,
+            punchType: 'Clock Out',
+            jobAddress: activeEntry.job_address,
+            distanceMiles: geo.punch_out_distance_miles,
+            timestamp: now.toISOString(),
+          }).catch(() => {});
+        }
+      }
+
+      const wasAlreadyFlagged = activeEntry.geo_flagged;
       return base44.entities.TimeEntry.update(activeEntry.id, {
         clock_out: now.toISOString(),
         duration_minutes: mins,
@@ -100,6 +161,8 @@ export default function TimeClock() {
         employee_note: note || activeEntry.employee_note || activeEntry.note,
         note: note || activeEntry.note,
         last_updated_by: employee?.name || activeEntry.employee_name,
+        geo_flagged: wasAlreadyFlagged || geoPayload.punch_out_flagged || false,
+        ...geoPayload,
       });
     },
     onSuccess: () => {
@@ -109,6 +172,7 @@ export default function TimeClock() {
       setEmployee(null);
       setActiveEntry(null);
       setNote('');
+      setGeoStatus(null);
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
     },
   });
@@ -120,7 +184,10 @@ export default function TimeClock() {
     setActiveEntry(null);
     setNote('');
     setSelectedJob(null);
+    setGeoStatus(null);
   };
+
+  const isBusy = clockInMutation.isPending || clockOutMutation.isPending;
 
   return (
     <AppLayout title="Time Clock">
@@ -132,6 +199,28 @@ export default function TimeClock() {
           <h1 className="text-xl font-semibold text-foreground">Employee Time Clock</h1>
           <p className="text-xs text-muted-foreground mt-1">{format(new Date(), 'EEEE, MMMM d · h:mm a')}</p>
         </div>
+
+        {/* Geo status indicator — shown while capturing or after result */}
+        <AnimatePresence>
+          {geoStatus && (
+            <motion.div key={geoStatus} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+              className={`rounded-xl px-3 py-2 text-xs flex items-center gap-2 ${
+                geoStatus === 'capturing'  ? 'bg-primary/5 text-primary border border-primary/20' :
+                geoStatus === 'captured'   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                geoStatus === 'denied'     ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                             'bg-muted text-muted-foreground border border-border'
+              }`}>
+              {geoStatus === 'capturing'  ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> :
+               geoStatus === 'captured'   ? <MapPin className="w-3.5 h-3.5 shrink-0" /> :
+               geoStatus === 'denied'     ? <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> :
+                                            <MapPin className="w-3.5 h-3.5 shrink-0" />}
+              {geoStatus === 'capturing'  ? 'Capturing location…' :
+               geoStatus === 'captured'   ? 'Location captured' :
+               geoStatus === 'denied'     ? 'Location permission denied — punch recorded without location' :
+                                            'Location unavailable — punch recorded without location'}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence mode="wait">
           {/* STEP 1: Enter Code */}
@@ -199,10 +288,10 @@ export default function TimeClock() {
 
               <Button
                 className="w-full h-12 rounded-xl"
-                disabled={!selectedJob || !costCode || clockInMutation.isPending}
+                disabled={!selectedJob || !costCode || isBusy}
                 onClick={() => clockInMutation.mutate()}
               >
-                {clockInMutation.isPending
+                {isBusy
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <><LogIn className="w-4 h-4 mr-2" /> Clock In</>}
               </Button>
@@ -226,6 +315,18 @@ export default function TimeClock() {
                   <span className="text-foreground truncate">{activeEntry.job_address}</span>
                 </div>
                 <p className="text-muted-foreground text-xs pl-5">{activeEntry.cost_code}</p>
+                {/* Show clock-in geo status if captured */}
+                {activeEntry.punch_in_location_status && (
+                  <p className={`text-xs pl-5 ${
+                    activeEntry.punch_in_location_status === 'captured' ? 'text-emerald-600' :
+                    activeEntry.punch_in_location_status === 'denied'   ? 'text-amber-600' :
+                    'text-muted-foreground'
+                  }`}>
+                    Clock-in location: {activeEntry.punch_in_location_status}
+                    {activeEntry.punch_in_distance_miles != null ? ` · ${activeEntry.punch_in_distance_miles} mi from job` : ''}
+                    {activeEntry.punch_in_flagged ? ' ⚠️' : ''}
+                  </p>
+                )}
               </div>
 
               <Textarea
@@ -238,10 +339,10 @@ export default function TimeClock() {
               <Button
                 variant="destructive"
                 className="w-full h-12 rounded-xl"
-                disabled={clockOutMutation.isPending}
+                disabled={isBusy}
                 onClick={() => clockOutMutation.mutate()}
               >
-                {clockOutMutation.isPending
+                {isBusy
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <><LogOut className="w-4 h-4 mr-2" /> Clock Out</>}
               </Button>

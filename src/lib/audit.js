@@ -541,6 +541,24 @@ export const audit = {
       logAudit(id, 'record_edited', actor, `${actor} edited warranty: ${label}.`, { module: 'warranty', record_id: id, ...opts }),
   },
 
+  // ── VENDOR COMPLIANCE ────────────────────────────────────
+  vendor: {
+    complianceExpirationUpdated: (id, actor, vendorName, docType, oldDate, newDate, opts = {}) =>
+      logAudit(id, 'compliance_field_updated', actor,
+        `${actor} updated ${docType} expiration for ${vendorName}: ${oldDate || 'not set'} → ${newDate}.`,
+        { module: 'vendor', record_id: id, old_value: oldDate || 'not set', new_value: newDate, is_sensitive: true, ...opts }),
+
+    complianceDocumentUploaded: (id, actor, vendorName, docType, fileName, opts = {}) =>
+      logAudit(id, 'compliance_document_uploaded', actor,
+        `${actor} uploaded ${docType} document for ${vendorName}: ${fileName}.`,
+        { module: 'vendor', record_id: id, is_sensitive: true, ...opts }),
+
+    complianceDocumentRemoved: (id, actor, vendorName, docType, opts = {}) =>
+      logAudit(id, 'compliance_document_removed', actor,
+        `${actor} removed ${docType} document for ${vendorName}.`,
+        { module: 'vendor', record_id: id, is_sensitive: true, ...opts }),
+  },
+
   // ── SIGNATURES ───────────────────────────────────────────────
   signature: (jobId, actor, detail, opts = {}) =>
     logAudit(jobId, 'signature_submitted', actor, detail, { module: 'signature', record_id: jobId, job_id: jobId, is_sensitive: true, ...opts }),

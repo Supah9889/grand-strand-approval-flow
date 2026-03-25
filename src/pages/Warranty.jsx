@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import BottomSheetSelect from '@/components/BottomSheetSelect';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Search, Plus, X, Loader2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
@@ -35,13 +37,33 @@ export default function Warranty() {
     queryFn: () => base44.entities.Job.list('-created_date', 200),
   });
 
-  const createItem = useMutation({
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['warranty-items'] });
+    await queryClient.refetchQueries({ queryKey: ['jobs'] });
+    setIsRefreshing(false);
+  };
+
+  const createItem = useOptimisticMutation({
     mutationFn: d => base44.entities.WarrantyItem.create(d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['warranty-items'] }); setShowForm(false); toast.success('Warranty request created'); },
+    queryKey: ['warranty-items'],
+    optimisticUpdate: (prev, itemData) => [
+      { ...itemData, id: `temp-${Date.now()}`, created_date: new Date().toISOString(), updated_date: new Date().toISOString() },
+      ...prev,
+    ],
+    rollback: (prev) => prev,
+    onSuccess: () => { setShowForm(false); toast.success('Warranty request created'); },
+    onError: () => toast.error('Failed to create warranty request'),
   });
-  const updateItem = useMutation({
+  const updateItem = useOptimisticMutation({
     mutationFn: ({ id, data }) => base44.entities.WarrantyItem.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['warranty-items'] }),
+    queryKey: ['warranty-items'],
+    optimisticUpdate: (prev, newData, { id, data }) =>
+      prev.map(item => item.id === id ? { ...item, ...data } : item),
+    rollback: (prev) => prev,
+    onSuccess: () => toast.success('Warranty request updated'),
   });
 
   const activeJobs = jobs.filter(j => j.status !== 'archived');
@@ -83,7 +105,8 @@ export default function Warranty() {
 
   return (
     <AppLayout title="Warranty">
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
+        <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
           <div>
@@ -133,50 +156,35 @@ export default function Warranty() {
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search title, customer, address, staff..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
+            <Input placeholder="Search title, customer, address, staff..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search warranty requests by title, customer, address, or staff" className="pl-9 h-9 rounded-xl text-sm" />
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(WARRANTY_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {Object.entries(WARRANTY_CATEGORY_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterJob} onValueChange={setFilterJob}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Jobs</SelectItem>
-                {activeJobs.map(j => <SelectItem key={j.id} value={j.id}>{j.address || j.title}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <BottomSheetSelect value={filterStatus} onChange={setFilterStatus} label="Status" options={[
+              { label: 'All Statuses', value: 'all' },
+              ...Object.entries(WARRANTY_STATUS_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
+            ]} />
+            <BottomSheetSelect value={filterCategory} onChange={setFilterCategory} label="Category" options={[
+              { label: 'All Categories', value: 'all' },
+              ...Object.entries(WARRANTY_CATEGORY_LABELS).map(([v, l]) => ({ label: l, value: v })),
+            ]} />
+            <BottomSheetSelect value={filterJob} onChange={setFilterJob} label="Job" options={[
+              { label: 'All Jobs', value: 'all' },
+              ...activeJobs.map(j => ({ label: j.address || j.title, value: j.id })),
+            ]} />
             {assignees.length > 0 && (
-              <Select value={filterAssigned} onValueChange={setFilterAssigned}>
-                <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Assigned</SelectItem>
-                  {assignees.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <BottomSheetSelect value={filterAssigned} onChange={setFilterAssigned} label="Assigned" options={[
+                { label: 'All Assigned', value: 'all' },
+                ...assignees.map(a => ({ label: a, value: a })),
+              ]} />
             )}
-            <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="reported">Date Reported</SelectItem>
-                <SelectItem value="appointment">Appointment Date</SelectItem>
-                <SelectItem value="customer">Customer A–Z</SelectItem>
-                <SelectItem value="updated">Recently Updated</SelectItem>
-              </SelectContent>
-            </Select>
+            <BottomSheetSelect value={sort} onChange={setSort} label="Sort" options={[
+              { label: 'Newest First', value: 'newest' },
+              { label: 'Oldest First', value: 'oldest' },
+              { label: 'Date Reported', value: 'reported' },
+              { label: 'Appointment Date', value: 'appointment' },
+              { label: 'Customer A–Z', value: 'customer' },
+              { label: 'Recently Updated', value: 'updated' },
+            ]} />
           </div>
         </div>
 
@@ -201,6 +209,7 @@ export default function Warranty() {
           </div>
         )}
       </div>
+    </PullToRefresh>
     </AppLayout>
   );
 }

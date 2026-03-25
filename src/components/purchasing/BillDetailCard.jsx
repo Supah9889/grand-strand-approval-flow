@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import BottomSheetSelect from '@/components/BottomSheetSelect';
 import { AlertCircle, ExternalLink, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { BILL_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
@@ -26,7 +26,11 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
   };
 
   return (
-    <div className={`bg-card border rounded-xl p-4 ${isOverdue ? 'border-red-200' : 'border-border'}`}>
+    <div 
+      role="article"
+      aria-label={`Bill ${bill.bill_number}: $${fmt(bill.amount)} from ${bill.vendor_name}, Status: ${bill.status}`}
+      className={`bg-card border rounded-xl p-4 ${isOverdue ? 'border-red-200' : 'border-border'}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -58,10 +62,13 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
       </div>
 
       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/60 flex-wrap">
-        <Select value={bill.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="h-7 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-          <SelectContent>{Object.entries(BILL_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
-        </Select>
+         <BottomSheetSelect 
+           value={bill.status} 
+           onChange={handleStatusChange} 
+           label="Status"
+           options={Object.entries(BILL_STATUS_CONFIG).map(([v, c]) => ({ label: c.label, value: v }))}
+           aria-label={`Change status for bill ${bill.bill_number}`}
+         />
         {bill.file_url && (
           <a href={bill.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
             {/\.pdf/i.test(bill.file_url) || /\.pdf$/i.test(bill.file_name || '')
@@ -70,7 +77,11 @@ export default function BillDetailCard({ bill, isOverdue, onStatusChange }) {
             }
           </a>
         )}
-        <button onClick={() => setExpanded(v => !v)} className="ml-auto text-muted-foreground hover:text-foreground">
+        <button 
+          onClick={() => setExpanded(v => !v)} 
+          aria-label={expanded ? 'Collapse details' : 'Expand details'}
+          className="ml-auto text-muted-foreground hover:text-foreground"
+        >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
@@ -30,13 +31,24 @@ export default function Bills() {
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
   const { data: vendors = [] } = useQuery({ queryKey: ['vendors'], queryFn: () => base44.entities.Vendor.list('company_name') });
 
-  const createBill = useMutation({
+  const createBill = useOptimisticMutation({
     mutationFn: d => base44.entities.Bill.create(d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bills'] }); setShowForm(false); toast.success('Bill created'); },
+    queryKey: ['bills'],
+    optimisticUpdate: (prev, billData) => [
+      { ...billData, id: `temp-${Date.now()}`, created_date: new Date().toISOString(), updated_date: new Date().toISOString() },
+      ...prev,
+    ],
+    rollback: (prev) => prev,
+    onSuccess: () => { setShowForm(false); toast.success('Bill created'); },
+    onError: () => toast.error('Failed to create bill'),
   });
-  const updateBill = useMutation({
+  const updateBill = useOptimisticMutation({
     mutationFn: ({ id, data }) => base44.entities.Bill.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bills'] }),
+    queryKey: ['bills'],
+    optimisticUpdate: (prev, newData, { id, data }) =>
+      prev.map(bill => bill.id === id ? { ...bill, ...data } : bill),
+    rollback: (prev) => prev,
+    onSuccess: () => toast.success('Bill updated'),
   });
 
   const isOverdueFn = (b) => b.due_date && !['paid','closed'].includes(b.status) && isPast(parseISO(b.due_date)) && !isToday(parseISO(b.due_date));
@@ -174,7 +186,7 @@ export default function Bills() {
               placeholder="Search bill #, vendor, job, amount..." 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
-              aria-label="Search bills"
+              aria-label="Search bills by number, vendor, job, or amount"
               className="pl-9 h-9 rounded-xl text-sm" 
             />
           </div>

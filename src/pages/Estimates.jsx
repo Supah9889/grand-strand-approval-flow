@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import BottomSheetSelect from '@/components/BottomSheetSelect';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Plus, Search, Loader2, FileText, X, DollarSign, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isPast, isToday } from 'date-fns';
@@ -34,6 +35,13 @@ export default function Estimates() {
   const [filterType, setFilterType] = useState('all');
   const [sort, setSort] = useState('newest');
   const [activeStat, setActiveStat] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['estimates'] });
+    setIsRefreshing(false);
+  };
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ['estimates'],
@@ -115,7 +123,8 @@ export default function Estimates() {
 
   return (
     <AppLayout title="Estimates">
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
+        <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
           <div>
@@ -130,10 +139,14 @@ export default function Estimates() {
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2">
-          {STAT_GROUPS.map(g => (
-            <button key={g.key}
-              onClick={() => setActiveStat(activeStat === g.key ? null : g.key)}
-              className={`text-left p-3 rounded-xl border-2 transition-all ${activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20'}`}>
+           {STAT_GROUPS.map(g => (
+             <button 
+               key={g.key}
+               onClick={() => setActiveStat(activeStat === g.key ? null : g.key)}
+               aria-label={`Filter by ${g.label}, ${g.isMoney ? `$${(stats[g.key] || 0).toLocaleString()}` : (stats[g.key] || 0)} items`}
+               aria-pressed={activeStat === g.key}
+               className={`text-left p-3 rounded-xl border-2 transition-all ${activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20'}`}
+             >
               <p className={`text-lg font-bold leading-none ${g.color}`}>
                 {g.isMoney ? `$${(stats[g.key] || 0).toLocaleString()}` : (stats[g.key] || 0)}
               </p>
@@ -143,47 +156,41 @@ export default function Estimates() {
         </div>
 
         {/* Search + filters */}
-        <div className="space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by number, client, title, address..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(ESTIMATE_STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[100px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {['estimate','proposal','bid','change_order'].map(t => <SelectItem key={t} value={t}>{t.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase())}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-auto min-w-[120px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="highest">Highest Total</SelectItem>
-                <SelectItem value="lowest">Lowest Total</SelectItem>
-                <SelectItem value="alpha">A–Z by Client</SelectItem>
-                <SelectItem value="expiration">Expiration Date</SelectItem>
-                <SelectItem value="updated">Recently Updated</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+         <div className="space-y-2">
+           <div className="relative">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+             <Input placeholder="Search by number, client, title, address..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search estimates by number, client, title, or address" className="pl-9 h-9 rounded-xl text-sm" />
+           </div>
+           <div className="flex gap-2 flex-wrap">
+             <BottomSheetSelect value={filterStatus} onChange={setFilterStatus} label="Status" options={[
+               { label: 'All Statuses', value: 'all' },
+               ...Object.entries(ESTIMATE_STATUS_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
+             ]} />
+             <BottomSheetSelect value={filterType} onChange={setFilterType} label="Type" options={[
+               { label: 'All Types', value: 'all' },
+               { label: 'Estimate', value: 'estimate' },
+               { label: 'Proposal', value: 'proposal' },
+               { label: 'Bid', value: 'bid' },
+               { label: 'Change Order', value: 'change_order' },
+             ]} />
+             <BottomSheetSelect value={sort} onChange={setSort} label="Sort" options={[
+               { label: 'Newest First', value: 'newest' },
+               { label: 'Oldest First', value: 'oldest' },
+               { label: 'Highest Total', value: 'highest' },
+               { label: 'Lowest Total', value: 'lowest' },
+               { label: 'A–Z by Client', value: 'alpha' },
+               { label: 'Expiration Date', value: 'expiration' },
+               { label: 'Recently Updated', value: 'updated' },
+             ]} />
+           </div>
+         </div>
 
         {activeStat && activeStat !== 'total' && activeStat !== 'total_value' && (
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-foreground">Showing: {STAT_GROUPS.find(g => g.key === activeStat)?.label}</p>
-            <button onClick={() => setActiveStat(null)} className="text-xs text-muted-foreground underline underline-offset-2">Clear</button>
-          </div>
-        )}
+           <div className="flex items-center justify-between">
+             <p className="text-xs font-medium text-foreground">Showing: {STAT_GROUPS.find(g => g.key === activeStat)?.label}</p>
+             <button onClick={() => setActiveStat(null)} aria-label="Clear estimate status filter" className="text-xs text-muted-foreground underline underline-offset-2">Clear</button>
+           </div>
+         )}
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
@@ -197,8 +204,12 @@ export default function Estimates() {
             {filtered.map(est => {
               const expiring = est.expiration_date && isPast(parseISO(est.expiration_date)) && est.status !== 'approved' && est.status !== 'rejected';
               return (
-                <button key={est.id} onClick={() => navigate(`/estimates/${est.id}`)}
-                  className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+                <button 
+                   key={est.id} 
+                   onClick={() => navigate(`/estimates/${est.id}`)}
+                   aria-label={`View estimate ${est.estimate_number}: $${Number(est.total).toLocaleString()} for ${est.client_name || 'Untitled'}, Status: ${est.status}`}
+                   className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors"
+                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
@@ -228,6 +239,7 @@ export default function Estimates() {
           </div>
         )}
       </div>
+    </PullToRefresh>
     </AppLayout>
   );
 }

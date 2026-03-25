@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { X, Send, RotateCcw, CheckCircle2, ChevronRight } from 'lucide-react';
+import { X, Send, RotateCcw, CheckCircle2 } from 'lucide-react';
 import EmployeeInviteStatus from './EmployeeInviteStatus';
 import EmployeeInviteModal from './EmployeeInviteModal';
+import PermissionSwitchboard from './PermissionSwitchboard';
 import { toast } from 'sonner';
+import { isAdmin } from '@/lib/adminAuth';
 
 export default function EmployeeDetailPanel({ employee, onClose }) {
   const [showInvite, setShowInvite] = useState(false);

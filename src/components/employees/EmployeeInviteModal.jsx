@@ -168,9 +168,21 @@ export default function EmployeeInviteModal({ employee, onClose, onSent }) {
             <Textarea value={body} onChange={e => setBody(e.target.value)} className="rounded-xl text-sm min-h-48 font-mono text-xs" />
           </div>
 
+          {/* Platform notice */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-700 space-y-1">
+            <p className="font-medium">How to send this invite:</p>
+            <p>Copy the message below and paste it into your email client, SMS, or messaging app to send it to the employee. Then click <strong>"Mark as Sent"</strong> to update their invite status.</p>
+          </div>
+
           {/* Invite link preview */}
           <div className="bg-muted/40 border border-border rounded-xl px-3 py-2">
-            <p className="text-xs font-medium text-muted-foreground mb-1">Verification Link (auto-included)</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-medium text-muted-foreground">Verification Link</p>
+              <button onClick={() => { navigator.clipboard.writeText(verifyLink); toast.success('Link copied'); }}
+                className="text-xs text-primary hover:underline flex items-center gap-1">
+                <Copy className="w-3 h-3" />Copy Link
+              </button>
+            </div>
             <p className="text-xs text-primary break-all">{verifyLink}</p>
             <div className="flex items-center gap-1 mt-1">
               <Clock className="w-3 h-3 text-muted-foreground" />

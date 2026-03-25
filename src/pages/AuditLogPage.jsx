@@ -20,7 +20,7 @@ export default function AuditLogPage() {
   const [filterSensitive, setFilterSensitive] = useState('all');
   const [filterDate, setFilterDate] = useState('');
 
-  if (role !== 'admin') {
+  if (!getIsAdmin()) {
     return (
       <AppLayout title="Audit Log">
         <div className="flex-1 flex items-center justify-center">

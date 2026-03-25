@@ -201,6 +201,31 @@ export default function Invoices() {
           </div>
         </div>
 
+        {/* Inline edit form */}
+        <AnimatePresence>
+          {editingInvoice && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm font-semibold text-foreground">Edit Invoice #{editingInvoice.invoice_number}</p>
+                  <button onClick={() => setEditingInvoice(null)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+                </div>
+                <InvoiceFullForm
+                  jobs={activeJobs}
+                  estimates={estimates}
+                  changeOrders={changeOrders}
+                  existingNums={existingNums}
+                  initialData={editingInvoice}
+                  onSave={(data) => { updateInvoice.mutate({ id: editingInvoice.id, data }); setEditingInvoice(null); toast.success('Invoice saved'); }}
+                  onCancel={() => setEditingInvoice(null)}
+                  onArchive={() => { updateInvoice.mutate({ id: editingInvoice.id, data: { status: 'closed' } }); setEditingInvoice(null); toast.success('Invoice archived'); }}
+                  onDelete={() => { base44.entities.Invoice.delete(editingInvoice.id).then(() => { queryClient.invalidateQueries({ queryKey: ['invoices'] }); setEditingInvoice(null); toast.success('Invoice deleted'); }); }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* List */}
         {isLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
@@ -218,6 +243,7 @@ export default function Invoices() {
                 payments={payments.filter(p => p.invoice_id === inv.id)}
                 isOverdue={isOverdueFn(inv)}
                 onStatusChange={(status) => updateInvoice.mutate({ id: inv.id, data: { status } })}
+                onEdit={() => setEditingInvoice(inv)}
               />
             ))}
           </div>

@@ -11,10 +11,12 @@ import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import JobLinkedRecords from '../components/jobs/JobLinkedRecords';
 import JobInternalUsersTab from '../components/jobs/JobInternalUsersTab';
 import JobDetailsExpandedTab from '../components/jobs/JobDetailsExpandedTab';
+import ClientPortalManager from '../components/portal/ClientPortalManager';
 
 const TABS = [
   { key: 'details',       label: 'Details',       icon: Info,         adminOnly: false },
   { key: 'team',          label: 'Team',          icon: Users,        adminOnly: true  },
+  { key: 'clients',       label: 'Clients',       icon: User,         adminOnly: true  },
   { key: 'tasks',         label: 'Tasks',         icon: CheckSquare,  adminOnly: false },
   { key: 'logs',          label: 'Daily Logs',    icon: BookOpen,     adminOnly: false },
   { key: 'files',         label: 'Files',         icon: FolderOpen,   adminOnly: false },
@@ -174,6 +176,9 @@ export default function JobHub() {
           )}
           {activeTab === 'team' && isAdmin && (
             <JobInternalUsersTab jobId={job.id} jobAddress={job.address} isAdmin={isAdmin} />
+          )}
+          {activeTab === 'clients' && isAdmin && (
+            <ClientPortalManager job={job} />
           )}
           {activeTab === 'tasks' && <SimpleList items={tasks} emptyMsg="No tasks linked to this job." renderItem={t => (
             <div key={t.id} onClick={() => navigate(`/tasks/${t.id}`)} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">

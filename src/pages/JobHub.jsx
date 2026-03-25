@@ -33,7 +33,7 @@ export default function JobHub() {
   const isAdmin = getIsAdmin(); // true for admin + owner
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('details');
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job-hub', jobId],
@@ -166,11 +166,14 @@ export default function JobHub() {
 
         {/* Tab content */}
         <div className="space-y-2">
-          {activeTab === 'overview' && (
+          {activeTab === 'details' && (
             <div className="space-y-3">
-              <OverviewTab job={job} isAdmin={isAdmin} />
+              <JobDetailsExpandedTab job={job} isAdmin={isAdmin} />
               {isAdmin && <JobLinkedRecords jobId={job.id} isAdmin={isAdmin} />}
             </div>
+          )}
+          {activeTab === 'team' && isAdmin && (
+            <JobInternalUsersTab jobId={job.id} jobAddress={job.address} isAdmin={isAdmin} />
           )}
           {activeTab === 'tasks' && <SimpleList items={tasks} emptyMsg="No tasks linked to this job." renderItem={t => (
             <div key={t.id} onClick={() => navigate(`/tasks/${t.id}`)} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">

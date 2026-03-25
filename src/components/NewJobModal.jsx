@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,11 @@ const empty = {
 export default function NewJobModal({ open, onClose }) {
   const [form, setForm] = useState(empty);
   const queryClient = useQueryClient();
+
+  const { data: jobTypes = [] } = useQuery({
+    queryKey: ['job-types'],
+    queryFn: () => base44.entities.JobType.filter({ active: true }, 'display_order'),
+  });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {

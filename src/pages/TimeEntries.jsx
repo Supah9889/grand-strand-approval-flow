@@ -51,6 +51,11 @@ export default function TimeEntries() {
     enabled: isAdmin, // now correctly includes owner
   });
 
+  const approveMutation = useMutation({
+    mutationFn: (id) => base44.entities.TimeEntry.update(id, { approval_status: 'approved', approved_by: role }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['time-entries'] }); toast.success('Entry approved'); },
+  });
+
   const createEntry = useMutation({
     mutationFn: d => base44.entities.TimeEntry.create(d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['time-entries'] }); setShowManual(false); toast.success('Entry created'); },

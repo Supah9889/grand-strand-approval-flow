@@ -221,38 +221,10 @@ export default function Admin() {
           {/* ── MANAGE TAB (admin only) ── */}
           {isAdminRole && (
             <TabsContent value="jobs" className="mt-0 space-y-4">
-              <Button className="w-full h-11 rounded-xl" onClick={() => setShowForm(!showForm)}>
+              <Button className="w-full h-11 rounded-xl" onClick={() => navigate('/new-job')}>
                 <Plus className="w-4 h-4 mr-2" />
-                {showForm ? 'Cancel' : 'Add New Job'}
+                Add New Job
               </Button>
-
-              <AnimatePresence>
-                {showForm && (
-                  <motion.form
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    onSubmit={handleSubmit}
-                    className="bg-card border border-border rounded-2xl p-5 space-y-3 overflow-hidden"
-                  >
-                    <Input placeholder="Address *" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="h-11 rounded-xl text-sm" />
-                    <Input placeholder="Customer Name *" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} className="h-11 rounded-xl text-sm" />
-                    <Textarea placeholder="Job Description *" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="rounded-xl text-sm min-h-20" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input type="number" placeholder="Price *" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="h-11 rounded-xl text-sm" />
-                      <Input placeholder="Buildertrend ID" value={form.buildertrend_id} onChange={e => setForm({ ...form, buildertrend_id: e.target.value })} className="h-11 rounded-xl text-sm" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="h-11 rounded-xl text-sm" />
-                      <Input placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="h-11 rounded-xl text-sm" />
-                    </div>
-                    <Button type="submit" className="w-full h-11 rounded-xl" disabled={createMutation.isPending}>
-                      {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Job'}
-                    </Button>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-
               <JobsTable jobs={jobs} isLoading={isLoading} role={role} />
             </TabsContent>
           )}

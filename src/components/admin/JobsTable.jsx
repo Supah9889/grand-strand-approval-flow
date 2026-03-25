@@ -22,9 +22,7 @@ const STATUS_CONFIG = {
 };
 
 export default function JobsTable({ jobs, isLoading, role = 'admin', hideFilters = false }) {
-  // isAdminRole is true for admin and owner roles
-  const { isAdmin: getIsAdmin } = require('@/lib/adminAuth');
-  const isAdminRole = role === 'admin' || role === 'owner';
+  const isAdminRole = getIsAdmin(); // true for admin + owner
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingJob, setEditingJob] = useState(null);

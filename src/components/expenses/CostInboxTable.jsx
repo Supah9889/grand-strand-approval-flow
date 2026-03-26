@@ -273,7 +273,7 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
                 {/* Action menu button */}
                 <div className="absolute top-2 right-2">
                   <button
-                    onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === expense.id ? null : expense.id); }}
+                    onPointerDown={e => { e.stopPropagation(); e.preventDefault(); setMenuOpenId(menuOpenId === expense.id ? null : expense.id); }}
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <MoreHorizontal className="w-4 h-4" />
@@ -281,38 +281,42 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
 
                   {/* Dropdown */}
                   {menuOpenId === expense.id && (
-                    <div className="absolute right-0 top-8 z-30 bg-popover border border-border rounded-xl shadow-xl w-44 py-1 text-sm">
+                    <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-xl shadow-xl w-44 py-1 text-sm">
                       {!isArchived ? (
                         <>
                           <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-amber-700 hover:bg-amber-50 active:bg-amber-100 transition-colors min-h-[40px]"
+                            onPointerDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); setMenuOpenId(null); onArchive(expense); }}
                           >
-                            <Archive className="w-3.5 h-3.5" />
+                            <Archive className="w-3.5 h-3.5 shrink-0" />
                             Archive
                           </button>
                           <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/5 active:bg-destructive/10 transition-colors min-h-[40px]"
+                            onPointerDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
                             Delete
                           </button>
                         </>
                       ) : (
                         <>
                           <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-primary hover:bg-primary/5 active:bg-primary/10 transition-colors min-h-[40px]"
+                            onPointerDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); setMenuOpenId(null); onRestore(expense); }}
                           >
-                            <ArchiveRestore className="w-3.5 h-3.5" />
+                            <ArchiveRestore className="w-3.5 h-3.5 shrink-0" />
                             Restore
                           </button>
                           <button
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/5 active:bg-destructive/10 transition-colors min-h-[40px]"
+                            onPointerDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
                             Delete
                           </button>
                         </>
@@ -326,9 +330,9 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
         </div>
       )}
 
-      {/* Close dropdown on outside click */}
+      {/* Close dropdown on outside tap — z-40 sits below the z-50 dropdown so it only catches outside clicks */}
       {menuOpenId && (
-        <div className="fixed inset-0 z-20" onClick={() => setMenuOpenId(null)} />
+        <div className="fixed inset-0 z-40" onPointerDown={() => setMenuOpenId(null)} />
       )}
     </div>
   );

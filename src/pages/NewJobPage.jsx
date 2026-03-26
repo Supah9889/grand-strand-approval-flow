@@ -173,8 +173,26 @@ export default function NewJobPage() {
     queryFn: () => base44.entities.Lead.list('-created_date', 200),
   });
 
-  // Validation
-  const issues = validateJob({ ...form, price: form.price ? Number(form.price) : 0 });
+  // Resolve the effective customer name from the Clients tab or form
+  const effectiveCustomerName =
+    (useNewClient ? newClientFields.name : null) ||
+    selectedClient?.name ||
+    selectedClient?.customer_name ||
+    form.customer_name ||
+    '';
+
+  // Validation — use effective customer name so Clients tab satisfies the requirement
+  const issues = validateJob({
+    ...form,
+    price: form.price ? Number(form.price) : 0,
+    customer_name: effectiveCustomerName,
+  }).map(issue => {
+    // Give a clearer message pointing to the Clients tab
+    if (issue.field === 'customer_name') {
+      return { ...issue, message: 'Please add or select a client in the Clients tab' };
+    }
+    return issue;
+  });
   const errors = issues.filter(i => i.level === 'error');
 
   // Create mutation
@@ -277,7 +295,16 @@ export default function NewJobPage() {
 
   const handleSave = () => {
     setTouched(true);
-    if (errors.length > 0) { setActiveTab('details'); return; }
+    if (errors.length > 0) {
+      const hasCustomerError = errors.some(e => e.field === 'customer_name');
+      const hasOtherErrors = errors.some(e => e.field !== 'customer_name');
+      if (hasCustomerError && !hasOtherErrors) {
+        setActiveTab('clients');
+      } else {
+        setActiveTab('details');
+      }
+      return;
+    }
     createMutation.mutate();
   };
 
@@ -352,7 +379,7 @@ export default function NewJobPage() {
           <div className="max-w-4xl mx-auto px-4 py-6">
 
             {/* Validation errors */}
-            {touched && issues.length > 0 && activeTab === 'details' && (
+            {touched && issues.length > 0 && (activeTab === 'details' || activeTab === 'clients') && (
               <div className="mb-4"><ValidationPanel issues={issues} /></div>
             )}
 

@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigation } from '@/lib/NavigationContext';
+import { getInternalRole } from '@/lib/adminAuth';
 import { Home, Search, Clock, DollarSign, Settings } from 'lucide-react';
 
-const NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
   { label: 'Search', tabName: 'search', primaryPath: '/search', icon: Search },
   { label: 'Time', tabName: 'time', primaryPath: '/time-entries', icon: Clock },
-  { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign },
+  { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign, adminOnly: true },
   { label: 'Admin', tabName: 'admin', primaryPath: '/admin', icon: Settings },
 ];
 
@@ -24,7 +25,10 @@ export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { getTabStack } = useNavigation();
+  const role = getInternalRole();
+  const isAdminOrOwner = role === 'admin' || role === 'owner';
 
+  const NAV_ITEMS = ALL_NAV_ITEMS.filter(item => !item.adminOnly || isAdminOrOwner);
   const activeTab = getActiveTab(location.pathname);
 
   const handleTabClick = (tabName, primaryPath) => {

@@ -5,7 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
-import { isAdmin } from '@/lib/adminAuth';
+import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import PhotoLightbox from '../dailylogs/PhotoLightbox';
 
 const IMAGE_TYPES = ['image/jpeg','image/png','image/webp','image/gif','image/jpg'];
@@ -27,10 +27,9 @@ const CATEGORY_LABEL = {
   permit: 'Permit', vendor_document: 'Vendor Doc', internal: 'Internal', other: 'Other',
 };
 
-function FileCard({ file, onImageClick, jobAddress }) {
+function FileCard({ file, onImageClick, jobAddress, canDelete }) {
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
-  const canDelete = isAdmin();
   const vis = VISIBILITY_BADGE[file.visibility] || VISIBILITY_BADGE.internal;
   const VisIcon = vis.icon;
   const isImg = isImage(file);
@@ -47,13 +46,14 @@ function FileCard({ file, onImageClick, jobAddress }) {
     if (!window.confirm(`Are you sure you want to delete "${file.file_name}"? This cannot be undone.`)) return;
     const user = await base44.auth.me().catch(() => null);
     const actor = user?.full_name || user?.email || 'Admin';
+    const addr = jobAddress || file.job_address || '';
     await base44.entities.JobFile.delete(file.id);
     queryClient.invalidateQueries({ queryKey: ['job-files', file.job_id] });
     queryClient.invalidateQueries({ queryKey: ['job-files-all'] });
-    // Audit log
+    queryClient.invalidateQueries({ queryKey: ['hub-files', file.job_id] });
     logAudit(file.id, 'record_deleted', actor,
-      `${actor} permanently deleted file "${file.file_name}"${jobAddress ? ` on job: ${jobAddress}` : ''}.`,
-      { module: 'job', record_id: file.id, job_id: file.job_id, job_address: jobAddress, is_sensitive: true }
+      `${actor} permanently deleted file "${file.file_name}"${addr ? ` on job: ${addr}` : ''}.`,
+      { module: 'job', record_id: file.id, job_id: file.job_id, job_address: addr, is_sensitive: true }
     );
     toast.success('File deleted');
     setShowMenu(false);
@@ -134,6 +134,7 @@ function FileCard({ file, onImageClick, jobAddress }) {
 export default function FileGrid({ files, jobAddress = '' }) {
   const images = files.filter(isImage);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const canDelete = getIsAdmin();
 
   return (
     <>
@@ -146,6 +147,7 @@ export default function FileGrid({ files, jobAddress = '' }) {
               key={f.id}
               file={f}
               jobAddress={jobAddress}
+              canDelete={canDelete}
               onImageClick={() => {
                 const imgIdx = images.findIndex(i => i.id === f.id);
                 if (imgIdx >= 0) setLightboxIndex(imgIdx);

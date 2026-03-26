@@ -274,7 +274,7 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
                 <div className="absolute top-2 right-2">
                   <button
                     onPointerDown={e => { e.stopPropagation(); e.preventDefault(); setMenuOpenId(menuOpenId === expense.id ? null : expense.id); }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-40 group-hover:opacity-100"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>

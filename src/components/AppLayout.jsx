@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AppTopBar from './AppTopBar';
 import Sidebar from './Sidebar';
+import HelpAssistant from './help/HelpAssistant';
 
 export default function AppLayout({ children, title }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -12,6 +13,7 @@ export default function AppLayout({ children, title }) {
       <main className="flex-1 flex flex-col">
         {children}
       </main>
+      <HelpAssistant />
     </div>
   );
 }

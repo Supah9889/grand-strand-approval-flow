@@ -56,6 +56,9 @@ export const PERMISSIONS = {
   manage_change_orders:    { label: 'Manage Change Orders',     category: 'Documents',           adminDefault: true,  staffDefault: false },
   view_documents:          { label: 'View Documents',           category: 'Documents',           adminDefault: true,  staffDefault: true  },
 
+  // File Sharing
+  share_files_externally:  { label: 'Share Files with Clients/Vendors', category: 'File Sharing', adminDefault: true,  staffDefault: false },
+
   // Tasks / Coordination
   view_tasks:              { label: 'View Tasks',               category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
   manage_tasks:            { label: 'Manage Tasks',             category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
@@ -74,6 +77,7 @@ export const PERMISSION_CATEGORIES = [
   'Time / Payroll',
   'Accounting / Costs',
   'Documents',
+  'File Sharing',
   'Tasks / Coordination',
 ];
 

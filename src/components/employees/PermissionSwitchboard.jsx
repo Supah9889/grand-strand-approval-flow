@@ -10,9 +10,10 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { ShieldCheck, ShieldAlert, User, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, User, Loader2, ChevronDown, ChevronUp, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { isOwnerOnly } from '@/lib/adminAuth';
+import { isOwnerOnly, isAdmin } from '@/lib/adminAuth';
+import { getRoleDefaults } from '@/lib/permissions';
 
 const ROLE_OPTIONS = [
   {
@@ -45,6 +46,7 @@ export default function PermissionSwitchboard({ employee }) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const canEditRole = isOwnerOnly(); // Only owner can change role; admin can view
+  const canEditOverrides = isAdmin() || isOwnerOnly();
 
   const roleMutation = useMutation({
     mutationFn: (role) => base44.entities.Employee.update(employee.id, { role }),
@@ -53,6 +55,34 @@ export default function PermissionSwitchboard({ employee }) {
       toast.success('Permission level updated');
     },
   });
+
+  const overrideMutation = useMutation({
+    mutationFn: (overrides) => base44.entities.Employee.update(employee.id, {
+      permission_overrides: JSON.stringify(overrides),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('Permission updated');
+    },
+  });
+
+  const currentOverrides = (() => {
+    try { return JSON.parse(employee.permission_overrides || '{}'); } catch { return {}; }
+  })();
+
+  const roleDefaults = getRoleDefaults(employee.role || 'field');
+
+  // Effective value: override if set, otherwise role default
+  const getEffective = (key) => {
+    if (key in currentOverrides) return !!currentOverrides[key];
+    return !!roleDefaults[key];
+  };
+
+  const toggleOverride = (key) => {
+    const current = getEffective(key);
+    const newOverrides = { ...currentOverrides, [key]: !current };
+    overrideMutation.mutate(newOverrides);
+  };
 
   const currentRole = employee.role || 'field';
   const currentConfig = ROLE_OPTIONS.find(r => r.value === currentRole) || ROLE_OPTIONS[2];
@@ -110,6 +140,28 @@ export default function PermissionSwitchboard({ employee }) {
               </button>
             );
           })}
+
+          {/* Granular permission overrides */}
+          <div className="pt-2 border-t border-border space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Permission Overrides</p>
+            <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border bg-card ${!canEditOverrides ? 'opacity-60' : ''}`}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Share2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Share Files with Clients/Vendors</p>
+                  <p className="text-[10px] text-muted-foreground">Can set file visibility to client, vendor, or both when uploading</p>
+                </div>
+              </div>
+              <button
+                disabled={!canEditOverrides || overrideMutation.isPending}
+                onClick={() => canEditOverrides && toggleOverride('share_files_externally')}
+                className={`relative shrink-0 ml-3 w-9 h-5 rounded-full transition-colors ${getEffective('share_files_externally') ? 'bg-primary' : 'bg-muted'} ${!canEditOverrides ? 'cursor-default' : 'cursor-pointer'}`}
+                aria-label="Toggle file sharing permission"
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${getEffective('share_files_externally') ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Paperclip, Upload, Loader2, X, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const DOC_ACCEPT = 'application/pdf,image/png,image/jpeg,image/jpg';
 
@@ -53,10 +54,12 @@ export default function AttachmentUpload({
   allowedTypes = DOC_ACCEPT,
 }) {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  const canShareExternally = hasPermission('share_files_externally');
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [category, setCategory] = useState(defaultCategory);
-  const [visibility, setVisibility] = useState(defaultVisibility);
+  const [visibility, setVisibility] = useState(canShareExternally ? defaultVisibility : 'internal');
   const [description, setDescription] = useState('');
 
   const handleFile = async (e) => {
@@ -136,15 +139,21 @@ export default function AttachmentUpload({
             </div>
             <div>
               <label className="text-[10px] font-medium text-muted-foreground block mb-1">Visibility</label>
-              <Select value={visibility} onValueChange={setVisibility}>
-                <SelectTrigger className="h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Internal Only</SelectItem>
-                  <SelectItem value="client">Share with Client</SelectItem>
-                  <SelectItem value="vendor">Share with Vendor</SelectItem>
-                  <SelectItem value="both">Share with Both</SelectItem>
-                </SelectContent>
-              </Select>
+              {canShareExternally ? (
+                <Select value={visibility} onValueChange={setVisibility}>
+                  <SelectTrigger className="h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">Internal Only</SelectItem>
+                    <SelectItem value="client">Share with Client</SelectItem>
+                    <SelectItem value="vendor">Share with Vendor</SelectItem>
+                    <SelectItem value="both">Share with Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="h-8 rounded-lg border border-input bg-muted/50 px-3 flex items-center text-xs text-muted-foreground">
+                  Internal Only
+                </div>
+              )}
             </div>
           </div>
           <Input

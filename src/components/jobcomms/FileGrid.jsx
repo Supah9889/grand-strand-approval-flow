@@ -4,6 +4,8 @@ import { FileText, Image, Lock, Users, Eye, Archive, MoreVertical, Download, Tra
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/audit';
+import { isAdmin } from '@/lib/adminAuth';
 import PhotoLightbox from '../dailylogs/PhotoLightbox';
 
 const IMAGE_TYPES = ['image/jpeg','image/png','image/webp','image/gif','image/jpg'];
@@ -25,9 +27,10 @@ const CATEGORY_LABEL = {
   permit: 'Permit', vendor_document: 'Vendor Doc', internal: 'Internal', other: 'Other',
 };
 
-function FileCard({ file, onImageClick }) {
+function FileCard({ file, onImageClick, jobAddress }) {
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
+  const canDelete = isAdmin();
   const vis = VISIBILITY_BADGE[file.visibility] || VISIBILITY_BADGE.internal;
   const VisIcon = vis.icon;
   const isImg = isImage(file);
@@ -35,14 +38,23 @@ function FileCard({ file, onImageClick }) {
   const archive = async () => {
     await base44.entities.JobFile.update(file.id, { archived: true });
     queryClient.invalidateQueries({ queryKey: ['job-files', file.job_id] });
+    queryClient.invalidateQueries({ queryKey: ['job-files-all'] });
     toast.success('File archived');
     setShowMenu(false);
   };
 
   const deleteFile = async () => {
-    if (!window.confirm('Permanently delete this file? This cannot be undone.')) return;
+    if (!window.confirm(`Are you sure you want to delete "${file.file_name}"? This cannot be undone.`)) return;
+    const user = await base44.auth.me().catch(() => null);
+    const actor = user?.full_name || user?.email || 'Admin';
     await base44.entities.JobFile.delete(file.id);
     queryClient.invalidateQueries({ queryKey: ['job-files', file.job_id] });
+    queryClient.invalidateQueries({ queryKey: ['job-files-all'] });
+    // Audit log
+    logAudit(file.id, 'record_deleted', actor,
+      `${actor} permanently deleted file "${file.file_name}"${jobAddress ? ` on job: ${jobAddress}` : ''}.`,
+      { module: 'job', record_id: file.id, job_id: file.job_id, job_address: jobAddress, is_sensitive: true }
+    );
     toast.success('File deleted');
     setShowMenu(false);
   };
@@ -75,18 +87,25 @@ function FileCard({ file, onImageClick }) {
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
             {showMenu && (
-              <div className="absolute right-0 top-7 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[120px]">
-                <a href={file.file_url} target="_blank" rel="noopener noreferrer" download
-                  className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors">
-                  <Download className="w-3.5 h-3.5" /> Download
-                </a>
-                <button onClick={archive} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors text-left">
-                  <Archive className="w-3.5 h-3.5" /> Archive
-                </button>
-                <button onClick={deleteFile} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted text-destructive hover:text-destructive transition-colors text-left">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                </button>
-              </div>
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-7 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[130px]">
+                  <a href={file.file_url} target="_blank" rel="noopener noreferrer" download
+                    className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors">
+                    <Download className="w-3.5 h-3.5" /> Download
+                  </a>
+                  {canDelete && (
+                    <button onClick={archive} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors text-left">
+                      <Archive className="w-3.5 h-3.5" /> Archive
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button onClick={deleteFile} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted text-destructive hover:text-destructive transition-colors text-left">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -112,7 +131,7 @@ function FileCard({ file, onImageClick }) {
   );
 }
 
-export default function FileGrid({ files }) {
+export default function FileGrid({ files, jobAddress = '' }) {
   const images = files.filter(isImage);
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
@@ -126,6 +145,7 @@ export default function FileGrid({ files }) {
             <FileCard
               key={f.id}
               file={f}
+              jobAddress={jobAddress}
               onImageClick={() => {
                 const imgIdx = images.findIndex(i => i.id === f.id);
                 if (imgIdx >= 0) setLightboxIndex(imgIdx);

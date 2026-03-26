@@ -130,7 +130,7 @@ export default function JobCommsDetail() {
         {/* Content */}
         {activeTab === 'files' ? (
           loadingFiles ? <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-          : <FileGrid files={filteredFiles} />
+          : <FileGrid files={filteredFiles} jobAddress={job?.address || ''} />
         ) : (
           loadingComments ? <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
           : <CommentThread jobId={jobId} jobAddress={job?.address || ''} comments={comments} queryKey="job-comments" />

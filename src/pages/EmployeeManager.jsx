@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,13 +65,16 @@ export default function EmployeeManager() {
     },
   });
 
-  const toggleActive = useMutation({
+  const toggleActive = useOptimisticMutation({
     mutationFn: ({ id, active }) => base44.entities.Employee.update(id, { active }),
+    queryKey: ['employees'],
+    optimisticUpdate: (prev, { id, active }) =>
+      prev.map(e => e.id === id ? { ...e, active } : e),
     onSuccess: (_, { id, active }) => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
       const emp = employees.find(e => e.id === id);
       if (emp) audit.employee.activeToggled(id, actor, emp.name, active);
     },
+    onError: () => toast.error('Failed to update employee status'),
   });
 
   return (
@@ -109,7 +113,7 @@ export default function EmployeeManager() {
               className="bg-card border border-border rounded-2xl p-5 space-y-3 overflow-hidden">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold">New Employee</p>
-                <button onClick={() => setShowForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+                <button onClick={() => setShowForm(false)} aria-label="Close new employee form"><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input placeholder="Full Name *" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="h-10 rounded-xl text-sm" />
@@ -147,9 +151,10 @@ export default function EmployeeManager() {
         ) : (
           <div className="space-y-2">
             {employees.map(emp => (
-              <div key={emp.id}
-                className={`bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all ${!emp.active ? 'opacity-50' : ''}`}
+              <button key={emp.id}
+                className={`w-full text-left bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all ${!emp.active ? 'opacity-50' : ''}`}
                 onClick={() => setSelectedEmployee(emp)}
+                aria-label={`View details for ${emp.name}, ${emp.role}, ${emp.active ? 'active' : 'inactive'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -167,6 +172,8 @@ export default function EmployeeManager() {
                     </span>
                     <button
                       onClick={e => { e.stopPropagation(); toggleActive.mutate({ id: emp.id, active: !emp.active }); }}
+                      aria-label={`${emp.active ? 'Deactivate' : 'Activate'} employee ${emp.name}`}
+                      aria-pressed={emp.active}
                       className={`text-xs px-2 py-0.5 rounded-full border ${emp.active ? 'border-primary text-primary' : 'border-border text-muted-foreground'}`}
                     >
                       {emp.active ? 'Active' : 'Off'}
@@ -174,7 +181,7 @@ export default function EmployeeManager() {
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

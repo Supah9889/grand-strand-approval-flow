@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Loader2, Clock, Search, User, MapPin, Plus, X, AlertTriangle } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, isToday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,16 +53,34 @@ export default function TimeEntries() {
     enabled: isAdmin, // now correctly includes owner
   });
 
-  const approveMutation = useMutation({
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['time-entries'] });
+    setIsRefreshing(false);
+  };
+
+  const approveMutation = useOptimisticMutation({
     mutationFn: (id) => base44.entities.TimeEntry.update(id, { approval_status: 'approved', approved_by: role }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['time-entries'] }); toast.success('Entry approved'); },
+    queryKey: ['time-entries'],
+    optimisticUpdate: (prev, id) =>
+      prev.map(e => e.id === id ? { ...e, approval_status: 'approved', approved_by: role } : e),
+    onSuccess: () => toast.success('Entry approved'),
+    onError: () => toast.error('Failed to approve entry'),
   });
 
-  const createEntry = useMutation({
+  const createEntry = useOptimisticMutation({
     mutationFn: d => base44.entities.TimeEntry.create(d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['time-entries'] }); setShowManual(false); toast.success('Entry created'); },
+    queryKey: ['time-entries'],
+    optimisticUpdate: (prev, d) => [
+      { ...d, id: `temp-${Date.now()}`, created_date: new Date().toISOString() },
+      ...prev,
+    ],
+    onSuccess: () => { setShowManual(false); toast.success('Entry created'); },
+    onError: () => toast.error('Failed to create entry'),
   });
-  const queryClient = useQueryClient();
 
   // Employee self-service: prompt for code
   const [selfCode, setSelfCode] = useState('');
@@ -212,6 +232,7 @@ export default function TimeEntries() {
   // Admin view
   return (
     <AppLayout title="Time Entries">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
@@ -249,7 +270,7 @@ export default function TimeEntries() {
               <div className="bg-card border border-border rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-foreground">Manual Time Entry</p>
-                  <button onClick={() => setShowManual(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+                  <button onClick={() => setShowManual(false)} aria-label="Close manual entry form" className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
                 </div>
                 <AdminManualEntryForm
                   jobs={jobs}
@@ -266,7 +287,7 @@ export default function TimeEntries() {
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search employee, job, code..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
+            <Input placeholder="Search employee, job, code..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search time entries by employee, job, or cost code" className="pl-9 h-9 rounded-xl text-sm" />
           </div>
           <div className="flex gap-2 flex-wrap">
             <Select value={filterEmployee} onValueChange={setFilterEmployee}>
@@ -371,6 +392,7 @@ export default function TimeEntries() {
                     {(entry.approval_status || 'pending') !== 'approved' && entry.status === 'clocked_out' && (
                       <button
                         onClick={() => approveMutation.mutate(entry.id)}
+                        aria-label={`Approve time entry for ${entry.employee_name}`}
                         className="text-[10px] px-2 py-0.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors"
                       >
                         Approve
@@ -386,6 +408,7 @@ export default function TimeEntries() {
           </div>
         )}
       </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }

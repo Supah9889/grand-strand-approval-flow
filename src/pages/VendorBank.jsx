@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Loader2, Plus, Search, Building2, Phone, Mail, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseISO, isPast, isToday, format } from 'date-fns';
@@ -35,22 +37,34 @@ export default function VendorBank() {
   const [showForm, setShowForm] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [form, setForm] = useState(emptyVendor);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['vendors'] });
+    setIsRefreshing(false);
+  };
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ['vendors'],
     queryFn: () => base44.entities.Vendor.list('company_name'),
   });
 
-  const createMutation = useMutation({
+  const createMutation = useOptimisticMutation({
     mutationFn: (data) => base44.entities.Vendor.create(data),
+    queryKey: ['vendors'],
+    optimisticUpdate: (prev, data) => [
+      ...prev,
+      { ...data, id: `temp-${Date.now()}`, created_date: new Date().toISOString() },
+    ],
     onSuccess: (vendor) => {
-      queryClient.invalidateQueries({ queryKey: ['vendors'] });
       audit.vendor.created(vendor.id, role || 'Admin', vendor.company_name, { vendor_id: vendor.id });
       setForm(emptyVendor);
       setShowForm(false);
       toast.success('Vendor added');
     },
+    onError: () => toast.error('Failed to add vendor'),
   });
 
   const isDateExpired = (dateStr) => {
@@ -73,6 +87,7 @@ export default function VendorBank() {
 
   return (
     <AppLayout title="Vendor Bank">
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
         <div className="flex items-center justify-between">
           <div>
@@ -146,7 +161,7 @@ export default function VendorBank() {
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search vendors..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-10 rounded-xl text-sm" />
+          <Input placeholder="Search vendors..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search vendors by name, contact, or type" className="pl-9 h-10 rounded-xl text-sm" />
         </div>
 
         {isLoading ? (
@@ -155,7 +170,7 @@ export default function VendorBank() {
           <p className="text-sm text-muted-foreground text-center py-12">No vendors found.</p>
         ) : (
           <div className="space-y-2">
-            {filtered.map(v => {
+            {filtered.filter(v => !v.id?.startsWith('temp-')).map(v => {
               const coiExpired = isDateExpired(v.coi_expiration_date);
               const wcExpired = isDateExpired(v.workers_comp_expiration_date);
               const hasExpiredCompliance = coiExpired || wcExpired;
@@ -212,6 +227,7 @@ export default function VendorBank() {
           </div>
         )}
       </div>
+      </PullToRefresh>
 
       {/* Vendor Detail Panel Modal */}
       {selectedVendor && (

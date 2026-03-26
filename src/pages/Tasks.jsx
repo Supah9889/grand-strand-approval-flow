@@ -6,6 +6,7 @@ import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import PullToRefresh from '@/components/PullToRefresh';
 import { Plus, Search, Loader2, CheckSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isPast, isToday, parseISO } from 'date-fns';
@@ -49,6 +50,14 @@ export default function Tasks() {
   const [sort, setSort] = useState('due_asc');
   const [activeStat, setActiveStat] = useState(null);
   const [ariaLiveMessage, setAriaLiveMessage] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.refetchQueries({ queryKey: ['tasks'] });
+    await queryClient.refetchQueries({ queryKey: ['jobs'] });
+    setIsRefreshing(false);
+  };
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks'],
@@ -130,7 +139,7 @@ export default function Tasks() {
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {ariaLiveMessage}
       </div>
-      
+      <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
@@ -168,7 +177,7 @@ export default function Tasks() {
               <div className="bg-card border border-border rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-semibold text-foreground">New Task</p>
-                  <button onClick={() => setShowForm(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+                  <button onClick={() => setShowForm(false)} aria-label="Close new task form" className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
                 </div>
                 <TaskForm jobs={activeJobs} onSave={createMutation.mutate} onCancel={() => setShowForm(false)} />
               </div>
@@ -180,7 +189,7 @@ export default function Tasks() {
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by title, address, assignee..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
+            <Input placeholder="Search by title, address, assignee..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search tasks by title, address, or assignee" className="pl-9 h-9 rounded-xl text-sm" />
           </div>
           <div className="flex gap-2 flex-wrap">
             <Select value={filterType} onValueChange={setFilterType}>
@@ -253,6 +262,7 @@ export default function Tasks() {
            </div>
         )}
       </div>
+      </PullToRefresh>
     </AppLayout>
   );
 }

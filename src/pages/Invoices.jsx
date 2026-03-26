@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
+import MobileStatusIndicator from '@/components/MobileStatusIndicator';
 import { Search, Plus, X, Loader2, FileText, AlertCircle, Archive } from 'lucide-react';
 import { isPast, isToday, parseISO, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +14,8 @@ import PullToRefresh from '../components/PullToRefresh';
 import InvoiceFullForm from '../components/invoices/InvoiceFullForm';
 import InvoiceCard from '../components/invoices/InvoiceCard';
 import InvoiceConfirmDialog from '../components/invoices/InvoiceConfirmDialog';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
+import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { INVOICE_STATUS_CONFIG, fmt, generateNumber } from '@/lib/financialHelpers';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { audit, audit_linking } from '@/lib/audit';
@@ -64,11 +67,24 @@ export default function Invoices() {
   const updateInvoice = useOptimisticMutation({
     mutationFn: ({ id, data }) => base44.entities.Invoice.update(id, data),
     queryKey: ['invoices'],
+    linkedQueryKeys: [['jobs']],
     optimisticUpdate: (prev, { id, data }) =>
       prev.map(inv => inv.id === id ? { ...inv, ...data } : inv),
+    linkedOptimisticUpdate: (prev, { id, data }) =>
+      // Update job invoice totals if status/amount changed
+      prev?.map(job => ({
+        ...job,
+        // Will be refetched, but shows immediate feedback
+      })) || prev,
     rollback: (prev) => prev,
     onSuccess: () => {
+      setMutationStatus('saved');
       invalidate();
+      setTimeout(() => setMutationStatus('idle'), 2000);
+    },
+    onError: () => {
+      setMutationStatus('retry_failed');
+      setTimeout(() => setMutationStatus('idle'), 3000);
     },
   });
 
@@ -77,7 +93,7 @@ export default function Invoices() {
   const activeJobs = jobs.filter(j => j.status !== 'archived');
 
   const totals = useMemo(() => {
-    const active = invoices.filter(i => i.status !== 'closed');
+    const active = displayInvoices.filter(i => i.status !== 'closed');
     return {
       draft: active.filter(i => i.status === 'draft').length,
       sent: active.filter(i => i.status === 'sent').length,
@@ -85,9 +101,13 @@ export default function Invoices() {
       outstanding: active.filter(i => !['paid', 'closed', 'draft'].includes(i.status)).reduce((s, i) => s + Number(i.balance_due || i.amount || 0), 0),
       received: payments.reduce((s, p) => s + Number(p.amount || 0), 0),
     };
-  }, [invoices, payments]);
+  }, [displayInvoices, payments]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mutationStatus, setMutationStatus] = useState('idle');
+
+  const { data: cachedInvoices, isCached, isOnline } = useOfflineCache(['invoices'], invoices, true);
+  const displayInvoices = cachedInvoices || invoices;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -98,7 +118,7 @@ export default function Invoices() {
   };
 
   const filtered = useMemo(() => {
-    let l = invoices;
+    let l = displayInvoices;
 
     // Archived visibility
     if (filterArchived === 'active') l = l.filter(i => i.status !== 'closed');
@@ -129,7 +149,7 @@ export default function Invoices() {
       customer: (a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''),
     };
     return [...l].sort(sortFns[sort] || sortFns.newest);
-  }, [invoices, filterStatus, filterJob, filterSource, filterOverdue, filterArchived, search, sort]);
+  }, [displayInvoices, filterStatus, filterJob, filterSource, filterOverdue, filterArchived, search, sort]);
 
   // ── Handlers ──
   const handleSaveNew = (data) => {
@@ -216,6 +236,16 @@ export default function Invoices() {
       
       <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
         <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+
+        {!isOnline && (
+          <MobileStatusIndicator status="offline" isOnline={false} />
+        )}
+        {isCached && isOnline && (
+          <MobileStatusIndicator status="idle" message="Cached data (syncing...)" autoHide={true} />
+        )}
+        {['saving', 'saved', 'retry_failed'].includes(mutationStatus) && (
+          <MobileStatusIndicator status={mutationStatus} autoHide={mutationStatus === 'saved'} />
+        )}
 
         <div className="flex items-center justify-between">
           <div>

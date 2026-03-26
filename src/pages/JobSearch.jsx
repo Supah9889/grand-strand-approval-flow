@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { useQueryClient } from '@tanstack/react-query';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
 import PullToRefresh from '@/components/PullToRefresh';
+import MobileStatusIndicator from '@/components/MobileStatusIndicator';
 import { Search, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
+import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG } from '@/lib/jobHelpers';
 
 const STATUS_BADGE = {
@@ -27,10 +29,12 @@ export default function JobSearch() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: jobs = [], isLoading } = useQuery({
+  const { data: liveJobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => base44.entities.Job.list('-created_date'),
   });
+
+  const { data: jobs = [], isCached, isOnline } = useOfflineCache(['jobs'], liveJobs, true);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -55,6 +59,13 @@ export default function JobSearch() {
     <AppLayout title="Job Search">
       <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
         <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-5">
+
+        {!isOnline && (
+          <MobileStatusIndicator status="offline" isOnline={false} />
+        )}
+        {isCached && isOnline && (
+          <MobileStatusIndicator status="idle" message="Cached data (syncing...)" autoHide={true} />
+        )}
 
         <div>
           <h1 className="text-lg font-semibold text-foreground">Find a Job</h1>

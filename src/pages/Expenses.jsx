@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
+import MobileStatusIndicator from '@/components/MobileStatusIndicator';
 import { Loader2, Camera, Upload, ArrowLeft, Inbox } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
@@ -14,6 +15,8 @@ import DeleteExpenseDialog from '@/components/expenses/DeleteExpenseDialog';
 import DuplicateWarningModal from '@/components/expenses/DuplicateWarningModal';
 import { parseReceiptFile } from '@/components/expenses/ReceiptParser';
 import { detectDuplicates } from '@/lib/duplicateDetection';
+import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
+import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { audit } from '@/lib/audit';
 import { getInternalRole } from '@/lib/adminAuth';
 
@@ -148,7 +151,7 @@ export default function Expenses() {
   const [dupeMatches, setDupeMatches] = useState(null);
 
   // Data
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: liveExpenses = [], isLoading } = useQuery({
     queryKey: ['expenses'],
     queryFn: () => base44.entities.Expense.list('-created_date', 200),
   });
@@ -157,58 +160,102 @@ export default function Expenses() {
     queryFn: () => base44.entities.Job.list('-created_date', 100),
   });
 
+  const { data: expenses = [], isCached, isOnline } = useOfflineCache(['expenses'], liveExpenses, true);
+  const [mutationStatus, setMutationStatus] = useState('idle');
+
   // Create mutation
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Expense.create(data),
     onSuccess: (exp) => {
+      setMutationStatus('saved');
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       audit.expense.created(exp.id, actor, exp.vendor_name || 'Unknown', exp.total_amount || 0, { job_id: exp.job_id, job_address: exp.job_address });
+      setTimeout(() => setMutationStatus('idle'), 2000);
+    },
+    onError: () => {
+      setMutationStatus('retry_failed');
+      setTimeout(() => setMutationStatus('idle'), 3000);
     },
   });
 
-  // Update mutation
-  const updateMutation = useMutation({
+  // Update mutation (optimistic)
+  const updateMutation = useOptimisticMutation({
     mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
-    onSuccess: (_, { id, data }) => {
+    queryKey: ['expenses'],
+    linkedQueryKeys: [['expense-jobs']],
+    optimisticUpdate: (prev, { id, data }) =>
+      prev.map(exp => exp.id === id ? { ...exp, ...data } : exp),
+    linkedOptimisticUpdate: (prev) => prev, // Jobs updated on refetch
+    onSuccess: () => {
+      setMutationStatus('saved');
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      const label = editingExpense?.vendor_name || data?.vendor_name || id;
-      audit.expense.edited(id, actor, label, { job_id: editingExpense?.job_id, job_address: editingExpense?.job_address });
+      const label = editingExpense?.vendor_name || 'Expense';
+      audit.expense.edited(editingExpense?.id, actor, label, { job_id: editingExpense?.job_id, job_address: editingExpense?.job_address });
       setView('inbox');
       setEditingExpense(null);
       toast.success('Expense updated');
+      setTimeout(() => setMutationStatus('idle'), 2000);
+    },
+    onError: () => {
+      setMutationStatus('retry_failed');
+      setTimeout(() => setMutationStatus('idle'), 3000);
     },
   });
 
-  // Archive (soft) mutation
-  const archiveMutation = useMutation({
+  // Archive (soft) mutation (optimistic)
+  const archiveMutation = useOptimisticMutation({
     mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'archived' }),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      const label = deleteTarget?.vendor_name || id;
-      audit.expense.archived(id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
+    queryKey: ['expenses'],
+    optimisticUpdate: (prev, { id }) =>
+      prev.map(exp => exp.id === id ? { ...exp, inbox_status: 'archived' } : exp),
+    onSuccess: () => {
+      setMutationStatus('saved');
+      const label = deleteTarget?.vendor_name || 'Expense';
+      audit.expense.archived(deleteTarget?.id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
       setDeleteTarget(null);
       toast.success('Expense archived');
+      setTimeout(() => setMutationStatus('idle'), 2000);
+    },
+    onError: () => {
+      setMutationStatus('retry_failed');
+      setTimeout(() => setMutationStatus('idle'), 3000);
     },
   });
 
-  // Hard delete mutation — permanent
-  const hardDeleteMutation = useMutation({
+  // Hard delete mutation — permanent (optimistic)
+  const hardDeleteMutation = useOptimisticMutation({
     mutationFn: ({ id }) => base44.entities.Expense.delete(id),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      const label = deleteTarget?.vendor_name || id;
-      audit.expense.deleted(id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
+    queryKey: ['expenses'],
+    optimisticUpdate: (prev, { id }) =>
+      prev.filter(exp => exp.id !== id),
+    onSuccess: () => {
+      setMutationStatus('saved');
+      const label = deleteTarget?.vendor_name || 'Expense';
+      audit.expense.deleted(deleteTarget?.id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
       setDeleteTarget(null);
       toast.success('Expense permanently deleted');
+      setTimeout(() => setMutationStatus('idle'), 2000);
+    },
+    onError: () => {
+      setMutationStatus('retry_failed');
+      setTimeout(() => setMutationStatus('idle'), 3000);
     },
   });
 
-  // Restore mutation
-  const restoreMutation = useMutation({
+  // Restore mutation (optimistic)
+  const restoreMutation = useOptimisticMutation({
     mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'needs_review' }),
+    queryKey: ['expenses'],
+    optimisticUpdate: (prev, { id }) =>
+      prev.map(exp => exp.id === id ? { ...exp, inbox_status: 'needs_review' } : exp),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      setMutationStatus('saved');
       toast.success('Expense restored');
+      setTimeout(() => setMutationStatus('idle'), 2000);
+    },
+    onError: () => {
+      setMutationStatus('retry_failed');
+      setTimeout(() => setMutationStatus('idle'), 3000);
     },
   });
 
@@ -328,6 +375,16 @@ export default function Expenses() {
   return (
     <AppLayout title="Cost Inbox">
       <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-5">
+
+        {!isOnline && (
+          <MobileStatusIndicator status="offline" isOnline={false} />
+        )}
+        {isCached && isOnline && (
+          <MobileStatusIndicator status="idle" message="Cached data (syncing...)" autoHide={true} />
+        )}
+        {['saving', 'saved', 'retry_failed'].includes(mutationStatus) && (
+          <MobileStatusIndicator status={mutationStatus} autoHide={mutationStatus === 'saved'} />
+        )}
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3">

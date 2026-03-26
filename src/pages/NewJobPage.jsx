@@ -174,8 +174,10 @@ export default function NewJobPage() {
   });
 
   // Resolve the effective customer name from the Clients tab or form
+  // Lead entity uses contact_name as the primary name field
   const effectiveCustomerName =
     (useNewClient ? newClientFields.name : null) ||
+    selectedClient?.contact_name ||
     selectedClient?.name ||
     selectedClient?.customer_name ||
     form.customer_name ||
@@ -217,7 +219,8 @@ export default function NewJobPage() {
         customerPhone = newClientFields.phone;
         customerId = newLead.id;
       } else if (selectedClient) {
-        customerName = selectedClient.name || selectedClient.customer_name || customerName;
+        // Lead entity uses contact_name as the primary name field
+        customerName = selectedClient.contact_name || selectedClient.name || selectedClient.customer_name || customerName;
         customerEmail = selectedClient.email || customerEmail;
         customerPhone = selectedClient.phone || customerPhone;
         customerId = selectedClient.id;
@@ -291,6 +294,9 @@ export default function NewJobPage() {
       toast.success('Job created successfully');
       navigate(`/job-hub?jobId=${job.id}`);
     },
+    onError: (err) => {
+      toast.error(`Failed to create job: ${err?.message || 'Unknown error'}`);
+    },
   });
 
   const handleSave = () => {
@@ -324,8 +330,8 @@ export default function NewJobPage() {
   const assignedIds = pendingAssignments.map(a => a.emp.id);
   const availableEmps = employees.filter(e => !assignedIds.includes(e.id));
 
-  // Lead display name helper
-  const leadLabel = (l) => l.name || l.customer_name || l.email || l.id;
+  // Lead display name helper — Lead entity uses contact_name
+  const leadLabel = (l) => l.contact_name || l.name || l.customer_name || l.email || l.id;
 
   return (
     <AppLayout title="New Job">
@@ -531,12 +537,13 @@ export default function NewJobPage() {
                     <div className="space-y-3">
                       <SearchableSelect
                         placeholder="Search clients by name or email..."
-                        items={leads}
+                        items={leads.map(l => ({ ...l, name: l.contact_name || l.name || l.customer_name || l.email || '' }))}
                         labelKey="name"
                         onSelect={l => {
                           setSelectedClient(l);
                           if (l) {
-                            set('customer_name', l.name || l.customer_name || '');
+                            const name = l.contact_name || l.name || l.customer_name || '';
+                            set('customer_name', name);
                             set('customer_email', l.email || '');
                             set('customer_phone', l.phone || '');
                           }
@@ -544,7 +551,7 @@ export default function NewJobPage() {
                       />
                       {selectedClient && (
                         <div className="bg-secondary/40 rounded-xl p-3 space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{selectedClient.name}</p>
+                          <p className="text-sm font-semibold text-foreground">{selectedClient.contact_name || selectedClient.name}</p>
                           {selectedClient.email && <p className="text-xs text-muted-foreground">{selectedClient.email}</p>}
                           {selectedClient.phone && <p className="text-xs text-muted-foreground">{selectedClient.phone}</p>}
                         </div>

@@ -143,6 +143,7 @@ export default function NewJobPage() {
   const [activeTab, setActiveTab] = useState('details');
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   // Pending assignments / vendor link (created after job save)
   const [pendingAssignments, setPendingAssignments] = useState([]); // [{emp, role, notify}]

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { motion } from 'framer-motion';
-import { CheckCircle2, XCircle, Loader2, UserCheck, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, UserCheck, Clock, ArrowRight } from 'lucide-react';
 import CompanyLogo from '../components/CompanyLogo';
 import { audit } from '@/lib/audit';
 
@@ -10,6 +10,27 @@ export default function VerifyInvite() {
   const [status, setStatus] = useState('loading');
   const [employee, setEmployee] = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const timerRef = useRef(null);
+
+  const goToGate = () => { window.location.href = '/gate'; };
+
+  // Auto-redirect countdown after successful confirmation
+  useEffect(() => {
+    if (status === 'confirmed') {
+      timerRef.current = setInterval(() => {
+        setCountdown(c => {
+          if (c <= 1) {
+            clearInterval(timerRef.current);
+            goToGate();
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [status]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -135,18 +156,24 @@ export default function VerifyInvite() {
             <>
               <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
               <div className="space-y-1">
-                <h1 className="text-base font-semibold text-foreground">You're all set!</h1>
-                {employee?.name && <p className="text-sm text-muted-foreground">Welcome, {employee.name}.</p>}
-                <p className="text-xs text-muted-foreground mt-2">
-                  Your account is confirmed. Use your employee code at the time clock to clock in.
-                </p>
+                <h1 className="text-base font-semibold text-foreground">Invite Confirmed!</h1>
+                {employee?.name && <p className="text-sm text-muted-foreground">Welcome, {employee.name}. Your access has been activated.</p>}
                 {employee?.employee_code && (
-                  <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                  <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-left">
                     <p className="text-xs text-muted-foreground">Your employee code:</p>
                     <p className="text-base font-mono font-bold text-emerald-700">{employee.employee_code}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Use this code to enter the app.</p>
                   </div>
                 )}
               </div>
+              <button
+                onClick={goToGate}
+                className="w-full h-11 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <ArrowRight className="w-4 h-4" />
+                Continue to App
+              </button>
+              <p className="text-xs text-muted-foreground">Redirecting automatically in {countdown}s…</p>
             </>
           )}
 
@@ -158,9 +185,22 @@ export default function VerifyInvite() {
                 <h1 className="text-base font-semibold text-foreground">Already Confirmed</h1>
                 {employee?.name && <p className="text-sm text-muted-foreground">Hi {employee.name}.</p>}
                 <p className="text-xs text-muted-foreground mt-2">
-                  Your invite has already been confirmed. You're good to go — use your employee code to access the time clock.
+                  Your invite has already been confirmed. Use your employee code to enter the app.
                 </p>
+                {employee?.employee_code && (
+                  <div className="mt-2 bg-muted/40 rounded-xl px-3 py-2 text-left">
+                    <p className="text-xs text-muted-foreground">Your employee code:</p>
+                    <p className="text-base font-mono font-bold text-foreground">{employee.employee_code}</p>
+                  </div>
+                )}
               </div>
+              <button
+                onClick={goToGate}
+                className="w-full h-11 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <ArrowRight className="w-4 h-4" />
+                Continue to App
+              </button>
             </>
           )}
 

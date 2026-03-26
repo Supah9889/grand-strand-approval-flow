@@ -1,21 +1,22 @@
 /**
  * CostInboxTable — inbox-style list of expense records.
- * Supports delete (archive), duplicate badges, and filter by duplicate status.
+ * Actions (Archive/Delete for active, Restore/Delete for archived) are inline
+ * buttons on each row — no dropdown, no z-index layering issues.
  */
 import React, { useState, useMemo } from 'react';
-import { Search, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X, Copy, Trash2, MoreHorizontal, ArchiveRestore, XCircle, Archive } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X, Copy, Trash2, ArchiveRestore, XCircle, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO } from 'date-fns';
 import { validateExpense } from '@/lib/validation';
 
 const STATUS_CONFIG = {
-  new:          { label: 'New',          color: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-500' },
-  in_review:    { label: 'In Review',    color: 'bg-amber-100 text-amber-700',  dot: 'bg-amber-400' },
-  confirmed:    { label: 'Confirmed',    color: 'bg-green-100 text-green-700',  dot: 'bg-green-500' },
-  needs_review: { label: 'Needs Review', color: 'bg-red-100 text-red-700',      dot: 'bg-red-500'   },
-  filed:        { label: 'Filed',        color: 'bg-slate-100 text-slate-600',  dot: 'bg-slate-400' },
-  archived:     { label: 'Archived',     color: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
+  new:          { label: 'New',          color: 'bg-blue-100 text-blue-700' },
+  in_review:    { label: 'In Review',    color: 'bg-amber-100 text-amber-700' },
+  confirmed:    { label: 'Confirmed',    color: 'bg-green-100 text-green-700' },
+  needs_review: { label: 'Needs Review', color: 'bg-red-100 text-red-700' },
+  filed:        { label: 'Filed',        color: 'bg-slate-100 text-slate-600' },
+  archived:     { label: 'Archived',     color: 'bg-muted text-muted-foreground' },
 };
 
 const MATCH_ICON = {
@@ -35,14 +36,12 @@ function fmtDate(d) {
 
 export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, onRestore, isLoading }) {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active'); // 'active' hides archived by default
+  const [statusFilter, setStatusFilter] = useState('active');
   const [sortBy, setSortBy] = useState('created_date');
-  const [menuOpenId, setMenuOpenId] = useState(null);
 
   const filtered = useMemo(() => {
     let list = [...expenses];
 
-    // Status filter
     if (statusFilter === 'active') {
       list = list.filter(e => (e.inbox_status || 'new') !== 'archived');
     } else if (statusFilter === 'archived') {
@@ -75,9 +74,9 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
   }, [expenses, search, statusFilter, sortBy]);
 
   const counts = useMemo(() => {
-    const active    = expenses.filter(e => (e.inbox_status || 'new') !== 'archived').length;
-    const archived  = expenses.filter(e => (e.inbox_status || 'new') === 'archived').length;
-    const dupes     = expenses.filter(e => e.duplicate_status === 'possible_duplicate' || e.duplicate_status === 'needs_review').length;
+    const active   = expenses.filter(e => (e.inbox_status || 'new') !== 'archived').length;
+    const archived = expenses.filter(e => (e.inbox_status || 'new') === 'archived').length;
+    const dupes    = expenses.filter(e => e.duplicate_status === 'possible_duplicate' || e.duplicate_status === 'needs_review').length;
     const perStatus = {};
     expenses.forEach(e => {
       const s = e.inbox_status || 'new';
@@ -100,9 +99,9 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
       {/* Filter pills */}
       <div className="flex gap-1.5 flex-wrap">
         {[
-          { key: 'active',             label: `Active (${counts.active})` },
-          { key: 'all',                label: `All (${expenses.length})` },
-          ...(counts.dupes > 0 ? [{ key: 'possible_duplicate', label: `Duplicates (${counts.dupes})`, warn: true }] : []),
+          { key: 'active',   label: `Active (${counts.active})` },
+          { key: 'all',      label: `All (${expenses.length})` },
+          ...(counts.dupes > 0    ? [{ key: 'possible_duplicate', label: `Duplicates (${counts.dupes})`, warn: true }] : []),
           ...(counts.archived > 0 ? [{ key: 'archived', label: `Archived (${counts.archived})` }] : []),
         ].map(({ key, label, warn }) => (
           <button key={key} onClick={() => setStatusFilter(key)}
@@ -114,7 +113,7 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
             {label}
           </button>
         ))}
-        {Object.entries(STATUS_CONFIG).filter(([key]) => !['archived'].includes(key)).map(([key, cfg]) => {
+        {Object.entries(STATUS_CONFIG).filter(([key]) => key !== 'archived').map(([key, cfg]) => {
           const count = counts.perStatus[key] || 0;
           if (count === 0) return null;
           return (
@@ -156,18 +155,7 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
           <p className="text-sm text-muted-foreground">No expenses in inbox</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {/* Column header — desktop */}
-          <div className="hidden md:grid grid-cols-[auto_1fr_1fr_auto_auto_auto_auto] gap-3 px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-            <span className="w-8" />
-            <span>Vendor / File</span>
-            <span>Job</span>
-            <span>Date</span>
-            <span>Amount</span>
-            <span>Status</span>
-            <span className="w-8" />
-          </div>
-
+        <div className="space-y-2">
           {filtered.map(expense => {
             const statusCfg = STATUS_CONFIG[expense.inbox_status || 'new'];
             const isPDF = expense.file_name?.match(/\.pdf$/i) || expense.receipt_image_url?.match(/\.pdf/i);
@@ -182,14 +170,15 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
             return (
               <div
                 key={expense.id}
-                className={`relative w-full bg-card border rounded-xl group transition-all ${isArchived ? 'opacity-60 border-dashed border-muted' : 'border-border hover:border-primary/40 hover:shadow-sm'}`}
+                className={`w-full bg-card border rounded-xl transition-all ${isArchived ? 'opacity-70 border-dashed border-muted' : 'border-border hover:border-primary/40 hover:shadow-sm'}`}
               >
-                {/* Main clickable row */}
+                {/* Main info row — clickable to open/edit */}
                 <button
-                  onClick={() => { setMenuOpenId(null); onOpen(expense); }}
-                  className="w-full text-left p-3"
+                  type="button"
+                  onClick={() => onOpen(expense)}
+                  className="w-full text-left px-3 pt-3 pb-2"
                 >
-                  {/* Duplicate + validation badges */}
+                  {/* Badges */}
                   {(isDupe || dupeIgnored || validationErrors.length > 0) && (
                     <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
                       {isDupe && (
@@ -210,129 +199,94 @@ export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, 
                     </div>
                   )}
 
-                  {/* Mobile layout */}
-                  <div className="md:hidden space-y-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
+                  {/* Content */}
+                  <div className="flex items-start justify-between gap-3">
+                    {/* Left: icon + vendor + meta */}
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                        {isPDF
+                          ? <span className="text-[9px] font-bold text-red-500">PDF</span>
+                          : <FileText className="w-3.5 h-3.5 text-muted-foreground" />}
+                      </div>
+                      <div className="min-w-0">
                         <p className={`text-sm font-semibold truncate ${isArchived ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                           {expense.vendor_name || 'Unknown Vendor'}
                         </p>
-                        {expense.store_location && <p className="text-xs text-muted-foreground truncate">{expense.store_location}</p>}
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.color}`}>{statusCfg.label}</span>
-                        <p className="text-sm font-bold text-primary">${fmt(expense.total_amount)}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {expense.file_name || expense.store_location || (expense.receipt_number ? `#${expense.receipt_number}` : '—')}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                          {(expense.expense_date || expense.receipt_date) && (
+                            <span className="text-xs text-muted-foreground">{fmtDate(expense.expense_date || expense.receipt_date)}</span>
+                          )}
+                          {expense.job_address && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[140px]">{expense.job_address}</span>
+                          )}
+                          {expense.cost_code && (
+                            <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-full">{expense.cost_code}</span>
+                          )}
+                          {expense.parsed_match_status && MATCH_ICON[expense.parsed_match_status]}
+                          {lineItemCount > 0 && <span className="text-xs text-muted-foreground">{lineItemCount} items</span>}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {(expense.expense_date || expense.receipt_date) && (
-                        <span className="text-xs text-muted-foreground">{fmtDate(expense.expense_date || expense.receipt_date)}</span>
-                      )}
-                      {expense.job_address && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{expense.job_address}</span>}
-                      {expense.cost_code && <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{expense.cost_code}</span>}
-                      {expense.parsed_match_status && MATCH_ICON[expense.parsed_match_status]}
-                      {lineItemCount > 0 && <span className="text-xs text-muted-foreground">{lineItemCount} items</span>}
-                      {(expense.receipt_image_url || expense.file_url) && (
-                        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-                          <FileText className="w-3 h-3" />{isPDF ? 'PDF' : 'IMG'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Desktop layout */}
-                  <div className="hidden md:grid grid-cols-[auto_1fr_1fr_auto_auto_auto] gap-3 items-center">
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      {isPDF
-                        ? <span className="text-[9px] font-bold text-red-500">PDF</span>
-                        : <FileText className="w-3.5 h-3.5 text-muted-foreground" />}
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`text-sm font-semibold truncate transition-colors ${isArchived ? 'text-muted-foreground line-through' : 'group-hover:text-primary text-foreground'}`}>
-                        {expense.vendor_name || 'Unknown Vendor'}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {expense.file_name || expense.store_location || (expense.receipt_number ? `#${expense.receipt_number}` : '—')}
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{expense.job_address || '—'}</p>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(expense.expense_date || expense.receipt_date)}</p>
-                    <div className="text-right">
+                    {/* Right: amount + status */}
+                    <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-foreground">${fmt(expense.total_amount)}</p>
-                      <div className="flex items-center justify-end gap-1 mt-0.5">
-                        {expense.parsed_match_status && MATCH_ICON[expense.parsed_match_status]}
-                        {lineItemCount > 0 && <span className="text-[10px] text-muted-foreground">{lineItemCount}i</span>}
-                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.color}`}>
+                        {statusCfg.label}
+                      </span>
                     </div>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${statusCfg.color}`}>
-                      {statusCfg.label}
-                    </span>
                   </div>
                 </button>
 
-                {/* Action menu button */}
-                <div className="absolute top-2 right-2">
-                  <button
-                    onPointerDown={e => { e.stopPropagation(); e.preventDefault(); setMenuOpenId(menuOpenId === expense.id ? null : expense.id); }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors opacity-40 group-hover:opacity-100"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
-
-                  {/* Dropdown */}
-                  {menuOpenId === expense.id && (
-                    <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-xl shadow-xl w-44 py-1 text-sm">
-                      {!isArchived ? (
-                        <>
-                          <button
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-amber-700 hover:bg-amber-50 active:bg-amber-100 transition-colors min-h-[40px]"
-                            onPointerDown={e => e.stopPropagation()}
-                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onArchive(expense); }}
-                          >
-                            <Archive className="w-3.5 h-3.5 shrink-0" />
-                            Archive
-                          </button>
-                          <button
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/5 active:bg-destructive/10 transition-colors min-h-[40px]"
-                            onPointerDown={e => e.stopPropagation()}
-                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                            Delete
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-primary hover:bg-primary/5 active:bg-primary/10 transition-colors min-h-[40px]"
-                            onPointerDown={e => e.stopPropagation()}
-                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onRestore(expense); }}
-                          >
-                            <ArchiveRestore className="w-3.5 h-3.5 shrink-0" />
-                            Restore
-                          </button>
-                          <button
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/5 active:bg-destructive/10 transition-colors min-h-[40px]"
-                            onPointerDown={e => e.stopPropagation()}
-                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
+                {/* Action buttons — always visible, directly bound, no dropdown */}
+                <div className="flex items-center gap-2 px-3 pb-2.5 pt-1 border-t border-border/40">
+                  {!isArchived ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onArchive(expense)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium hover:bg-amber-100 active:bg-amber-200 transition-colors"
+                      >
+                        <Archive className="w-3.5 h-3.5 shrink-0" />
+                        Archive
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(expense)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium hover:bg-red-100 active:bg-red-200 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                        Delete
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onRestore(expense)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary text-xs font-medium hover:bg-primary/20 active:bg-primary/30 transition-colors"
+                      >
+                        <ArchiveRestore className="w-3.5 h-3.5 shrink-0" />
+                        Restore
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(expense)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium hover:bg-red-100 active:bg-red-200 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                        Delete
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
             );
           })}
         </div>
-      )}
-
-      {/* Close dropdown on outside tap — z-40 sits below the z-50 dropdown so it only catches outside clicks */}
-      {menuOpenId && (
-        <div className="fixed inset-0 z-40" onPointerDown={() => setMenuOpenId(null)} />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { FileText, Image, Lock, Users, Eye, Archive, MoreVertical, Download, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -134,7 +134,14 @@ function FileCard({ file, onImageClick, jobAddress, canDelete }) {
 export default function FileGrid({ files, jobAddress = '' }) {
   const images = files.filter(isImage);
   const [lightboxIndex, setLightboxIndex] = useState(null);
-  const canDelete = getIsAdmin();
+  const [canDelete, setCanDelete] = useState(getIsAdmin());
+
+  useEffect(() => {
+    // Also check Base44 auth role (admin users always get delete access)
+    base44.auth.me().then(user => {
+      if (user?.role === 'admin') setCanDelete(true);
+    }).catch(() => {});
+  }, []);
 
   return (
     <>

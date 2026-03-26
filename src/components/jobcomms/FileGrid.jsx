@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { FileText, Image, Lock, Users, Eye, Archive, MoreVertical, Download, Trash2 } from 'lucide-react';
+import { FileText, Image, Lock, Users, Eye, MoreVertical, Download, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import PhotoLightbox from '../dailylogs/PhotoLightbox';
+import { getInternalRole } from '@/lib/adminAuth';
+import { logAudit } from '@/lib/audit';
 
 const IMAGE_TYPES = ['image/jpeg','image/png','image/webp','image/gif','image/jpg'];
 const isImage = (f) => IMAGE_TYPES.includes(f.file_type) || /\.(jpg|jpeg|png|webp|gif)$/i.test(f.file_name || '');
@@ -25,21 +27,63 @@ const CATEGORY_LABEL = {
   permit: 'Permit', vendor_document: 'Vendor Doc', internal: 'Internal', other: 'Other',
 };
 
+function DeleteConfirmDialog({ fileName, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-xs space-y-4">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">Delete File?</p>
+          <p className="text-xs text-muted-foreground">
+            "<span className="font-medium text-foreground">{fileName}</span>" will be permanently deleted and cannot be recovered.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 h-9 rounded-xl border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="flex-1 h-9 rounded-xl bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-colors">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FileCard({ file, onImageClick }) {
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const role = getInternalRole();
+  const canDelete = role === 'admin' || role === 'owner';
   const vis = VISIBILITY_BADGE[file.visibility] || VISIBILITY_BADGE.internal;
   const VisIcon = vis.icon;
   const isImg = isImage(file);
 
-  const archive = async () => {
-    await base44.entities.JobFile.update(file.id, { archived: true });
+  const handleDelete = async () => {
+    setShowConfirm(false);
+    await base44.entities.JobFile.delete(file.id);
+    const user = await base44.auth.me().catch(() => null);
+    logAudit(file.id, 'record_deleted', user?.email || role, `File permanently deleted from Job Files & Comms: "${file.file_name}"`, {
+      module: 'job',
+      record_id: file.id,
+      job_id: file.job_id,
+      job_address: file.job_address,
+    });
     queryClient.invalidateQueries({ queryKey: ['job-files', file.job_id] });
-    toast.success('File archived');
-    setShowMenu(false);
+    queryClient.invalidateQueries({ queryKey: ['job-files-all'] });
+    toast.success('File deleted');
   };
 
   return (
+    <>
+    {showConfirm && (
+      <DeleteConfirmDialog
+        fileName={file.file_name}
+        onConfirm={handleDelete}
+        onCancel={() => setShowConfirm(false)}
+      />
+    )}
     <div className="bg-card border border-border rounded-xl overflow-hidden group relative">
       {/* Preview area */}
       {isImg ? (
@@ -67,15 +111,22 @@ function FileCard({ file, onImageClick }) {
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
             {showMenu && (
-              <div className="absolute right-0 top-7 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[120px]">
-                <a href={file.file_url} target="_blank" rel="noopener noreferrer" download
-                  className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors">
-                  <Download className="w-3.5 h-3.5" /> Download
-                </a>
-                <button onClick={archive} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors text-left">
-                  <Archive className="w-3.5 h-3.5" /> Archive
-                </button>
-              </div>
+              <>
+                <div className="absolute right-0 top-7 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[120px]">
+                  <a href={file.file_url} target="_blank" rel="noopener noreferrer" download
+                    onClick={() => setShowMenu(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors">
+                    <Download className="w-3.5 h-3.5" /> Download
+                  </a>
+                  {canDelete && (
+                    <button onClick={() => { setShowMenu(false); setShowConfirm(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted text-destructive hover:text-destructive transition-colors text-left">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  )}
+                </div>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+              </>
             )}
           </div>
         </div>
@@ -98,6 +149,7 @@ function FileCard({ file, onImageClick }) {
         </p>
       </div>
     </div>
+    </>
   );
 }
 

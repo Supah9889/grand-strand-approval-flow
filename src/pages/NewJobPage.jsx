@@ -288,6 +288,7 @@ export default function NewJobPage() {
       return job;
     },
     onSuccess: (job) => {
+      setSaveError(null);
       queryClient.invalidateQueries({ queryKey: ['admin-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['cal-jobs'] });
@@ -295,7 +296,9 @@ export default function NewJobPage() {
       navigate(`/job-hub?jobId=${job.id}`);
     },
     onError: (err) => {
-      toast.error(`Failed to create job: ${err?.message || 'Unknown error'}`);
+      const msg = err?.message || String(err) || 'Unknown error';
+      setSaveError(msg);
+      toast.error(`Failed to create job: ${msg}`);
     },
   });
 
@@ -384,9 +387,17 @@ export default function NewJobPage() {
         <div className="flex-1 bg-slate-50">
           <div className="max-w-4xl mx-auto px-4 py-6">
 
-            {/* Validation errors */}
-            {touched && issues.length > 0 && (activeTab === 'details' || activeTab === 'clients') && (
-              <div className="mb-4"><ValidationPanel issues={issues} /></div>
+            {/* Validation errors — always show after first save attempt */}
+            {touched && errors.length > 0 && (
+              <div className="mb-4"><ValidationPanel issues={errors} /></div>
+            )}
+
+            {/* Save error banner — shows actual server/runtime error */}
+            {saveError && (
+              <div className="mb-4 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 flex items-start gap-2">
+                <span className="text-destructive text-xs font-semibold mt-0.5">Save failed:</span>
+                <span className="text-destructive text-xs">{saveError}</span>
+              </div>
             )}
 
             {/* ═══════════════════ JOB DETAILS ═══════════════════ */}

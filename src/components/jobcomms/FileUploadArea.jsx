@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Upload, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const CATEGORIES = [
   ['before_photo','Before Photo'], ['progress_photo','Progress Photo'], ['after_photo','After Photo'],
@@ -16,6 +17,8 @@ const CATEGORIES = [
 ];
 
 export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose }) {
+  const { hasPermission } = usePermissions();
+  const canShareExternally = hasPermission('share_files_externally');
   const [files, setFiles] = useState([]);
   const [category, setCategory] = useState('other');
   const [visibility, setVisibility] = useState('internal');
@@ -84,15 +87,21 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1">Visibility</label>
-          <Select value={visibility} onValueChange={setVisibility}>
-            <SelectTrigger className="h-9 rounded-lg text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="internal">Internal Only</SelectItem>
-              <SelectItem value="client">Share with Client</SelectItem>
-              <SelectItem value="vendor">Share with Vendor</SelectItem>
-              <SelectItem value="both">Share with Both</SelectItem>
-            </SelectContent>
-          </Select>
+          {canShareExternally ? (
+            <Select value={visibility} onValueChange={setVisibility}>
+              <SelectTrigger className="h-9 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="internal">Internal Only</SelectItem>
+                <SelectItem value="client">Share with Client</SelectItem>
+                <SelectItem value="vendor">Share with Vendor</SelectItem>
+                <SelectItem value="both">Share with Both</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="h-9 rounded-lg border border-input bg-muted/50 px-3 flex items-center text-sm text-muted-foreground">
+              Internal Only
+            </div>
+          )}
         </div>
       </div>
 

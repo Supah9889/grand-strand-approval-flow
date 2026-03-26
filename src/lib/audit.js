@@ -289,6 +289,11 @@ export const audit = {
         `${actor} discarded duplicate expense: ${vendorName}.`,
         { module: 'expense', ...opts }),
 
+    restored: (id, actor, vendorName, opts = {}) =>
+      logAudit(id, 'expense_restored', actor,
+        `${actor} restored archived expense: ${vendorName}.`,
+        { module: 'expense', record_id: id, new_value: 'needs_review', ...opts }),
+
     approvalChanged: (id, actor, vendorName, newStatus, opts = {}) =>
       logAudit(id, 'status_changed', actor,
         `${actor} changed approval status of expense "${vendorName}" to "${newStatus}".`,
@@ -702,6 +707,7 @@ export const ACTION_LABELS = {
   compliance_document_removed:      { label: 'Compliance Document Removed',       color: 'text-destructive' },
 
   expense_deleted:                  { label: 'Expense Deleted',                   color: 'text-destructive' },
+  expense_restored:                 { label: 'Expense Restored',                  color: 'text-primary' },
   duplicate_override:               { label: 'Duplicate Warning Overridden',      color: 'text-amber-600' },
 
   override_action:                  { label: 'Admin Override',                    color: 'text-destructive' },

@@ -12,6 +12,7 @@ import ExpenseEditScreen from '@/components/expenses/ExpenseEditScreen';
 import MultiReceiptQueue from '@/components/expenses/MultiReceiptQueue';
 import CostInboxTable from '@/components/expenses/CostInboxTable';
 import DeleteExpenseDialog from '@/components/expenses/DeleteExpenseDialog';
+import RestoreExpenseDialog from '@/components/expenses/RestoreExpenseDialog';
 import DuplicateWarningModal from '@/components/expenses/DuplicateWarningModal';
 import { parseReceiptFile } from '@/components/expenses/ReceiptParser';
 import { detectDuplicates } from '@/lib/duplicateDetection';
@@ -142,8 +143,10 @@ export default function Expenses() {
   // Editing existing expense
   const [editingExpense, setEditingExpense] = useState(null);
 
-  // Delete dialog
+  // Delete dialog — for active expenses (archive or delete)
   const [deleteTarget, setDeleteTarget] = useState(null);
+  // Archived action dialog — for archived expenses (restore or delete)
+  const [archivedTarget, setArchivedTarget] = useState(null);
 
   // Duplicate detection state
   const [pendingSaveData, setPendingSaveData] = useState(null); // data awaiting duplicate confirmation
@@ -204,15 +207,15 @@ export default function Expenses() {
 
   // Archive (soft) mutation (optimistic)
   const archiveMutation = useOptimisticMutation({
-    mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'archived' }),
+    mutationFn: ({ id, meta }) => base44.entities.Expense.update(id, { inbox_status: 'archived' }),
     queryKey: ['expenses'],
     optimisticUpdate: (prev, { id }) =>
       prev.map(exp => exp.id === id ? { ...exp, inbox_status: 'archived' } : exp),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       setMutationStatus('saved');
-      const label = deleteTarget?.vendor_name || 'Expense';
-      audit.expense.archived(deleteTarget?.id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
-      setDeleteTarget(null);
+      const meta = vars.meta || {};
+      audit.expense.archived(vars.id, actor, meta.vendor_name || 'Expense', { job_id: meta.job_id, job_address: meta.job_address });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense archived');
       setTimeout(() => setMutationStatus('idle'), 2000);
     },
@@ -224,15 +227,15 @@ export default function Expenses() {
 
   // Hard delete mutation — permanent (optimistic)
   const hardDeleteMutation = useOptimisticMutation({
-    mutationFn: ({ id }) => base44.entities.Expense.delete(id),
+    mutationFn: ({ id, meta }) => base44.entities.Expense.delete(id),
     queryKey: ['expenses'],
     optimisticUpdate: (prev, { id }) =>
       prev.filter(exp => exp.id !== id),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       setMutationStatus('saved');
-      const label = deleteTarget?.vendor_name || 'Expense';
-      audit.expense.deleted(deleteTarget?.id, actor, label, { job_id: deleteTarget?.job_id, job_address: deleteTarget?.job_address });
-      setDeleteTarget(null);
+      const meta = vars.meta || {};
+      audit.expense.deleted(vars.id, actor, meta.vendor_name || 'Expense', { job_id: meta.job_id, job_address: meta.job_address });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense permanently deleted');
       setTimeout(() => setMutationStatus('idle'), 2000);
     },
@@ -242,15 +245,18 @@ export default function Expenses() {
     },
   });
 
-  // Restore mutation (optimistic)
+  // Restore mutation (optimistic) — moves archived expense back to needs_review (active)
   const restoreMutation = useOptimisticMutation({
-    mutationFn: ({ id }) => base44.entities.Expense.update(id, { inbox_status: 'needs_review' }),
+    mutationFn: ({ id, meta }) => base44.entities.Expense.update(id, { inbox_status: 'needs_review' }),
     queryKey: ['expenses'],
     optimisticUpdate: (prev, { id }) =>
       prev.map(exp => exp.id === id ? { ...exp, inbox_status: 'needs_review' } : exp),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       setMutationStatus('saved');
-      toast.success('Expense restored');
+      const meta = vars.meta || {};
+      audit.expense.restored(vars.id, actor, meta.vendor_name || 'Expense', { job_id: meta.job_id, job_address: meta.job_address });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      toast.success('Expense restored to active inbox');
       setTimeout(() => setMutationStatus('idle'), 2000);
     },
     onError: () => {
@@ -354,11 +360,41 @@ export default function Expenses() {
 
   const handleSaveEdit = (data) => checkAndSave(data, 'edit');
 
-  // ── Delete / Restore ─────────────────────────────────────────────────────
+  // ── Active expense actions ────────────────────────────────────────────────
+  // Opens the Archive/Delete choice dialog for active expenses
+  const handleArchiveRequest = (expense) => setDeleteTarget(expense);
+  // Opens the Delete-only confirm for active expenses triggered directly
   const handleDeleteRequest = (expense) => setDeleteTarget(expense);
-  const handleArchiveConfirm = () => archiveMutation.mutate({ id: deleteTarget.id });
-  const handleHardDeleteConfirm = () => hardDeleteMutation.mutate({ id: deleteTarget.id });
-  const handleRestore = (expense) => restoreMutation.mutate({ id: expense.id });
+
+  // Confirm archive from DeleteExpenseDialog
+  const handleArchiveConfirm = () => {
+    const exp = deleteTarget;
+    setDeleteTarget(null);
+    archiveMutation.mutate({ id: exp.id, meta: { vendor_name: exp.vendor_name, job_id: exp.job_id, job_address: exp.job_address } });
+  };
+  // Confirm hard-delete from DeleteExpenseDialog (active)
+  const handleHardDeleteConfirm = () => {
+    const exp = deleteTarget;
+    setDeleteTarget(null);
+    hardDeleteMutation.mutate({ id: exp.id, meta: { vendor_name: exp.vendor_name, job_id: exp.job_id, job_address: exp.job_address } });
+  };
+
+  // ── Archived expense actions ──────────────────────────────────────────────
+  // Opens the Restore/Delete dialog for archived expenses
+  const handleArchivedActionRequest = (expense) => setArchivedTarget(expense);
+
+  // Confirm restore from RestoreExpenseDialog
+  const handleRestoreConfirm = () => {
+    const exp = archivedTarget;
+    setArchivedTarget(null);
+    restoreMutation.mutate({ id: exp.id, meta: { vendor_name: exp.vendor_name, job_id: exp.job_id, job_address: exp.job_address } });
+  };
+  // Confirm hard-delete from RestoreExpenseDialog (archived)
+  const handleArchivedDeleteConfirm = () => {
+    const exp = archivedTarget;
+    setArchivedTarget(null);
+    hardDeleteMutation.mutate({ id: exp.id, meta: { vendor_name: exp.vendor_name, job_id: exp.job_id, job_address: exp.job_address } });
+  };
 
   const resetToInbox = () => {
     setView('inbox');
@@ -531,14 +567,15 @@ export default function Expenses() {
           <CostInboxTable
             expenses={expenses}
             onOpen={handleOpenExpense}
+            onArchive={handleArchiveRequest}
             onDelete={handleDeleteRequest}
-            onRestore={handleRestore}
+            onRestore={handleArchivedActionRequest}
             isLoading={isLoading}
           />
         )}
       </div>
 
-      {/* ── DELETE CONFIRMATION ───────────────────────────────────────────── */}
+      {/* ── DELETE CONFIRMATION (active expenses) ─────────────────────────── */}
       {deleteTarget && (
         <DeleteExpenseDialog
           expense={deleteTarget}
@@ -546,6 +583,17 @@ export default function Expenses() {
           onDelete={handleHardDeleteConfirm}
           onCancel={() => setDeleteTarget(null)}
           saving={archiveMutation.isPending || hardDeleteMutation.isPending}
+        />
+      )}
+
+      {/* ── ARCHIVED EXPENSE ACTIONS (restore or delete) ──────────────────── */}
+      {archivedTarget && (
+        <RestoreExpenseDialog
+          expense={archivedTarget}
+          onRestore={handleRestoreConfirm}
+          onDelete={handleArchivedDeleteConfirm}
+          onCancel={() => setArchivedTarget(null)}
+          saving={restoreMutation.isPending || hardDeleteMutation.isPending}
         />
       )}
 

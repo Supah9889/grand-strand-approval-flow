@@ -3,7 +3,7 @@
  * Supports delete (archive), duplicate badges, and filter by duplicate status.
  */
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X, Copy, Trash2, MoreHorizontal, ArchiveRestore, XCircle } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle2, Clock, FileText, Inbox, X, Copy, Trash2, MoreHorizontal, ArchiveRestore, XCircle, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO } from 'date-fns';
@@ -33,7 +33,7 @@ function fmtDate(d) {
   try { return format(parseISO(d), 'MM/dd/yy'); } catch { return d; }
 }
 
-export default function CostInboxTable({ expenses, onOpen, onDelete, onRestore, isLoading }) {
+export default function CostInboxTable({ expenses, onOpen, onArchive, onDelete, onRestore, isLoading }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' hides archived by default
   const [sortBy, setSortBy] = useState('created_date');
@@ -283,21 +283,39 @@ export default function CostInboxTable({ expenses, onOpen, onDelete, onRestore, 
                   {menuOpenId === expense.id && (
                     <div className="absolute right-0 top-8 z-30 bg-popover border border-border rounded-xl shadow-xl w-44 py-1 text-sm">
                       {!isArchived ? (
-                        <button
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors"
-                          onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Archive / Remove
-                        </button>
+                        <>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 transition-colors"
+                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onArchive(expense); }}
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                            Archive
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </>
                       ) : (
-                        <button
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 transition-colors"
-                          onClick={e => { e.stopPropagation(); setMenuOpenId(null); onRestore(expense); }}
-                        >
-                          <ArchiveRestore className="w-3.5 h-3.5" />
-                          Restore
-                        </button>
+                        <>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 transition-colors"
+                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onRestore(expense); }}
+                          >
+                            <ArchiveRestore className="w-3.5 h-3.5" />
+                            Restore
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                            onClick={e => { e.stopPropagation(); setMenuOpenId(null); onDelete(expense); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </>
                       )}
                     </div>
                   )}

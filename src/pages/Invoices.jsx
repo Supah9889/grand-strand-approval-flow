@@ -92,6 +92,12 @@ export default function Invoices() {
   const existingNums = invoices.map(i => i.invoice_number).filter(Boolean);
   const activeJobs = jobs.filter(j => j.status !== 'archived');
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mutationStatus, setMutationStatus] = useState('idle');
+
+  const { data: cachedInvoices, isCached, isOnline } = useOfflineCache(['invoices'], invoices, true);
+  const displayInvoices = cachedInvoices || invoices;
+
   const totals = useMemo(() => {
     const active = displayInvoices.filter(i => i.status !== 'closed');
     return {
@@ -102,12 +108,6 @@ export default function Invoices() {
       received: payments.reduce((s, p) => s + Number(p.amount || 0), 0),
     };
   }, [displayInvoices, payments]);
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [mutationStatus, setMutationStatus] = useState('idle');
-
-  const { data: cachedInvoices, isCached, isOnline } = useOfflineCache(['invoices'], invoices, true);
-  const displayInvoices = cachedInvoices || invoices;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

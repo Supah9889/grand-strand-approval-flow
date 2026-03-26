@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PullToRefresh from '@/components/PullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { Loader2, ArrowLeft, MapPin, User, DollarSign, Calendar, CheckSquare, FileDiff, FileText, Clock, BookOpen, ShieldCheck, FolderOpen, StickyNote, Lock, Receipt, Users, Info } from 'lucide-react';
+import FileGrid from '../components/jobcomms/FileGrid';
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
@@ -64,9 +65,9 @@ export default function JobHub() {
     queryFn: () => base44.entities.DailyLog.filter({ job_id: jobId }, '-log_date'),
     enabled: !!jobId && activeTab === 'logs',
   });
-  const { data: files = [] } = useQuery({
+  const { data: files = [], isLoading: loadingFiles } = useQuery({
     queryKey: ['hub-files', jobId],
-    queryFn: () => base44.entities.JobFile.filter({ job_id: jobId }, '-created_date'),
+    queryFn: () => base44.entities.JobFile.filter({ job_id: jobId, archived: false }, '-created_date'),
     enabled: !!jobId && activeTab === 'files',
   });
   const { data: changeOrders = [] } = useQuery({
@@ -235,12 +236,11 @@ export default function JobHub() {
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{l.work_completed}</p>
             </div>
           )} />}
-          {activeTab === 'files' && <SimpleList items={files} emptyMsg="No files attached to this job." renderItem={f => (
-            <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-card border border-border rounded-xl p-3 hover:border-primary/30">
-              <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div className="min-w-0"><p className="text-sm text-foreground truncate">{f.file_name}</p><p className="text-xs text-muted-foreground">{f.category}</p></div>
-            </a>
-          )} />}
+          {activeTab === 'files' && (
+            loadingFiles
+              ? <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              : <FileGrid files={files} jobAddress={job.address} />
+          )}
           {activeTab === 'estimates' && isAdmin && <SimpleList items={estimates} emptyMsg="No estimates for this job." renderItem={est => (
             <div key={est.id} onClick={() => navigate(`/estimates/${est.id}`)} className="bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30">
               <div className="flex items-center justify-between gap-2">

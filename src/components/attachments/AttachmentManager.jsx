@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   FileText, Image, Download, Archive, MoreVertical,
-  Pencil, RefreshCw, Loader2, Lock, Eye, Users, Paperclip, Trash2
+  Pencil, RefreshCw, Loader2, Lock, Eye, Users, Paperclip
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
@@ -57,7 +57,7 @@ function fmtBytes(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-function AttachmentRow({ att, isAdmin, onArchive, onRename, onReplace, onDelete }) {
+function AttachmentRow({ att, isAdmin, onArchive, onRename, onReplace }) {
   const [showMenu, setShowMenu] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [nameVal, setNameVal] = useState(att.file_name);
@@ -167,12 +167,8 @@ function AttachmentRow({ att, isAdmin, onArchive, onRename, onReplace, onDelete 
                 <input type="file" accept={DOC_ACCEPT} className="hidden" onChange={handleReplaceFile} />
               </label>
               <button onClick={() => { onArchive(att.id); setShowMenu(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-left">
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-destructive/80 hover:text-destructive transition-colors text-left">
                 <Archive className="w-3.5 h-3.5" /> Archive
-              </button>
-              <button onClick={() => { onDelete(att.id); setShowMenu(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-destructive hover:text-destructive transition-colors text-left">
-                <Trash2 className="w-3.5 h-3.5" /> Delete
               </button>
             </div>
             <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
@@ -222,13 +218,6 @@ export default function AttachmentManager({
     await base44.entities.Attachment.update(id, { file_name: newName });
     queryClient.invalidateQueries({ queryKey: ['attachments', recordType, recordId] });
     toast.success('Renamed');
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Permanently delete this file? This cannot be undone.')) return;
-    await base44.entities.Attachment.delete(id);
-    queryClient.invalidateQueries({ queryKey: ['attachments', recordType, recordId] });
-    toast.success('File deleted');
   };
 
   const handleReplace = async (oldAtt, newFile) => {
@@ -313,7 +302,6 @@ export default function AttachmentManager({
               onArchive={handleArchive}
               onRename={handleRename}
               onReplace={handleReplace}
-              onDelete={handleDelete}
             />
           ))}
 

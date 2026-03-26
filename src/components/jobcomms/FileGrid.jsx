@@ -39,6 +39,14 @@ function FileCard({ file, onImageClick }) {
     setShowMenu(false);
   };
 
+  const deleteFile = async () => {
+    if (!window.confirm('Permanently delete this file? This cannot be undone.')) return;
+    await base44.entities.JobFile.delete(file.id);
+    queryClient.invalidateQueries({ queryKey: ['job-files', file.job_id] });
+    toast.success('File deleted');
+    setShowMenu(false);
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden group relative">
       {/* Preview area */}
@@ -74,6 +82,9 @@ function FileCard({ file, onImageClick }) {
                 </a>
                 <button onClick={archive} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted transition-colors text-left">
                   <Archive className="w-3.5 h-3.5" /> Archive
+                </button>
+                <button onClick={deleteFile} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted text-destructive hover:text-destructive transition-colors text-left">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
                 </button>
               </div>
             )}

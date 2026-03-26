@@ -208,12 +208,12 @@ export default function NewJobPage() {
       let customerId = '';
 
       if (useNewClient && newClientFields.name) {
-        // Create new Lead record
+        // Create new Lead record (uses contact_name as primary field)
         const newLead = await base44.entities.Lead.create({
-          name: newClientFields.name,
+          contact_name: newClientFields.name,
           email: newClientFields.email,
           phone: newClientFields.phone,
-          status: 'active',
+          status: 'new_lead',
         });
         customerName = newClientFields.name;
         customerEmail = newClientFields.email;

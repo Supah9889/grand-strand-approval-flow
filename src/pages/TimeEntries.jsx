@@ -398,7 +398,7 @@ export default function TimeEntries() {
                         Approve
                       </button>
                     )}
-                    <button onClick={() => navigate(`/time-entries/${entry.id}`)} className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-lg hover:bg-muted">
+                    <button onClick={() => navigate(`/time-entries/${entry.id}`)} aria-label={`View time entry detail for ${entry.employee_name}`} className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-lg hover:bg-muted">
                       View →
                     </button>
                   </div>

@@ -106,6 +106,7 @@ function AuditEntryRow({ log }) {
           {hasDetails && (
             <button
               onClick={() => setExpanded(e => !e)}
+              aria-label={expanded ? 'Hide audit entry details' : 'Show audit entry details'}
               className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground mt-1.5 transition-colors"
             >
               {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -293,10 +294,11 @@ export default function AuditLogPage() {
             placeholder="Search by actor, detail, address, record ID..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(0); }}
+            aria-label="Search audit log by actor, detail, address, or record ID"
             className="pl-9 h-9 rounded-xl text-sm"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
               <X className="w-3.5 h-3.5" />
             </button>
           )}

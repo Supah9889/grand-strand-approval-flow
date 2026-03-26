@@ -14,6 +14,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 // Core pages (loaded immediately)
 import Splash from './pages/Splash';
 import AccessGate from './pages/AccessGate';
+import VerifyInvitePublic from './pages/VerifyInvite';
 
 // Lazy-loaded pages (code splitting)
 const Notes = lazy(() => import('./pages/Notes'));
@@ -59,7 +60,7 @@ const EstimateDetail = lazy(() => import('./pages/EstimateDetail'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const JobHub = lazy(() => import('./pages/JobHub'));
 const AdminOverview = lazy(() => import('./pages/AdminOverview'));
-const VerifyInvite = lazy(() => import('./pages/VerifyInvite'));
+// VerifyInvite is loaded eagerly as a public route (no auth required)
 const GlobalSearch = lazy(() => import('./pages/GlobalSearch'));
 const NewJobPage = lazy(() => import('./pages/NewJobPage'));
 const MobileSettings = lazy(() => import('./pages/MobileSettings'));
@@ -121,7 +122,6 @@ const AuthenticatedApp = () => {
               <Route path="/approve" element={<JobApproval />} />
               <Route path="/confirmation" element={<Confirmation />} />
               <Route path="/review" element={<Review />} />
-              <Route path="/verify-invite" element={<VerifyInvite />} />
 
               {/* Dashboard Routes */}
               <Route path="/dashboard" element={<Dashboard />} />
@@ -199,7 +199,11 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <NavigationProvider>
-            <AuthenticatedApp />
+            {/* Public route — must be checked before AuthenticatedApp to avoid auth gate */}
+            <Routes>
+              <Route path="/verify-invite" element={<VerifyInvitePublic />} />
+              <Route path="*" element={<AuthenticatedApp />} />
+            </Routes>
           </NavigationProvider>
         </Router>
         <Toaster />

@@ -242,8 +242,8 @@ export const audit = {
         { module: 'payment', record_id: id, is_sensitive: true, ...opts }),
 
     deleted: (id, actor, label, opts = {}) =>
-      logAudit(id, 'record_deleted', actor,
-        `${actor} deleted payment: ${label}.`,
+      logAudit(id, 'logged_payment_deleted', actor,
+        `${actor} deleted logged payment: ${label}.`,
         { module: 'payment', record_id: id, is_sensitive: true, ...opts }),
   },
 

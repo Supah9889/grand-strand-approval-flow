@@ -44,7 +44,7 @@ const METHODS = { check: 'Check', ach: 'ACH', card: 'Card', cash: 'Cash', zelle:
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
   const role = getInternalRole();
-  const { permissions } = usePermissions();
+  const { permissions, loading } = usePermissions();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [filterMethod, setFilterMethod] = useState('all');
@@ -171,13 +171,13 @@ export default function PaymentsPage() {
     return [...l].sort(sortFns[sort] || sortFns.newest);
   }, [payments, filterMethod, filterJob, search, sort]);
 
-  if (role !== 'admin') {
+  if (!permissions.manage_payments && !loading) {
     return (
       <AppLayout title="Payments">
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center space-y-2">
             <AlertCircle className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-            <p className="text-sm text-muted-foreground">Access restricted to admin users.</p>
+            <p className="text-sm text-muted-foreground">You don't have permission to view payments.</p>
           </div>
         </div>
       </AppLayout>

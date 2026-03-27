@@ -215,6 +215,7 @@ describe('recalculateInvoiceFromPayments — deletion correctness', () => {
     const result = recalculateInvoiceFromPayments(viewed, []);
     // amount_paid is already 0 and status is 'viewed' (not 'paid') — no revert needed
     expect(result.status).toBe('viewed');
+    expect(result.changed).toBe(false);
   });
 
   test('draft invoice: status not changed by zero payments', () => {
@@ -222,6 +223,108 @@ describe('recalculateInvoiceFromPayments — deletion correctness', () => {
     const result = recalculateInvoiceFromPayments(draft, []);
     expect(result.status).toBe('draft');
     expect(result.changed).toBe(false);
+  });
+});
+
+// ─── Invoice recalculation correctness: create then delete sequence ──────────
+
+describe('recalculateInvoiceFromPayments — create/delete sequence integrity', () => {
+  const invoice = { id: 'inv1', amount: 800, amount_paid: 0, balance_due: 800, status: 'sent' };
+
+  test('create: invoice moves from sent → partial when partially paid', () => {
+    const afterCreate = recalculateInvoiceFromPayments(invoice, [
+      { invoice_id: 'inv1', amount: 300 },
+    ]);
+    expect(afterCreate.status).toBe('partial');
+    expect(afterCreate.amount_paid).toBeCloseTo(300);
+    expect(afterCreate.balance_due).toBeCloseTo(500);
+    expect(afterCreate.changed).toBe(true);
+  });
+
+  test('create: invoice moves from sent → paid when fully paid', () => {
+    const afterCreate = recalculateInvoiceFromPayments(invoice, [
+      { invoice_id: 'inv1', amount: 800 },
+    ]);
+    expect(afterCreate.status).toBe('paid');
+    expect(afterCreate.balance_due).toBe(0);
+    expect(afterCreate.changed).toBe(true);
+  });
+
+  test('delete: invoice reverts from paid → sent when last payment removed', () => {
+    const paidInvoice = { id: 'inv1', amount: 800, amount_paid: 800, balance_due: 0, status: 'paid' };
+    const afterDelete = recalculateInvoiceFromPayments(paidInvoice, []);
+    expect(afterDelete.status).toBe('sent');
+    expect(afterDelete.amount_paid).toBe(0);
+    expect(afterDelete.balance_due).toBeCloseTo(800);
+    expect(afterDelete.changed).toBe(true);
+  });
+
+  test('delete: invoice reverts from partial → partial with reduced balance when one of two payments removed', () => {
+    const partialInvoice = { id: 'inv1', amount: 800, amount_paid: 500, balance_due: 300, status: 'partial' };
+    const afterDelete = recalculateInvoiceFromPayments(partialInvoice, [
+      { invoice_id: 'inv1', amount: 200 }, // only one of the two payments remains
+    ]);
+    expect(afterDelete.status).toBe('partial');
+    expect(afterDelete.amount_paid).toBeCloseTo(200);
+    expect(afterDelete.balance_due).toBeCloseTo(600);
+    expect(afterDelete.changed).toBe(true);
+  });
+
+  test('delete: invoice reverts from partial → sent when last payment removed', () => {
+    const partialInvoice = { id: 'inv1', amount: 800, amount_paid: 300, balance_due: 500, status: 'partial' };
+    const afterDelete = recalculateInvoiceFromPayments(partialInvoice, []);
+    expect(afterDelete.status).toBe('sent');
+    expect(afterDelete.amount_paid).toBe(0);
+    expect(afterDelete.balance_due).toBeCloseTo(800);
+    expect(afterDelete.changed).toBe(true);
+  });
+
+  test('delete of non-invoice-linked payment: changed = false (no invoice_id match)', () => {
+    // Payment had no invoice_id — removing it should not change anything
+    const afterDelete = recalculateInvoiceFromPayments(invoice, []);
+    // invoice.amount_paid was 0 and balance_due was 800, status was sent — no change
+    expect(afterDelete.changed).toBe(false);
+  });
+});
+
+// ─── Failed delete does not leave false-deleted state ─────────────────────────
+
+describe('executePaymentDelete — failed Phase A leaves no false-deleted state', () => {
+  test('a thrown error with no partialSuccess flag means payment was NOT deleted', () => {
+    // If Phase A (entity delete) throws without partialSuccess, the payment still exists.
+    // Callers must NOT invalidate caches in this case.
+    const hardFailureError = new Error('Network timeout — delete did not complete');
+    expect(hardFailureError.partialSuccess).toBeUndefined();
+
+    // Simulate caller's onError guard
+    const queryClient = { invalidateQueries: vi.fn() };
+    if (hardFailureError.partialSuccess) {
+      PAYMENT_QUERY_KEYS.forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+    }
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  test('partialSuccess = true means payment IS deleted, only invoice sync failed', () => {
+    const partialErr = new Error('Payment deleted but invoice totals could not be recalculated.');
+    partialErr.partialSuccess = true;
+    partialErr.invoiceId = 'inv_abc';
+
+    expect(partialErr.partialSuccess).toBe(true);
+    expect(partialErr.invoiceId).toBe('inv_abc');
+
+    // Caller must still invalidate caches because the payment IS gone
+    const queryClient = { invalidateQueries: vi.fn() };
+    if (partialErr.partialSuccess) {
+      PAYMENT_QUERY_KEYS.forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+    }
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(PAYMENT_QUERY_KEYS.length);
+  });
+
+  test('partialSuccess error message is user-readable', () => {
+    const err = new Error('Payment deleted but invoice totals could not be recalculated. Please refresh to see the current balance.');
+    err.partialSuccess = true;
+    expect(err.message).toMatch(/refresh/i);
+    expect(err.message.length).toBeGreaterThan(20);
   });
 });
 

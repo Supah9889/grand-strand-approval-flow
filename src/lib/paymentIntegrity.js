@@ -42,8 +42,8 @@ export function recalculateInvoiceFromPayments(invoice, allPayments) {
       status = 'paid';
     } else if (amount_paid > 0 && balance_due > 0) {
       status = 'partial';
-    } else if (amount_paid === 0 && invoice.status === 'paid') {
-      // Payment was deleted — revert to sent/viewed if it was paid
+    } else if (amount_paid === 0 && (invoice.status === 'paid' || invoice.status === 'partial')) {
+      // Payment was deleted — revert paid or partial back to sent when all payments are gone
       status = 'sent';
     }
     // If amount_paid === 0 and status is draft/sent/viewed/overdue — leave it alone

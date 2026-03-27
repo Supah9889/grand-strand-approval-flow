@@ -104,39 +104,61 @@ describe('delete_payments permission', () => {
 // ─── Audit action for logged payment deletion ─────────────────────────────────
 
 describe('audit.payment.deleted — emits logged_payment_deleted action', () => {
-  let capturedEntry = null;
-
-  beforeEach(() => {
-    capturedEntry = null;
-    // Spy on the underlying AuditLog.create to capture what gets written
-    vi.spyOn(
-      // We test the action value by inspecting what logAudit is called with.
-      // Since logAudit calls base44.entities.AuditLog.create internally,
-      // we verify the action string that audit.payment.deleted passes.
-      // Use a direct unit approach: call the helper and capture the first arg of logAudit.
-      { fn: () => {} }, 'fn'
-    );
-  });
-
-  test('payment.deleted helper passes logged_payment_deleted as action', () => {
-    // We test the label/action by inspecting the ACTION_LABELS map in audit.js
-    // which should map logged_payment_deleted to a defined label.
-    // This is a structural test that the action string is correctly defined.
-    const { ACTION_LABELS } = require('../audit');
-    expect(ACTION_LABELS['logged_payment_deleted']).toBeDefined();
-    expect(ACTION_LABELS['logged_payment_deleted'].label).toBe('Logged Payment Deleted');
-  });
-
   test('audit module exports payment.deleted as a function', () => {
     expect(typeof audit.payment.deleted).toBe('function');
   });
 
-  test('ACTION_LABELS has correct entry for logged_payment_deleted', () => {
+  test('ACTION_LABELS has entry for logged_payment_deleted', () => {
     const { ACTION_LABELS } = require('../audit');
     const entry = ACTION_LABELS['logged_payment_deleted'];
     expect(entry).toBeDefined();
-    expect(entry.color).toBeDefined();
+    expect(entry.label).toBe('Logged Payment Deleted');
     // Should be a destructive/red color since it's a deletion
     expect(entry.color).toContain('destructive');
+  });
+
+  test('audit.payment.recorded is a separate function from audit.payment.deleted', () => {
+    expect(typeof audit.payment.recorded).toBe('function');
+    expect(audit.payment.recorded).not.toBe(audit.payment.deleted);
+  });
+
+  test('audit.payment.edited is a separate function', () => {
+    expect(typeof audit.payment.edited).toBe('function');
+  });
+});
+
+// ─── Page-level access gate (simulates PaymentsPage guard) ────────────────────
+
+describe('PaymentsPage access gate — permission-based', () => {
+  test('page is inaccessible when manage_payments is false', () => {
+    const perms = resolvePermissions({ role: 'staff' });
+    // Simulates: if (!permissions.manage_payments && !loading) return <AccessDenied>
+    expect(perms.manage_payments).toBe(false);
+  });
+
+  test('page is accessible when manage_payments is true', () => {
+    const perms = resolvePermissions({ role: 'admin' });
+    expect(perms.manage_payments).toBe(true);
+  });
+
+  test('page is accessible to owner without stored perms', () => {
+    const perms = resolvePermissions({ role: 'owner' });
+    expect(perms.manage_payments).toBe(true);
+  });
+
+  test('page is accessible to staff with explicit manage_payments grant', () => {
+    const perms = resolvePermissions({
+      role: 'staff',
+      storedRolePerms: { manage_payments: true },
+    });
+    expect(perms.manage_payments).toBe(true);
+  });
+
+  test('page is inaccessible when admin has manage_payments revoked individually', () => {
+    const perms = resolvePermissions({
+      role: 'admin',
+      employeeOverrides: { manage_payments: false },
+    });
+    expect(perms.manage_payments).toBe(false);
   });
 });

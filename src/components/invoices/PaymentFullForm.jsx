@@ -35,7 +35,8 @@ export default function PaymentFullForm({ jobs = [], invoices = [], onSave, onCa
       set('customer_name', inv.customer_name || '');
       set('job_id', inv.job_id || '');
       set('job_address', inv.job_address || '');
-      const bal = Number(inv.balance_due || inv.amount || 0) - Number(inv.amount_paid || 0);
+      // balance_due is already (amount - amount_paid); use it directly
+      const bal = Number(inv.balance_due ?? inv.amount ?? 0);
       set('amount', Math.max(0, bal).toFixed(2));
     }
   };
@@ -77,7 +78,7 @@ export default function PaymentFullForm({ jobs = [], invoices = [], onSave, onCa
         </Select>
         {selectedInvoice && (
           <div className="mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs text-amber-700">
-            Balance due: ${fmt(Number(selectedInvoice.balance_due ?? selectedInvoice.amount) - Number(selectedInvoice.amount_paid || 0))}
+            Balance due: ${fmt(Number(selectedInvoice.balance_due ?? selectedInvoice.amount ?? 0))}
           </div>
         )}
       </div>

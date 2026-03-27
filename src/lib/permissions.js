@@ -44,6 +44,7 @@ export const PERMISSIONS = {
   manage_invoices:         { label: 'Manage Invoices',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
   manage_bills:            { label: 'Manage Bills',             category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
   manage_payments:         { label: 'Manage Payments',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
+  delete_payments:         { label: 'Delete Logged Payments',   category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
   view_cost_inbox:         { label: 'View Cost Inbox',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
   manage_cost_inbox:       { label: 'Manage Cost Inbox',        category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
   manage_expenses:         { label: 'Manage Expenses',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },

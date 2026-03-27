@@ -655,6 +655,7 @@ export const ACTION_LABELS = {
   payment_recorded:                 { label: 'Payment Recorded',                  color: 'text-green-600' },
   payment_edited:                   { label: 'Payment Edited',                    color: 'text-amber-600' },
   payment_applied:                  { label: 'Payment Applied',                   color: 'text-green-600' },
+  logged_payment_deleted:           { label: 'Logged Payment Deleted',            color: 'text-destructive' },
 
   bill_created:                     { label: 'Bill Created',                      color: 'text-foreground' },
   bill_edited:                      { label: 'Bill Edited',                       color: 'text-amber-600' },

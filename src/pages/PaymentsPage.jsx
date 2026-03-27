@@ -11,7 +11,9 @@ import AppLayout from '../components/AppLayout';
 import PaymentFullForm from '../components/invoices/PaymentFullForm';
 import { fmt } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
-import { logAudit } from '@/lib/audit';
+import { audit } from '@/lib/audit';
+import { syncInvoiceAfterPaymentChange } from '@/lib/paymentIntegrity';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 function DeletePaymentDialog({ payment, onConfirm, onCancel }) {
@@ -42,6 +44,7 @@ const METHODS = { check: 'Check', ach: 'ACH', card: 'Card', cash: 'Cash', zelle:
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
   const role = getInternalRole();
+  const { permissions } = usePermissions();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [filterMethod, setFilterMethod] = useState('all');
@@ -53,57 +56,86 @@ export default function PaymentsPage() {
   const { data: invoices = [] } = useQuery({ queryKey: ['invoices'], queryFn: () => base44.entities.Invoice.list('-created_date') });
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+  };
+
   const createPayment = useMutation({
     mutationFn: async (d) => {
+      const user = await base44.auth.me().catch(() => null);
+      const actor = user?.email || role || 'admin';
       const p = await base44.entities.Payment.create(d);
+      // Log the payment creation
+      audit.payment.recorded(p.id, actor, p.customer_name, fmt(p.amount), {
+        job_id: p.job_id,
+        job_address: p.job_address,
+        record_id: p.id,
+        is_sensitive: true,
+        new_value: JSON.stringify({ amount: p.amount, payment_date: p.payment_date, invoice_id: p.invoice_id }),
+      });
+      // Sync invoice using centralized logic
       if (d.invoice_id) {
-        const inv = invoices.find(i => i.id === d.invoice_id);
-        if (inv) {
-          const paid = Number(inv.amount_paid || 0) + Number(d.amount);
-          const bal = Number(inv.amount) - paid;
-          await base44.entities.Invoice.update(d.invoice_id, {
-            amount_paid: paid,
-            balance_due: Math.max(0, bal),
-            status: bal <= 0 ? 'paid' : 'partial',
-            paid_date: bal <= 0 ? new Date().toISOString() : undefined,
-          });
-        }
+        await syncInvoiceAfterPaymentChange({
+          invoiceId: d.invoice_id,
+          actor,
+          triggerAction: 'payment_recorded',
+          paymentMeta: { id: p.id, amount: p.amount, payment_date: p.payment_date },
+        });
       }
       return p;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      invalidateAll();
       setShowForm(false);
       toast.success('Payment recorded');
+    },
+    onError: (err) => {
+      toast.error(`Failed to record payment: ${err?.message || 'Unknown error'}`);
     },
   });
 
   const deletePayment = useMutation({
     mutationFn: async (payment) => {
-      await base44.entities.Payment.delete(payment.id);
       const user = await base44.auth.me().catch(() => null);
-      logAudit(
-        payment.job_id || payment.id,
-        'payment_edited',
-        user?.email || role,
-        `Logged payment permanently deleted: $${fmt(payment.amount)} from ${payment.customer_name || payment.job_address || 'unknown'} on ${payment.payment_date || 'unknown date'}`,
+      const actor = user?.email || role || 'admin';
+      const invoiceId = payment.invoice_id;
+
+      // Delete the payment record
+      await base44.entities.Payment.delete(payment.id);
+
+      // Audit the deletion (action = logged_payment_deleted for traceability)
+      audit.payment.deleted(
+        payment.id,
+        actor,
+        `$${fmt(payment.amount)} from ${payment.customer_name || payment.job_address || 'unknown'} on ${payment.payment_date || 'unknown date'}`,
         {
-          module: 'payment',
-          record_id: payment.id,
           job_id: payment.job_id,
           job_address: payment.job_address,
+          record_id: payment.id,
+          is_sensitive: true,
+          old_value: JSON.stringify({ amount: payment.amount, payment_date: payment.payment_date, invoice_id: invoiceId }),
         }
       );
+
+      // Sync linked invoice — refetch payments from DB since we just deleted one
+      if (invoiceId) {
+        await syncInvoiceAfterPaymentChange({
+          invoiceId,
+          actor,
+          triggerAction: 'logged_payment_deleted',
+          paymentMeta: { id: payment.id, amount: payment.amount, payment_date: payment.payment_date },
+        });
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      invalidateAll();
       setConfirmDelete(null);
       toast.success('Payment deleted');
     },
     onError: (err) => {
+      // Do NOT clear confirmDelete on error — let user see the state hasn't changed
       setConfirmDelete(null);
       toast.error(`Delete failed: ${err?.message || 'Unknown error'}`);
     },
@@ -269,12 +301,14 @@ export default function PaymentsPage() {
                     <div className="shrink-0 text-right flex flex-col items-end gap-1">
                       <p className="text-lg font-black text-green-600">+${fmt(p.amount)}</p>
                       {p.recorded_by && <p className="text-xs text-muted-foreground">{p.recorded_by}</p>}
-                      <button
-                        onClick={() => setConfirmDelete(p)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors mt-1"
-                      >
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
+                      {permissions?.delete_payments && (
+                        <button
+                          onClick={() => setConfirmDelete(p)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors mt-1"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

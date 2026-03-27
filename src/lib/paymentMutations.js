@@ -1,5 +1,5 @@
 /**
- * paymentMutations.js — Phase 1B shared payment mutation logic.
+ * paymentMutations.js — Phase 1B/1C shared payment mutation logic.
  *
  * Single execution path for all payment create/delete operations across
  * PaymentsPage, Financials, and any future entry points.
@@ -7,8 +7,16 @@
  * Each function:
  *  - resolves the actor from the current session
  *  - persists the entity change
- *  - fires audit logging
+ *  - fires audit logging (fire-and-forget — never blocks the primary operation)
  *  - triggers invoice recalculation via syncInvoiceAfterPaymentChange
+ *
+ * Phase 1C hardening:
+ *  - executePaymentDelete uses a two-phase error model:
+ *    Phase A (entity delete) — hard failure: throws, caller sees error, no state changed.
+ *    Phase B (invoice sync)  — best-effort: always attempted after a successful delete,
+ *      logs a warning audit if it fails, and re-throws so the caller can re-fetch and
+ *      show an appropriate message.
+ *  - Audit is written after entity delete succeeds (fire-and-forget, never blocks).
  *
  * Returns the created/deleted record so callers can react (e.g. show toast).
  */
@@ -70,16 +78,25 @@ export async function executePaymentCreate(data) {
 /**
  * Delete a logged payment, emit audit, and sync the linked invoice.
  *
+ * Phase 1C two-phase error model:
+ *  - Phase A: entity delete — any failure here throws immediately; nothing has changed.
+ *  - Phase B: invoice sync — attempted after successful delete. If it fails, a warning
+ *    audit is written and the error is re-thrown so the caller can re-fetch true state.
+ *    The payment IS deleted at this point; the caller should still invalidate caches.
+ *
  * @param {object} payment — the full Payment record to delete
- * @returns {Promise<void>}
+ * @returns {Promise<{ invoiceSynced: boolean }>}
+ *   invoiceSynced = false signals a partial success (payment deleted, sync failed).
  */
 export async function executePaymentDelete(payment) {
   const actor = await resolveActor();
   const invoiceId = payment.invoice_id;
 
+  // ── Phase A: delete the entity. Hard failure — throws if it fails. ──────────
   await base44.entities.Payment.delete(payment.id);
 
-  // Audit: logged payment deleted
+  // ── Audit: fire-and-forget after successful delete ───────────────────────────
+  // Never await — audit failure must never block the caller or hide the delete result.
   audit.payment.deleted(
     payment.id,
     actor,
@@ -97,15 +114,40 @@ export async function executePaymentDelete(payment) {
     }
   );
 
-  // Sync linked invoice
+  // ── Phase B: invoice sync — best-effort, but surface failures ───────────────
   if (invoiceId) {
-    await syncInvoiceAfterPaymentChange({
-      invoiceId,
-      actor,
-      triggerAction: 'logged_payment_deleted',
-      paymentMeta: { id: payment.id, amount: payment.amount, payment_date: payment.payment_date },
-    });
+    try {
+      await syncInvoiceAfterPaymentChange({
+        invoiceId,
+        actor,
+        triggerAction: 'logged_payment_deleted',
+        paymentMeta: { id: payment.id, amount: payment.amount, payment_date: payment.payment_date },
+      });
+    } catch (syncErr) {
+      // Payment is already deleted. Log the sync failure and signal the caller
+      // so it can re-fetch and show a warning (invoice totals may be stale).
+      audit.payment.edited(
+        invoiceId,
+        actor,
+        `Invoice sync failed after payment deletion (payment ${payment.id}): ${syncErr?.message || 'unknown error'}`,
+        {
+          job_id: payment.job_id,
+          job_address: payment.job_address,
+          is_sensitive: true,
+          new_value: 'sync_failed',
+        }
+      );
+      // Re-throw a descriptive error so the caller can handle the partial-success state.
+      const err = new Error(
+        `Payment deleted but invoice totals could not be recalculated. Please refresh to see the current balance.`
+      );
+      err.partialSuccess = true; // flag: payment IS gone, only sync failed
+      err.invoiceId = invoiceId;
+      throw err;
+    }
   }
+
+  return { invoiceSynced: !!invoiceId };
 }
 
 /** The canonical set of query keys to invalidate after any payment mutation. */

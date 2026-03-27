@@ -14,7 +14,7 @@ import { executePaymentCreate, executePaymentDelete, invalidatePaymentQueries } 
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
-function DeletePaymentDialog({ payment, onConfirm, onCancel }) {
+function DeletePaymentDialog({ payment, onConfirm, onCancel, isDeleting, errorMessage }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-xs space-y-4">
@@ -23,13 +23,16 @@ function DeletePaymentDialog({ payment, onConfirm, onCancel }) {
           <p className="text-xs text-muted-foreground">
             ${fmt(payment.amount)} from <span className="font-medium text-foreground">{payment.customer_name || payment.job_address || 'this record'}</span> will be permanently deleted and cannot be recovered.
           </p>
+          {errorMessage && (
+            <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 mt-1">{errorMessage}</p>
+          )}
         </div>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 h-9 rounded-xl border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors">
+          <button onClick={onCancel} disabled={isDeleting} className="flex-1 h-9 rounded-xl border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={onConfirm} className="flex-1 h-9 rounded-xl bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-colors">
-            Delete
+          <button onClick={onConfirm} disabled={isDeleting} className="flex-1 h-9 rounded-xl bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+            {isDeleting ? <><Loader2 className="w-3 h-3 animate-spin" /> Deleting…</> : 'Delete'}
           </button>
         </div>
       </div>
@@ -48,6 +51,7 @@ export default function PaymentsPage() {
   const [filterJob, setFilterJob] = useState('all');
   const [sort, setSort] = useState('newest');
   const [confirmDelete, setConfirmDelete] = useState(null); // payment object to delete
+  const [deleteError, setDeleteError] = useState(null);    // error message shown inside dialog
 
   const { data: payments = [], isLoading } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list('-created_date') });
   const { data: invoices = [] } = useQuery({ queryKey: ['invoices'], queryFn: () => base44.entities.Invoice.list('-created_date') });
@@ -68,13 +72,24 @@ export default function PaymentsPage() {
   const deletePayment = useMutation({
     mutationFn: (payment) => executePaymentDelete(payment),
     onSuccess: () => {
+      // Always invalidate to reflect true server state
       invalidatePaymentQueries(queryClient);
       setConfirmDelete(null);
+      setDeleteError(null);
       toast.success('Payment deleted');
     },
     onError: (err) => {
-      setConfirmDelete(null);
-      toast.error(`Delete failed: ${err?.message || 'Unknown error'}`);
+      if (err?.partialSuccess) {
+        // Payment was deleted but invoice sync failed.
+        // Invalidate to remove the payment from the list (it IS gone),
+        // but keep the dialog open with a warning so the user knows to refresh invoices.
+        invalidatePaymentQueries(queryClient);
+        setDeleteError(err.message);
+        toast.warning('Payment deleted — invoice balance may need a moment to update.');
+      } else {
+        // Full failure: payment was NOT deleted. Keep dialog open with the error.
+        setDeleteError(`Delete failed: ${err?.message || 'Unknown error'}`);
+      }
     },
   });
 
@@ -126,8 +141,10 @@ export default function PaymentsPage() {
       {confirmDelete && (
         <DeletePaymentDialog
           payment={confirmDelete}
-          onConfirm={() => deletePayment.mutate(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => { setDeleteError(null); deletePayment.mutate(confirmDelete); }}
+          onCancel={() => { setConfirmDelete(null); setDeleteError(null); }}
+          isDeleting={deletePayment.isPending}
+          errorMessage={deleteError}
         />
       )}
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">

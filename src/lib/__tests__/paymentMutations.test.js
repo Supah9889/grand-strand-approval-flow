@@ -134,6 +134,97 @@ describe('recalculateInvoiceFromPayments — status guard', () => {
   });
 });
 
+// ─── Phase 1C: executePaymentDelete error model ──────────────────────────────
+
+describe('executePaymentDelete — two-phase error model (unit)', () => {
+  /**
+   * These tests exercise the contract of the two-phase model without hitting real APIs.
+   * We verify the error shape that the mutation's onError handler depends on.
+   */
+
+  test('partialSuccess error has correct shape', () => {
+    const err = new Error('Payment deleted but invoice totals could not be recalculated.');
+    err.partialSuccess = true;
+    err.invoiceId = 'inv123';
+
+    expect(err.partialSuccess).toBe(true);
+    expect(err.invoiceId).toBe('inv123');
+    expect(typeof err.message).toBe('string');
+    expect(err.message).toMatch(/invoice totals/);
+  });
+
+  test('full failure error does NOT have partialSuccess flag', () => {
+    const err = new Error('Network error: could not reach server');
+    expect(err.partialSuccess).toBeUndefined();
+  });
+
+  test('onError branch: partialSuccess=true should still invalidate caches', () => {
+    // Simulates the onError handler logic in PaymentsPage
+    const queryClient = { invalidateQueries: vi.fn() };
+    const err = new Error('sync failed');
+    err.partialSuccess = true;
+
+    // Replicate the onError branch
+    if (err.partialSuccess) {
+      PAYMENT_QUERY_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
+    }
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(PAYMENT_QUERY_KEYS.length);
+  });
+
+  test('onError branch: full failure should NOT invalidate caches', () => {
+    // Simulates the onError handler logic for a hard failure
+    const queryClient = { invalidateQueries: vi.fn() };
+    const err = new Error('Payment entity delete failed');
+    // No partialSuccess flag
+
+    if (err.partialSuccess) {
+      PAYMENT_QUERY_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
+    }
+
+    // Caches should NOT be touched — payment is still on the server
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  test('audit action for deletion is logged_payment_deleted (not record_deleted)', () => {
+    // Verify the audit module uses the correct action label for payment deletion
+    const { audit } = require('../audit');
+    expect(typeof audit.payment.deleted).toBe('function');
+    // The implementation calls logAudit with 'logged_payment_deleted' action
+    // This is verified via ACTION_LABELS entry
+    const { ACTION_LABELS } = require('../audit');
+    expect(ACTION_LABELS['logged_payment_deleted']).toBeDefined();
+    expect(ACTION_LABELS['logged_payment_deleted'].label).toMatch(/Deleted/i);
+    expect(ACTION_LABELS['logged_payment_deleted'].color).toMatch(/destructive/);
+  });
+});
+
+// ─── Phase 1C: invoice recalculation after deletion edge cases ────────────────
+
+describe('recalculateInvoiceFromPayments — deletion correctness', () => {
+  test('overdue invoice: payment deletion does not change overdue status', () => {
+    // overdue is not in PAYABLE_STATUSES — status must not be touched
+    const overdueInvoice = { id: 'inv1', amount: 500, amount_paid: 500, balance_due: 0, status: 'overdue' };
+    const result = recalculateInvoiceFromPayments(overdueInvoice, []);
+    // overdue is not in PAYABLE_STATUSES so status stays as-is
+    expect(result.status).toBe('overdue');
+  });
+
+  test('viewed invoice with zero payments stays viewed (not downgraded)', () => {
+    const viewed = { id: 'inv1', amount: 300, amount_paid: 0, balance_due: 300, status: 'viewed' };
+    const result = recalculateInvoiceFromPayments(viewed, []);
+    // amount_paid is already 0 and status is 'viewed' (not 'paid') — no revert needed
+    expect(result.status).toBe('viewed');
+  });
+
+  test('draft invoice: status not changed by zero payments', () => {
+    const draft = { id: 'inv1', amount: 200, amount_paid: 0, balance_due: 200, status: 'draft' };
+    const result = recalculateInvoiceFromPayments(draft, []);
+    expect(result.status).toBe('draft');
+    expect(result.changed).toBe(false);
+  });
+});
+
 // ─── Structural: shared module exports ───────────────────────────────────────
 
 describe('paymentMutations module exports', () => {

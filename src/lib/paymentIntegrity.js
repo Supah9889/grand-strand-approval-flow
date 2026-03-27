@@ -62,9 +62,9 @@ export function recalculateInvoiceFromPayments(invoice, allPayments) {
  * Safe to call after any payment create/edit/delete.
  *
  * @param {object} opts
- * @param {string}   opts.invoiceId   — invoice to sync
- * @param {object}   opts.invoice     — invoice object (optional; fetched if not provided)
- * @param {object[]} opts.payments    — all payments array (optional; fetched if not provided)
+ * @param {string}   opts.invoiceId    — invoice to sync
+ * @param {object}   opts.invoice      — invoice object (optional; fetched if not provided)
+ * @param {object[]} opts.payments     — payments already filtered to this invoice (optional; fetched if not provided)
  * @param {string}   opts.actor       — email/name of who triggered this
  * @param {string}   opts.triggerAction — label for audit (e.g. 'payment_recorded')
  * @param {object}   opts.paymentMeta  — { id, amount, payment_date } of the triggering payment

@@ -203,10 +203,10 @@ describe('executePaymentDelete — two-phase error model (unit)', () => {
 
 describe('recalculateInvoiceFromPayments — deletion correctness', () => {
   test('overdue invoice: payment deletion does not change overdue status', () => {
-    // overdue is not in PAYABLE_STATUSES — status must not be touched
+    // overdue IS in PAYABLE_STATUSES, but with amount_paid=0 and invoice.status !== 'paid'/'partial',
+    // none of the revert conditions fire — status remains overdue as intended.
     const overdueInvoice = { id: 'inv1', amount: 500, amount_paid: 500, balance_due: 0, status: 'overdue' };
     const result = recalculateInvoiceFromPayments(overdueInvoice, []);
-    // overdue is not in PAYABLE_STATUSES so status stays as-is
     expect(result.status).toBe('overdue');
   });
 

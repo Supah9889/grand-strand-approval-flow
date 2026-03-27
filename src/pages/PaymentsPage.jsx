@@ -4,14 +4,38 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Search, Plus, X, Loader2, CreditCard, AlertCircle } from 'lucide-react';
+import { Search, Plus, X, Loader2, CreditCard, AlertCircle, Trash2 } from 'lucide-react';
 import { format, parseISO, isThisWeek } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import PaymentFullForm from '../components/invoices/PaymentFullForm';
 import { fmt } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { logAudit } from '@/lib/audit';
 import { toast } from 'sonner';
+
+function DeletePaymentDialog({ payment, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-xs space-y-4">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">Delete Payment?</p>
+          <p className="text-xs text-muted-foreground">
+            ${fmt(payment.amount)} from <span className="font-medium text-foreground">{payment.customer_name || payment.job_address || 'this record'}</span> will be permanently deleted and cannot be recovered.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 h-9 rounded-xl border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="flex-1 h-9 rounded-xl bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-colors">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const METHODS = { check: 'Check', ach: 'ACH', card: 'Card', cash: 'Cash', zelle: 'Zelle', venmo: 'Venmo', other: 'Other' };
 
@@ -23,6 +47,7 @@ export default function PaymentsPage() {
   const [filterMethod, setFilterMethod] = useState('all');
   const [filterJob, setFilterJob] = useState('all');
   const [sort, setSort] = useState('newest');
+  const [confirmDelete, setConfirmDelete] = useState(null); // payment object to delete
 
   const { data: payments = [], isLoading } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list('-created_date') });
   const { data: invoices = [] } = useQuery({ queryKey: ['invoices'], queryFn: () => base44.entities.Invoice.list('-created_date') });
@@ -51,6 +76,36 @@ export default function PaymentsPage() {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       setShowForm(false);
       toast.success('Payment recorded');
+    },
+  });
+
+  const deletePayment = useMutation({
+    mutationFn: async (payment) => {
+      await base44.entities.Payment.delete(payment.id);
+      const user = await base44.auth.me().catch(() => null);
+      logAudit(
+        payment.job_id || payment.id,
+        'payment_edited',
+        user?.email || role,
+        `Logged payment permanently deleted: $${fmt(payment.amount)} from ${payment.customer_name || payment.job_address || 'unknown'} on ${payment.payment_date || 'unknown date'}`,
+        {
+          module: 'payment',
+          record_id: payment.id,
+          job_id: payment.job_id,
+          job_address: payment.job_address,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      setConfirmDelete(null);
+      toast.success('Payment deleted');
+    },
+    onError: (err) => {
+      setConfirmDelete(null);
+      toast.error(`Delete failed: ${err?.message || 'Unknown error'}`);
     },
   });
 
@@ -99,6 +154,13 @@ export default function PaymentsPage() {
 
   return (
     <AppLayout title="Payments">
+      {confirmDelete && (
+        <DeletePaymentDialog
+          payment={confirmDelete}
+          onConfirm={() => deletePayment.mutate(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
@@ -204,9 +266,15 @@ export default function PaymentsPage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{p.payment_date ? format(parseISO(p.payment_date), 'MMMM d, yyyy') : ''}</p>
                       {p.notes && <p className="text-xs text-muted-foreground italic mt-0.5">{p.notes}</p>}
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 text-right flex flex-col items-end gap-1">
                       <p className="text-lg font-black text-green-600">+${fmt(p.amount)}</p>
-                      {p.recorded_by && <p className="text-xs text-muted-foreground mt-0.5">{p.recorded_by}</p>}
+                      {p.recorded_by && <p className="text-xs text-muted-foreground">{p.recorded_by}</p>}
+                      <button
+                        onClick={() => setConfirmDelete(p)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors mt-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
                     </div>
                   </div>
                 </div>

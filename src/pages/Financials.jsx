@@ -16,7 +16,7 @@ import InvoiceForm from '../components/financials/InvoiceForm';
 import BillForm from '../components/financials/BillForm';
 import PaymentForm from '../components/financials/PaymentForm';
 import { INVOICE_STATUS_CONFIG, BILL_STATUS_CONFIG, fmt, calcJobFinancials } from '@/lib/financialHelpers';
-import { syncInvoiceAfterPaymentChange } from '@/lib/paymentIntegrity';
+import { executePaymentCreate, invalidatePaymentQueries } from '@/lib/paymentMutations';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 
@@ -54,22 +54,9 @@ export default function Financials() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bills'] }); setShowForm(false); toast.success('Bill created'); },
   });
   const createPayment = useMutation({
-    mutationFn: async (d) => {
-      const p = await base44.entities.Payment.create(d);
-      if (d.invoice_id) {
-        await syncInvoiceAfterPaymentChange({
-          invoiceId: d.invoice_id,
-          actor: 'admin',
-          triggerAction: 'payment_recorded',
-          paymentMeta: { id: p.id, amount: d.amount, payment_date: d.payment_date },
-        });
-      }
-      return p;
-    },
+    mutationFn: (d) => executePaymentCreate(d),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      invalidatePaymentQueries(queryClient);
       setShowForm(false);
       toast.success('Payment recorded');
     },

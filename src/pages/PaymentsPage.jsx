@@ -10,9 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import PaymentFullForm from '../components/invoices/PaymentFullForm';
 import { fmt } from '@/lib/financialHelpers';
-import { getInternalRole } from '@/lib/adminAuth';
-import { audit } from '@/lib/audit';
-import { syncInvoiceAfterPaymentChange } from '@/lib/paymentIntegrity';
+import { executePaymentCreate, executePaymentDelete, invalidatePaymentQueries } from '@/lib/paymentMutations';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
@@ -43,7 +41,6 @@ const METHODS = { check: 'Check', ach: 'ACH', card: 'Card', cash: 'Cash', zelle:
 
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
-  const role = getInternalRole();
   const { permissions, loading } = usePermissions();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -56,38 +53,10 @@ export default function PaymentsPage() {
   const { data: invoices = [] } = useQuery({ queryKey: ['invoices'], queryFn: () => base44.entities.Invoice.list('-created_date') });
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['payments'] });
-    queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-  };
-
   const createPayment = useMutation({
-    mutationFn: async (d) => {
-      const user = await base44.auth.me().catch(() => null);
-      const actor = user?.email || role || 'admin';
-      const p = await base44.entities.Payment.create(d);
-      // Log the payment creation
-      audit.payment.recorded(p.id, actor, p.customer_name, fmt(p.amount), {
-        job_id: p.job_id,
-        job_address: p.job_address,
-        record_id: p.id,
-        is_sensitive: true,
-        new_value: JSON.stringify({ amount: p.amount, payment_date: p.payment_date, invoice_id: p.invoice_id }),
-      });
-      // Sync invoice using centralized logic
-      if (d.invoice_id) {
-        await syncInvoiceAfterPaymentChange({
-          invoiceId: d.invoice_id,
-          actor,
-          triggerAction: 'payment_recorded',
-          paymentMeta: { id: p.id, amount: p.amount, payment_date: p.payment_date },
-        });
-      }
-      return p;
-    },
+    mutationFn: (d) => executePaymentCreate(d),
     onSuccess: () => {
-      invalidateAll();
+      invalidatePaymentQueries(queryClient);
       setShowForm(false);
       toast.success('Payment recorded');
     },
@@ -97,45 +66,13 @@ export default function PaymentsPage() {
   });
 
   const deletePayment = useMutation({
-    mutationFn: async (payment) => {
-      const user = await base44.auth.me().catch(() => null);
-      const actor = user?.email || role || 'admin';
-      const invoiceId = payment.invoice_id;
-
-      // Delete the payment record
-      await base44.entities.Payment.delete(payment.id);
-
-      // Audit the deletion (action = logged_payment_deleted for traceability)
-      audit.payment.deleted(
-        payment.id,
-        actor,
-        `$${fmt(payment.amount)} from ${payment.customer_name || payment.job_address || 'unknown'} on ${payment.payment_date || 'unknown date'}`,
-        {
-          job_id: payment.job_id,
-          job_address: payment.job_address,
-          record_id: payment.id,
-          is_sensitive: true,
-          old_value: JSON.stringify({ amount: payment.amount, payment_date: payment.payment_date, invoice_id: invoiceId }),
-        }
-      );
-
-      // Sync linked invoice — refetch payments from DB since we just deleted one
-      if (invoiceId) {
-        await syncInvoiceAfterPaymentChange({
-          invoiceId,
-          actor,
-          triggerAction: 'logged_payment_deleted',
-          paymentMeta: { id: payment.id, amount: payment.amount, payment_date: payment.payment_date },
-        });
-      }
-    },
+    mutationFn: (payment) => executePaymentDelete(payment),
     onSuccess: () => {
-      invalidateAll();
+      invalidatePaymentQueries(queryClient);
       setConfirmDelete(null);
       toast.success('Payment deleted');
     },
     onError: (err) => {
-      // Do NOT clear confirmDelete on error — let user see the state hasn't changed
       setConfirmDelete(null);
       toast.error(`Delete failed: ${err?.message || 'Unknown error'}`);
     },

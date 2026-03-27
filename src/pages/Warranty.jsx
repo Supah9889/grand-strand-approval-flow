@@ -36,6 +36,11 @@ export default function Warranty() {
     queryKey: ['jobs'],
     queryFn: () => base44.entities.Job.list('-created_date', 200),
   });
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-active'],
+    queryFn: () => base44.entities.Employee.filter({ active: true }),
+    staleTime: 60000,
+  });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -67,7 +72,8 @@ export default function Warranty() {
   });
 
   const activeJobs = jobs.filter(j => j.status !== 'archived');
-  const assignees = [...new Set(items.map(i => i.assigned_to).filter(Boolean))];
+  // Curated assignee options from the employee directory rather than raw record strings.
+  const assignees = employees.map(e => e.name).filter(Boolean).sort();
 
   const stats = useMemo(() => ({
     new: items.filter(i => i.status === 'new').length,

@@ -41,13 +41,19 @@ export default function CalendarPage() {
     queryKey: ['cal-jobs'],
     queryFn: () => base44.entities.Job.list('-created_date', 200),
   });
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-active'],
+    queryFn: () => base44.entities.Employee.filter({ active: true }),
+    staleTime: 60000,
+  });
 
   const updateEvent = useMutation({
     mutationFn: ({ id, data }) => base44.entities.CalendarEvent.update(id, data),
     onSuccess: () => useQueryClient().invalidateQueries({ queryKey: ['calendar-events'] }),
   });
 
-  const assignees = useMemo(() => [...new Set(events.map(e => e.assigned_to).filter(Boolean))].sort(), [events]);
+  // Curated staff options from the employee directory rather than raw event strings.
+  const assignees = useMemo(() => employees.map(e => e.name).filter(Boolean).sort(), [employees]);
 
   const filteredEvents = useMemo(() => {
     let l = events;

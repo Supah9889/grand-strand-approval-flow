@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { X, Send, RotateCcw, CheckCircle2, Trash2, UserX, AlertTriangle } from 'lucide-react';
+import { X, Send, RotateCcw, CheckCircle2, Trash2, UserX, AlertTriangle, Loader2, ShieldAlert } from 'lucide-react';
 import EmployeeInviteStatus from './EmployeeInviteStatus';
 import EmployeeInviteModal from './EmployeeInviteModal';
 import PermissionSwitchboard from './PermissionSwitchboard';
@@ -12,9 +12,32 @@ import { audit } from '@/lib/audit';
 
 export default function EmployeeDetailPanel({ employee, onClose }) {
   const [showInvite, setShowInvite] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false); // 'deactivate' | 'delete' | null
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // 'deactivate' | 'delete' | null
   const queryClient = useQueryClient();
   const actor = getInternalRole() || 'Admin';
+
+  // ── Pre-flight: check for linked records before allowing hard delete ──────
+  // Only runs when the delete confirmation panel is open (enabled: deleteConfirm === 'delete')
+  const { data: linkedCounts, isLoading: checkingLinks } = useQuery({
+    queryKey: ['employee-linked-check', employee.id],
+    queryFn: async () => {
+      const [timeEntries, assignments, calendarEvents] = await Promise.all([
+        base44.entities.TimeEntry.filter({ employee_id: employee.id }),
+        base44.entities.JobAssignment.filter({ employee_id: employee.id }),
+        base44.entities.CalendarEvent.filter({ assigned_to: employee.name }),
+      ]);
+      return {
+        timeEntries: timeEntries.length,
+        assignments: assignments.length,
+        calendarEvents: calendarEvents.length,
+        total: timeEntries.length + assignments.length + calendarEvents.length,
+      };
+    },
+    enabled: deleteConfirm === 'delete',
+    staleTime: 0,
+  });
+
+  const hasLinkedRecords = linkedCounts && linkedCounts.total > 0;
 
   const deactivateMutation = useMutation({
     mutationFn: () => base44.entities.Employee.update(employee.id, { active: false }),
@@ -37,7 +60,7 @@ export default function EmployeeDetailPanel({ employee, onClose }) {
       onClose();
     },
     onError: () => {
-      toast.error('Could not delete — employee may have linked records. Try deactivating instead.');
+      toast.error('Delete failed. Deactivate this employee instead to preserve historical records.');
       setDeleteConfirm(null);
     },
   });
@@ -163,14 +186,46 @@ export default function EmployeeDetailPanel({ employee, onClose }) {
                   <p className="text-xs font-semibold text-destructive flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" />Permanently delete {employee.name}?
                   </p>
-                  <p className="text-xs text-destructive">This cannot be undone. If this employee has linked time entries or records, deletion may fail — deactivate instead.</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1 h-8 rounded-xl text-xs" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-                    <Button variant="destructive" size="sm" className="flex-1 h-8 rounded-xl text-xs"
-                      onClick={() => hardDeleteMutation.mutate()} disabled={hardDeleteMutation.isPending}>
-                      {hardDeleteMutation.isPending ? 'Deleting…' : 'Delete Forever'}
-                    </Button>
-                  </div>
+
+                  {checkingLinks ? (
+                    <div className="flex items-center gap-2 py-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Checking for linked records…</span>
+                    </div>
+                  ) : hasLinkedRecords ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-start gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-700 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-amber-700">Cannot safely delete — linked records exist:</p>
+                          <ul className="text-xs text-amber-700 mt-0.5 space-y-0.5">
+                            {linkedCounts.timeEntries > 0 && <li>• {linkedCounts.timeEntries} time {linkedCounts.timeEntries === 1 ? 'entry' : 'entries'}</li>}
+                            {linkedCounts.assignments > 0 && <li>• {linkedCounts.assignments} job {linkedCounts.assignments === 1 ? 'assignment' : 'assignments'}</li>}
+                            {linkedCounts.calendarEvents > 0 && <li>• {linkedCounts.calendarEvents} calendar {linkedCounts.calendarEvents === 1 ? 'event' : 'events'}</li>}
+                          </ul>
+                          <p className="text-xs text-amber-700 mt-1">Deactivate instead to preserve historical records and audit integrity.</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 rounded-xl text-xs" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                        <Button size="sm" className="flex-1 h-8 rounded-xl text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                          onClick={() => { setDeleteConfirm('deactivate'); }}>
+                          Deactivate Instead
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-destructive">No linked records found. This will permanently remove the employee record and cannot be undone.</p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 rounded-xl text-xs" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                        <Button variant="destructive" size="sm" className="flex-1 h-8 rounded-xl text-xs"
+                          onClick={() => hardDeleteMutation.mutate()} disabled={hardDeleteMutation.isPending}>
+                          {hardDeleteMutation.isPending ? 'Deleting…' : 'Delete Forever'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

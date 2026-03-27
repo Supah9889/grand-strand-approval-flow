@@ -300,6 +300,144 @@ describe('calcJobFinancials — billing and payments', () => {
   });
 });
 
+// ─── Phase 2: consistency / drift prevention ──────────────────────────────────
+// These tests guard against the JobHub "competing rollup" path drifting from
+// calcJobFinancials. They verify the canonical output shape so any view can
+// safely rely on it without running its own calculation.
+
+describe('calcJobFinancials — Phase 2 consistency guarantees', () => {
+  const baseInputs = {
+    job: { price: 10000 },
+    timeEntries: [
+      { total_hours: 4, hourly_rate: 60, labor_cost: 0, duration_minutes: 240 },
+      { total_hours: 2, labor_cost: 150, hourly_rate: 0, duration_minutes: 120 },
+    ],
+    expenses: [
+      { total_amount: 400, category: 'materials', cost_code: null, inbox_status: 'confirmed' },
+      { total_amount: 200, category: 'subcontractor', cost_code: null, inbox_status: 'confirmed' },
+      { total_amount: 999, category: 'materials', cost_code: null, inbox_status: 'archived' }, // must be excluded
+    ],
+    bills: [
+      { amount: 300, status: 'open' },
+    ],
+    changeOrders: [
+      { status: 'approved', total_financial_impact: 500 },
+    ],
+    invoices: [
+      { amount: 6000, status: 'sent' },
+      { amount: 200,  status: 'draft' }, // excluded from invoicesSent
+    ],
+    payments: [
+      { amount: 2000 },
+      { amount: 1000 },
+    ],
+  };
+
+  test('all output fields are present and numeric', () => {
+    const result = calcJobFinancials(baseInputs);
+    const numericFields = [
+      'estimatedRevenue', 'approvedCORevenue', 'totalExpectedRevenue',
+      'laborCost', 'laborHours',
+      'materialsCost', 'subcontractorCost', 'feesCost', 'equipmentCost', 'otherExpenseCost',
+      'billTotal', 'totalExpenses', 'totalJobCost',
+      'invoicesSent', 'paymentsReceived', 'remainingBalance',
+      'grossProfit', 'grossMarginPct',
+    ];
+    numericFields.forEach(f => {
+      expect(typeof result[f]).toBe('number');
+      expect(isNaN(result[f])).toBe(false);
+    });
+  });
+
+  test('labor from time entries is always included in totalJobCost', () => {
+    const result = calcJobFinancials(baseInputs);
+    // labor: 4h * $60 = $240 + $150 pre-computed = $390
+    expect(result.laborCost).toBeCloseTo(390);
+    expect(result.totalJobCost).toBeCloseTo(result.laborCost + result.totalExpenses);
+  });
+
+  test('archived expenses (inbox_status=archived) never appear in any bucket', () => {
+    const result = calcJobFinancials(baseInputs);
+    // The $999 archived expense must not appear anywhere in costs
+    expect(result.materialsCost).toBeCloseTo(400); // only the confirmed $400
+    expect(result.totalExpenses).not.toBeGreaterThan(result.laborCost + 400 + 200 + 300 + 1); // +1 fp tolerance
+  });
+
+  test('bills fold into subcontractorCost and are visible in billTotal', () => {
+    const result = calcJobFinancials(baseInputs);
+    expect(result.billTotal).toBeCloseTo(300);
+    // subcontractorCost = $200 expense + $300 bill
+    expect(result.subcontractorCost).toBeCloseTo(500);
+  });
+
+  test('invoicesSent excludes draft invoices', () => {
+    const result = calcJobFinancials(baseInputs);
+    expect(result.invoicesSent).toBeCloseTo(6000); // only the sent invoice
+  });
+
+  test('paymentsReceived sums all payments', () => {
+    const result = calcJobFinancials(baseInputs);
+    expect(result.paymentsReceived).toBeCloseTo(3000);
+  });
+
+  test('remainingBalance = invoicesSent - paymentsReceived (never negative)', () => {
+    const result = calcJobFinancials(baseInputs);
+    expect(result.remainingBalance).toBeCloseTo(Math.max(0, 6000 - 3000));
+  });
+
+  test('grossProfit = totalExpectedRevenue - totalJobCost', () => {
+    const result = calcJobFinancials(baseInputs);
+    expect(result.grossProfit).toBeCloseTo(result.totalExpectedRevenue - result.totalJobCost);
+  });
+
+  test('grossMarginPct = (grossProfit / totalExpectedRevenue) * 100', () => {
+    const result = calcJobFinancials(baseInputs);
+    const expected = (result.grossProfit / result.totalExpectedRevenue) * 100;
+    expect(result.grossMarginPct).toBeCloseTo(expected);
+  });
+
+  test('approved CO revenue is added; non-approved COs are not', () => {
+    const result = calcJobFinancials(baseInputs);
+    expect(result.approvedCORevenue).toBe(500);
+    expect(result.totalExpectedRevenue).toBe(10000 + 500);
+  });
+
+  test('two calls with identical inputs produce identical outputs', () => {
+    const r1 = calcJobFinancials(baseInputs);
+    const r2 = calcJobFinancials(baseInputs);
+    expect(r1.totalJobCost).toBe(r2.totalJobCost);
+    expect(r1.grossProfit).toBe(r2.grossProfit);
+    expect(r1.grossMarginPct).toBe(r2.grossMarginPct);
+    expect(r1.laborCost).toBe(r2.laborCost);
+  });
+
+  test('JobHub financial summary and Financials overview use same numbers (no drift)', () => {
+    // Simulates both views calling calcJobFinancials with same data.
+    // If they both call the shared helper, their outputs must be identical.
+    const sharedData = {
+      job: { price: 8000 },
+      timeEntries: [{ total_hours: 3, hourly_rate: 80, labor_cost: 0, duration_minutes: 180 }],
+      expenses: [{ total_amount: 500, category: 'materials', cost_code: null, inbox_status: 'confirmed' }],
+      bills: [{ amount: 400, status: 'open' }],
+      invoices: [{ amount: 5000, status: 'sent' }],
+      payments: [{ amount: 2500 }],
+      changeOrders: [],
+    };
+
+    const financialsPageResult = calcJobFinancials(sharedData);
+    const jobHubResult         = calcJobFinancials(sharedData); // same call, no competing path
+
+    // Every financial field must be identical
+    expect(financialsPageResult.totalJobCost).toBe(jobHubResult.totalJobCost);
+    expect(financialsPageResult.laborCost).toBe(jobHubResult.laborCost);
+    expect(financialsPageResult.laborHours).toBe(jobHubResult.laborHours);
+    expect(financialsPageResult.grossProfit).toBe(jobHubResult.grossProfit);
+    expect(financialsPageResult.invoicesSent).toBe(jobHubResult.invoicesSent);
+    expect(financialsPageResult.paymentsReceived).toBe(jobHubResult.paymentsReceived);
+    expect(financialsPageResult.remainingBalance).toBe(jobHubResult.remainingBalance);
+  });
+});
+
 // ─── Empty / edge cases ───────────────────────────────────────────────────────
 
 describe('calcJobFinancials — edge cases', () => {

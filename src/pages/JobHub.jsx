@@ -11,6 +11,7 @@ import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import JobRelatedRecords from '../components/jobs/JobRelatedRecords';
 import { fetchJobRelatedRecords, calculateJobRollups } from '@/lib/recordLinking';
+import { calcJobFinancials, fmt as fmtCurrency } from '@/lib/financialHelpers';
 import JobInternalUsersTab from '../components/jobs/JobInternalUsersTab';
 import JobDetailsExpandedTab from '../components/jobs/JobDetailsExpandedTab';
 import ClientPortalManager from '../components/portal/ClientPortalManager';
@@ -113,6 +114,18 @@ export default function JobHub() {
   });
 
   const jobRollups = relatedRecords ? calculateJobRollups(relatedRecords) : null;
+
+  // Shared financial rollup — same path as Financials page overview.
+  // Fed from relatedRecords so it's always consistent with calcJobFinancials everywhere.
+  const jobFinancials = relatedRecords ? calcJobFinancials({
+    job,
+    expenses:     relatedRecords.expenses     || [],
+    bills:        relatedRecords.bills        || [],
+    timeEntries:  relatedRecords.timeEntries  || [],
+    changeOrders: relatedRecords.changeOrders || [],
+    invoices:     relatedRecords.invoices     || [],
+    payments:     relatedRecords.payments     || [],
+  }) : null;
   const visibleTabs = TABS.filter(t => !t.adminOnly || isAdmin);
 
   if (!jobId) return (
@@ -191,27 +204,35 @@ export default function JobHub() {
           {activeTab === 'details' && (
             <div className="space-y-3">
               <JobDetailsExpandedTab job={job} isAdmin={isAdmin} />
-              {isAdmin && jobRollups && (
+              {isAdmin && jobFinancials && (
                 <div className="bg-card border border-border rounded-2xl p-5">
-                  <h3 className="text-sm font-semibold text-foreground mb-3">Related Records Summary</h3>
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Financial Summary</h3>
                   <div className="grid grid-cols-2 gap-2 text-xs mb-4">
                     <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                      <p className="text-blue-700 font-medium">{jobRollups.invoiceCount}</p>
-                      <p className="text-muted-foreground">Active Invoices</p>
-                    </div>
-                    <div className="bg-amber-50 rounded-lg p-2 border border-amber-200">
-                      <p className="text-amber-700 font-medium">${Number(jobRollups.invoiceTotal).toLocaleString()}</p>
-                      <p className="text-muted-foreground">Invoice Total</p>
+                      <p className="text-blue-700 font-medium">${fmtCurrency(jobFinancials.invoicesSent)}</p>
+                      <p className="text-muted-foreground">Invoiced</p>
                     </div>
                     <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                      <p className="text-green-700 font-medium">${Number(jobRollups.expenseTotal).toLocaleString()}</p>
-                      <p className="text-muted-foreground">Total Expenses</p>
+                      <p className="text-green-700 font-medium">${fmtCurrency(jobFinancials.paymentsReceived)}</p>
+                      <p className="text-muted-foreground">Received</p>
                     </div>
-                    <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
-                      <p className="text-purple-700 font-medium">{jobRollups.totalHours}h</p>
-                      <p className="text-muted-foreground">Time Logged</p>
+                    <div className="bg-amber-50 rounded-lg p-2 border border-amber-200">
+                      <p className="text-amber-700 font-medium">${fmtCurrency(jobFinancials.totalJobCost)}</p>
+                      <p className="text-muted-foreground">Total Cost</p>
+                    </div>
+                    <div className={`rounded-lg p-2 border ${jobFinancials.grossProfit >= 0 ? 'bg-primary/5 border-primary/20' : 'bg-red-50 border-red-200'}`}>
+                      <p className={`font-medium ${jobFinancials.grossProfit >= 0 ? 'text-primary' : 'text-red-600'}`}>
+                        {jobFinancials.grossProfit >= 0 ? '+' : ''}${fmtCurrency(jobFinancials.grossProfit)}
+                      </p>
+                      <p className="text-muted-foreground">Gross Profit ({jobFinancials.grossMarginPct.toFixed(1)}%)</p>
                     </div>
                   </div>
+                  {jobFinancials.laborHours > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Labor: {jobFinancials.laborHours.toFixed(1)} hrs
+                      {jobFinancials.laborCost > 0 ? ` · $${fmtCurrency(jobFinancials.laborCost)}` : ''}
+                    </p>
+                  )}
                 </div>
               )}
               {isAdmin && <JobRelatedRecords related={relatedRecords} isLoading={isLoadingRelated} />}

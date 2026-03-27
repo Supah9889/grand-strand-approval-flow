@@ -16,15 +16,23 @@
  * PROVIDER CONSTANTS
  * Field mapping (existing entity fields → canonical sync metadata):
  *
- *  qb_sync_status      → sync_status   ('not_synced' | 'pending' | 'synced' | 'failed')
- *  qb_export_date      → last_synced_at (ISO timestamp)
- *  qb_export_batch_id  → sync_batch_id
- *  qb_export_error     → sync_error
- *  qb_invoice_id /
- *  qb_vendor_id /
- *  qb_employee_id /
- *  qb_time_activity_id → external_id   (provider-assigned record ID)
+ *  qb_sync_status           → sync_status        ('not_synced' | 'pending' | 'synced' | 'failed')
+ *  qb_export_date           → last_synced_at      (ISO timestamp)
+ *  qb_export_batch_id       → sync_batch_id
+ *  qb_export_error          → sync_error
+ *  qb_export_attempt_count  → sync_attempt_count
  *
+ *  external_id is record-type-specific and resolved via EXTERNAL_ID_FIELDS:
+ *    invoice       → qb_invoice_id       (future field — ready to add to entity)
+ *    payment       → qb_payment_id       (future field — ready to add to entity)
+ *    bill          → qb_bill_id          (future field — ready to add to entity)
+ *    purchase_order→ qb_po_id            (future field — ready to add to entity)
+ *    vendor        → qb_vendor_id        (already on Vendor entity)
+ *    employee      → qb_employee_id      (already on Employee entity)
+ *    time_entry    → qb_time_activity_id (already on TimeEntry entity)
+ *    expense       → qb_expense_id       (already on Expense entity)
+ *
+ * Callers must pass recordType explicitly — record._type is not reliable.
  * These field names are stable on the entities; this module is the
  * canonical way to read and stage updates to them.
  */
@@ -92,9 +100,11 @@ function getExternalIdField(provider, recordType) {
  * Works with the existing qb_* fields already present on entities.
  *
  * @param {object} record — any financial entity record
+ * @param {string} recordType — the entity type key e.g. 'invoice', 'vendor', 'time_entry'
  * @param {string} [provider] — defaults to QUICKBOOKS
  * @returns {{
  *   provider: string,
+ *   record_type: string,
  *   sync_status: string,
  *   external_id: string|null,
  *   last_synced_at: string|null,
@@ -103,28 +113,23 @@ function getExternalIdField(provider, recordType) {
  *   sync_attempt_count: number,
  * }}
  */
-export function getIntegrationMetadata(record, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
+export function getIntegrationMetadata(record, recordType, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
   if (!record) return null;
 
-  // Derive the external_id from the provider-specific field if known.
-  // Falls back to checking common qb_* id fields on the record directly.
-  const externalIdValue =
-    record.qb_vendor_id ||
-    record.qb_employee_id ||
-    record.qb_time_activity_id ||
-    record.qb_expense_id ||
-    record.qb_customer_id ||
-    record.qb_project_id ||
-    null;
+  // Resolve the external ID using the canonical field map for this record type.
+  // This is symmetrical with what markSyncSuccess() writes.
+  const idField = getExternalIdField(provider, recordType);
+  const externalIdValue = (idField ? record[idField] : null) ?? null;
 
   return {
     provider,
-    sync_status:        record.qb_sync_status      ?? 'not_synced',
+    record_type:        recordType,
+    sync_status:        record.qb_sync_status           ?? 'not_synced',
     external_id:        externalIdValue,
-    last_synced_at:     record.qb_export_date       ?? null,
-    sync_batch_id:      record.qb_export_batch_id   ?? null,
-    sync_error:         record.qb_export_error      ?? null,
-    sync_attempt_count: record.qb_export_attempt_count ?? 0,
+    last_synced_at:     record.qb_export_date            ?? null,
+    sync_batch_id:      record.qb_export_batch_id        ?? null,
+    sync_error:         record.qb_export_error           ?? null,
+    sync_attempt_count: record.qb_export_attempt_count   ?? 0,
   };
 }
 
@@ -135,31 +140,32 @@ export function getIntegrationMetadata(record, provider = INTEGRATION_PROVIDERS.
 /**
  * Return a partial update object that marks a record as sync-pending.
  * Call this before enqueuing a record for export.
+ * Preserves any existing external ID — pending does not clear it.
  *
- * @param {object} record — the current entity record
- * @param {string} [provider]
+ * @param {object} record — the current entity record (used for attempt count)
  * @returns {object} partial update fields
  */
-export function markSyncPending(record, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
+export function markSyncPending(record) {
   return {
-    qb_sync_status: 'pending',
-    // Preserve any existing external ID — pending does not clear it
-    qb_export_error: null,
+    qb_sync_status:    'pending',
+    qb_export_error:   null,
   };
 }
 
 /**
  * Return a partial update object that marks a record as successfully synced.
+ * Writes the external ID to the correct provider field for the given record type.
  *
- * @param {object} record — the current entity record
+ * @param {object} record     — the current entity record (used for attempt count)
+ * @param {string} recordType — entity type key e.g. 'invoice', 'vendor', 'time_entry'
  * @param {string} externalId — the ID assigned by the external provider
  * @param {string} [timestamp] — ISO timestamp; defaults to now
  * @param {string} [provider]
  * @returns {object} partial update fields
  */
-export function markSyncSuccess(record, externalId, timestamp, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
+export function markSyncSuccess(record, recordType, externalId, timestamp, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
   const now = timestamp || new Date().toISOString();
-  const idField = getExternalIdField(provider, record._type);
+  const idField = getExternalIdField(provider, recordType);
 
   const patch = {
     qb_sync_status:    'synced',
@@ -169,7 +175,7 @@ export function markSyncSuccess(record, externalId, timestamp, provider = INTEGR
   };
 
   // Write the external ID to the correct provider field if known
-  if (idField) patch[idField] = externalId;
+  if (idField && externalId) patch[idField] = externalId;
 
   return patch;
 }
@@ -177,12 +183,11 @@ export function markSyncSuccess(record, externalId, timestamp, provider = INTEGR
 /**
  * Return a partial update object that marks a record as sync-failed.
  *
- * @param {object} record — the current entity record
+ * @param {object} record — the current entity record (used for attempt count)
  * @param {string} errorMessage — human-readable sync error
- * @param {string} [provider]
  * @returns {object} partial update fields
  */
-export function markSyncError(record, errorMessage, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
+export function markSyncError(record, errorMessage) {
   return {
     qb_sync_status:    'failed',
     qb_export_error:   errorMessage || 'Unknown sync error',
@@ -231,14 +236,21 @@ export function getSyncStatusConfig(status) {
  *
  * When the QuickBooks API is wired in, this function will:
  *  1. Authenticate with the provider (via stored OAuth tokens)
- *  2. Map the record to the provider's data model
+ *  2. Map the record to the provider's data model using recordType
  *  3. POST or PUT to the provider API
- *  4. Return { externalId, timestamp } on success
- *  5. Throw on failure so the caller can call markSyncError()
+ *  4. Return { externalId: string, timestamp: string } on success
+ *  5. Throw on failure so the caller can call markSyncError(record, err.message)
+ *
+ * Recommended call pattern at the call site:
+ *   await base44.entities.X.update(id, markSyncPending(record));
+ *   try {
+ *     const { externalId, timestamp } = await executeSync(record, 'invoice');
+ *     await base44.entities.X.update(id, markSyncSuccess(record, 'invoice', externalId, timestamp));
+ *   } catch (err) {
+ *     await base44.entities.X.update(id, markSyncError(record, err.message));
+ *   }
  *
  * For now it is intentionally not implemented. Do not add fake logic here.
- * This is the only function callers need to await — everything else
- * (markSyncPending, markSyncSuccess, markSyncError) works today.
  */
 export async function executeSync(record, recordType, provider = INTEGRATION_PROVIDERS.QUICKBOOKS) {
   throw new Error(

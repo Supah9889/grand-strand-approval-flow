@@ -4,10 +4,11 @@ import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Shield, AlertTriangle, Search, ChevronDown, ChevronUp,
-  ExternalLink, Filter, X, Clock, Calendar, Download
+  ExternalLink, Filter, X, Clock, Calendar, Download, ChevronsUpDown, Check
 } from 'lucide-react';
 import { format, parseISO, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import AppLayout from '../components/AppLayout';
@@ -186,10 +187,44 @@ export default function AuditLogPage() {
     staleTime: 30000,
   });
 
-  const actors = useMemo(() => {
-    const s = new Set(logs.map(l => l.actor).filter(Boolean));
-    return Array.from(s).sort();
-  }, [logs]);
+  // Actor options come from structured employee/vendor sources — NOT raw audit log strings.
+  // This prevents internal admin/owner/system email addresses appearing as filter options.
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-for-audit-filter'],
+    queryFn: () => base44.entities.Employee.filter({ active: true }),
+    staleTime: 60000,
+  });
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['vendors-for-audit-filter'],
+    queryFn: () => base44.entities.Vendor.filter({ active: true }),
+    staleTime: 60000,
+  });
+
+  const [actorSearch, setActorSearch] = useState('');
+  const [actorPopoverOpen, setActorPopoverOpen] = useState(false);
+
+  // Build curated actor options: employees by name, vendors/subs by company name.
+  const actorOptions = useMemo(() => {
+    const opts = [];
+    employees.forEach(e => { if (e.name) opts.push({ label: e.name, value: e.name }); });
+    vendors
+      .filter(v => ['vendor', 'subcontractor'].includes(v.type))
+      .forEach(v => {
+        const name = v.display_name || v.company_name;
+        if (name) opts.push({ label: name, value: name });
+      });
+    // Deduplicate by value and sort
+    const seen = new Set();
+    return opts
+      .filter(o => { if (seen.has(o.value)) return false; seen.add(o.value); return true; })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [employees, vendors]);
+
+  const filteredActorOptions = useMemo(() => {
+    if (!actorSearch.trim()) return actorOptions;
+    const q = actorSearch.toLowerCase();
+    return actorOptions.filter(o => o.label.toLowerCase().includes(q));
+  }, [actorOptions, actorSearch]);
 
   const filtered = useMemo(() => {
     let l = [...logs];
@@ -334,13 +369,61 @@ export default function AuditLogPage() {
 
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">Actor</label>
-                <Select value={filterActor} onValueChange={v => { setFilterActor(v); setPage(0); }}>
-                  <SelectTrigger className="h-8 text-xs rounded-lg"><SelectValue placeholder="Any actor" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={null}>Any actor</SelectItem>
-                    {actors.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Popover open={actorPopoverOpen} onOpenChange={o => { setActorPopoverOpen(o); if (!o) setActorSearch(''); }}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={actorPopoverOpen}
+                      className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 text-xs shadow-sm hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <span className={filterActor ? 'text-foreground' : 'text-muted-foreground'}>
+                        {filterActor || 'Any actor'}
+                      </span>
+                      <ChevronsUpDown className="w-3 h-3 opacity-50 shrink-0 ml-1" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <div className="flex items-center border-b border-border px-2.5 py-1.5 gap-1.5">
+                      <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <input
+                        autoFocus
+                        placeholder="Search actors…"
+                        value={actorSearch}
+                        onChange={e => setActorSearch(e.target.value)}
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      />
+                      {actorSearch && (
+                        <button onClick={() => setActorSearch('')} className="text-muted-foreground hover:text-foreground">
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-52 overflow-y-auto py-1">
+                      <button
+                        className={`w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent flex items-center gap-2 ${!filterActor ? 'font-medium' : ''}`}
+                        onClick={() => { setFilterActor(''); setPage(0); setActorPopoverOpen(false); setActorSearch(''); }}
+                      >
+                        <Check className={`w-3 h-3 shrink-0 ${!filterActor ? 'opacity-100 text-primary' : 'opacity-0'}`} />
+                        Any actor
+                      </button>
+                      {filteredActorOptions.length === 0 ? (
+                        <p className="px-2.5 py-2 text-xs text-muted-foreground">No actors found.</p>
+                      ) : (
+                        filteredActorOptions.map(opt => (
+                          <button
+                            key={opt.value}
+                            className={`w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent flex items-center gap-2 ${filterActor === opt.value ? 'font-medium' : ''}`}
+                            onClick={() => { setFilterActor(opt.value); setPage(0); setActorPopoverOpen(false); setActorSearch(''); }}
+                          >
+                            <Check className={`w-3 h-3 shrink-0 ${filterActor === opt.value ? 'opacity-100 text-primary' : 'opacity-0'}`} />
+                            {opt.label}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1">

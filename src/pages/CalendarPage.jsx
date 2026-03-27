@@ -33,6 +33,8 @@ export default function CalendarPage() {
   const [filterStaff, setFilterStaff] = useState('all');
   const [search, setSearch] = useState('');
 
+  const queryClient = useQueryClient();
+
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['calendar-events'],
     queryFn: () => base44.entities.CalendarEvent.list('start_date'),
@@ -49,7 +51,7 @@ export default function CalendarPage() {
 
   const updateEvent = useMutation({
     mutationFn: ({ id, data }) => base44.entities.CalendarEvent.update(id, data),
-    onSuccess: () => useQueryClient().invalidateQueries({ queryKey: ['calendar-events'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar-events'] }),
   });
 
   // Curated staff options from the employee directory rather than raw event strings.

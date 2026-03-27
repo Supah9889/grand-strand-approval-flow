@@ -16,6 +16,7 @@ import InvoiceForm from '../components/financials/InvoiceForm';
 import BillForm from '../components/financials/BillForm';
 import PaymentForm from '../components/financials/PaymentForm';
 import { INVOICE_STATUS_CONFIG, BILL_STATUS_CONFIG, fmt, calcJobFinancials } from '@/lib/financialHelpers';
+import { syncInvoiceAfterPaymentChange } from '@/lib/paymentIntegrity';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 
@@ -42,6 +43,7 @@ export default function Financials() {
   const { data: expenses = [] } = useQuery({ queryKey: ['expenses'], queryFn: () => base44.entities.Expense.list('-created_date') });
   const { data: changeOrders = [] } = useQuery({ queryKey: ['change-orders'], queryFn: () => base44.entities.ChangeOrder.list('-created_date') });
   const { data: budgets = [] } = useQuery({ queryKey: ['budgets'], queryFn: () => base44.entities.JobBudget.list('-created_date') });
+  const { data: allTimeEntries = [] } = useQuery({ queryKey: ['time-entries-all'], queryFn: () => base44.entities.TimeEntry.list('-clock_in', 500) });
 
   const createInvoice = useMutation({
     mutationFn: d => base44.entities.Invoice.create(d),
@@ -55,20 +57,22 @@ export default function Financials() {
     mutationFn: async (d) => {
       const p = await base44.entities.Payment.create(d);
       if (d.invoice_id) {
-        const inv = invoices.find(i => i.id === d.invoice_id);
-        if (inv) {
-          const paid = Number(inv.amount_paid || 0) + Number(d.amount);
-          const bal = Number(inv.amount) - paid;
-          await base44.entities.Invoice.update(d.invoice_id, {
-            amount_paid: paid, balance_due: bal,
-            status: bal <= 0 ? 'paid' : 'partial',
-            paid_date: bal <= 0 ? new Date().toISOString() : undefined,
-          });
-        }
+        await syncInvoiceAfterPaymentChange({
+          invoiceId: d.invoice_id,
+          actor: 'admin',
+          triggerAction: 'payment_recorded',
+          paymentMeta: { id: p.id, amount: d.amount, payment_date: d.payment_date },
+        });
       }
       return p;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['payments'] }); queryClient.invalidateQueries({ queryKey: ['invoices'] }); setShowForm(false); toast.success('Payment recorded'); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      setShowForm(false);
+      toast.success('Payment recorded');
+    },
   });
   const updateInvoiceStatus = useMutation({
     mutationFn: ({ id, status }) => base44.entities.Invoice.update(id, { status }),
@@ -196,7 +200,7 @@ export default function Financials() {
 
         {/* Content per tab */}
         {tab === 'overview' && (
-          <OverviewTab jobs={activeJobs} invoices={invoices} bills={bills} payments={payments} expenses={expenses} changeOrders={changeOrders} budgets={budgets} />
+          <OverviewTab jobs={activeJobs} invoices={invoices} bills={bills} payments={payments} expenses={expenses} changeOrders={changeOrders} budgets={budgets} timeEntries={allTimeEntries} />
         )}
         {tab === 'invoices' && (
           <InvoiceList invoices={filterList(invoices)} jobs={jobs} onStatusChange={(id, status) => updateInvoiceStatus.mutate({ id, status })} />
@@ -212,14 +216,25 @@ export default function Financials() {
   );
 }
 
-function OverviewTab({ jobs, invoices, bills, payments, expenses, changeOrders, budgets }) {
+function OverviewTab({ jobs, invoices, bills, payments, expenses, changeOrders, budgets, timeEntries }) {
   const rows = jobs.map(job => {
     const budget = budgets.find(b => b.job_id === job.id);
     const jobExpenses = expenses.filter(e => e.job_id === job.id);
+    const jobBills = (bills || []).filter(b => b.job_id === job.id);
     const jobInvoices = invoices.filter(i => i.job_id === job.id);
     const jobPayments = payments.filter(p => p.job_id === job.id);
     const jobCOs = changeOrders.filter(co => co.job_id === job.id);
-    const fin = calcJobFinancials({ budget, expenses: jobExpenses, timeEntries: [], changeOrders: jobCOs, invoices: jobInvoices, payments: jobPayments });
+    const jobTimeEntries = (timeEntries || []).filter(t => t.job_id === job.id);
+    const fin = calcJobFinancials({
+      job,
+      budget,
+      expenses: jobExpenses,
+      bills: jobBills,
+      timeEntries: jobTimeEntries,
+      changeOrders: jobCOs,
+      invoices: jobInvoices,
+      payments: jobPayments,
+    });
     return { job, fin, budget };
   }).filter(r => r.fin.totalExpectedRevenue > 0 || r.fin.totalJobCost > 0 || r.fin.invoicesSent > 0);
 

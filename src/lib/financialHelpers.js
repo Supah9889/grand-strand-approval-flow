@@ -37,42 +37,168 @@ export function generateNumber(prefix, existing = []) {
   return `${p}${String(next).padStart(3, '0')}`;
 }
 
-export function calcJobFinancials({ budget, expenses, timeEntries, changeOrders, invoices, payments }) {
+// ─── Cost bucket mapping ────────────────────────────────────────────────────
+// Maps expense categories and cost codes to standardized cost buckets.
+// Buckets: labor | materials | subcontractor | fees | equipment | other
+
+const EXPENSE_CATEGORY_BUCKET = {
+  materials:        'materials',
+  tools_equipment:  'equipment',
+  fuel_travel:      'other',
+  subcontractor:    'subcontractor',
+  permit_fees:      'fees',
+  disposal:         'fees',
+  meals:            'other',
+  office_supplies:  'other',
+  other:            'other',
+};
+
+const COST_CODE_BUCKET = {
+  'Paint Expenses':       'materials',
+  'Carpentry Labor/Sub':  'subcontractor',
+  'Drywall Labor/Sub':    'subcontractor',
+  'Other Labor/Sub':      'subcontractor',
+  'Painting Labor/Sub':   'subcontractor',
+};
+
+/**
+ * Map a single expense record to its cost bucket.
+ * Priority: cost_code match → category match → 'other'
+ */
+export function getExpenseBucket(expense) {
+  if (expense.cost_code && COST_CODE_BUCKET[expense.cost_code]) {
+    return COST_CODE_BUCKET[expense.cost_code];
+  }
+  return EXPENSE_CATEGORY_BUCKET[expense.category] || 'other';
+}
+
+/**
+ * Compute total labor hours from time entries.
+ * Uses total_hours if present, otherwise derives from duration_minutes.
+ */
+function totalLaborHours(timeEntries) {
+  return (timeEntries || []).reduce((s, t) => {
+    const hrs = Number(t.total_hours || 0) || (Number(t.duration_minutes || 0) / 60);
+    return s + hrs;
+  }, 0);
+}
+
+/**
+ * Compute labor cost from time entries.
+ * Uses labor_cost if already calculated on the record, otherwise hourly_rate * hours.
+ * If no rate data is available, tracks hours only (cost remains 0).
+ */
+function totalLaborCost(timeEntries) {
+  return (timeEntries || []).reduce((s, t) => {
+    if (Number(t.labor_cost || 0) > 0) return s + Number(t.labor_cost);
+    const hrs = Number(t.total_hours || 0) || (Number(t.duration_minutes || 0) / 60);
+    const rate = Number(t.hourly_rate || 0);
+    return s + (rate > 0 ? hrs * rate : 0);
+  }, 0);
+}
+
+/**
+ * Core job financial rollup. Single calculation path used by all financial views.
+ *
+ * @param {object} opts
+ * @param {object}   opts.budget         — JobBudget record (optional)
+ * @param {object}   opts.job            — Job record (optional, for contract price fallback)
+ * @param {object[]} opts.expenses       — Expense records linked to this job
+ * @param {object[]} opts.bills          — Bill records linked to this job (optional)
+ * @param {object[]} opts.timeEntries    — TimeEntry records linked to this job
+ * @param {object[]} opts.changeOrders   — ChangeOrder records linked to this job
+ * @param {object[]} opts.invoices       — Invoice records linked to this job
+ * @param {object[]} opts.payments       — Payment records linked to this job
+ */
+export function calcJobFinancials({
+  budget,
+  job,
+  expenses = [],
+  bills = [],
+  timeEntries = [],
+  changeOrders = [],
+  invoices = [],
+  payments = [],
+}) {
+  // ── Revenue ──────────────────────────────────────────────────────────────
   const approvedCORevenue = (changeOrders || [])
     .filter(co => co.status === 'approved')
     .reduce((s, co) => s + Number(co.total_financial_impact || 0), 0);
 
-  const estimatedRevenue = Number(budget?.estimated_revenue || 0);
+  // Use budget estimated_revenue → job.price as fallback
+  const estimatedRevenue = Number(budget?.estimated_revenue || 0) || Number(job?.price || 0);
   const totalExpectedRevenue = estimatedRevenue + approvedCORevenue;
 
-  const laborCost = (timeEntries || []).reduce((s, t) => {
-    const hrs = Number(t.duration_minutes || 0) / 60;
-    const rate = Number(t.hourly_rate || 0);
-    return s + (rate > 0 ? hrs * rate : 0);
-  }, 0);
-  const laborHours = (timeEntries || []).reduce((s, t) => s + Number(t.duration_minutes || 0) / 60, 0);
+  // ── Labor ─────────────────────────────────────────────────────────────────
+  const laborHours = totalLaborHours(timeEntries);
+  const laborCost  = totalLaborCost(timeEntries);
 
-  const materialCost = (expenses || []).filter(e =>
-    ['Paint Expenses','Other'].includes(e.cost_code) || !e.cost_code
-  ).reduce((s, e) => s + Number(e.total_amount || 0), 0);
+  // ── Expense cost buckets ──────────────────────────────────────────────────
+  const activeExpenses = (expenses || []).filter(e => e.inbox_status !== 'archived');
 
-  const totalExpenses = (expenses || []).reduce((s, e) => s + Number(e.total_amount || 0), 0);
-  const otherCost = totalExpenses - materialCost;
+  let materialsCost    = 0;
+  let subcontractorCost = 0;
+  let feesCost         = 0;
+  let equipmentCost    = 0;
+  let otherExpenseCost = 0;
 
-  const totalJobCost = laborCost + totalExpenses;
+  for (const e of activeExpenses) {
+    const amt = Number(e.total_amount || 0);
+    const bucket = getExpenseBucket(e);
+    if (bucket === 'materials')     materialsCost     += amt;
+    else if (bucket === 'subcontractor') subcontractorCost += amt;
+    else if (bucket === 'fees')     feesCost          += amt;
+    else if (bucket === 'equipment') equipmentCost    += amt;
+    else                            otherExpenseCost  += amt;
+  }
 
-  const invoicesSent = (invoices || []).filter(i => !['draft','closed'].includes(i.status))
+  // ── Bills (paid subcontractor/vendor costs) ───────────────────────────────
+  const activeBills = (bills || []).filter(b => !['closed'].includes(b.status));
+  const billTotal = activeBills.reduce((s, b) => s + Number(b.amount || 0), 0);
+  // Bills fold into subcontractor bucket by default (most bills are sub/vendor payments)
+  subcontractorCost += billTotal;
+
+  const totalExpenses  = materialsCost + subcontractorCost + feesCost + equipmentCost + otherExpenseCost;
+  const totalJobCost   = laborCost + totalExpenses;
+
+  // ── Billing & payments ────────────────────────────────────────────────────
+  const invoicesSent = (invoices || [])
+    .filter(i => !['draft', 'closed'].includes(i.status))
     .reduce((s, i) => s + Number(i.amount || 0), 0);
   const paymentsReceived = (payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
-  const remainingBalance = invoicesSent - paymentsReceived;
+  const remainingBalance = Math.max(0, invoicesSent - paymentsReceived);
 
-  const grossProfit = totalExpectedRevenue - totalJobCost;
+  // ── Profit ────────────────────────────────────────────────────────────────
+  const grossProfit    = totalExpectedRevenue - totalJobCost;
   const grossMarginPct = totalExpectedRevenue > 0 ? (grossProfit / totalExpectedRevenue) * 100 : 0;
 
   return {
-    estimatedRevenue, approvedCORevenue, totalExpectedRevenue,
-    laborCost, laborHours, materialCost, otherCost, totalJobCost,
-    invoicesSent, paymentsReceived, remainingBalance,
-    grossProfit, grossMarginPct,
+    // Revenue
+    estimatedRevenue,
+    approvedCORevenue,
+    totalExpectedRevenue,
+    // Labor
+    laborCost,
+    laborHours,
+    // Cost buckets
+    materialsCost,
+    subcontractorCost,
+    feesCost,
+    equipmentCost,
+    otherExpenseCost,
+    billTotal,
+    // Totals
+    totalExpenses,
+    totalJobCost,
+    // Billing
+    invoicesSent,
+    paymentsReceived,
+    remainingBalance,
+    // Profit
+    grossProfit,
+    grossMarginPct,
+    // Legacy aliases (keep existing callers working)
+    materialCost: materialsCost,
+    otherCost: otherExpenseCost,
   };
 }

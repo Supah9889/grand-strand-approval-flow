@@ -14,10 +14,14 @@ function Row({ label, value, bold, positive, negative, indent }) {
 }
 
 export default function FinancialSummaryCard({ financials, budget }) {
-  const { estimatedRevenue, approvedCORevenue, totalExpectedRevenue,
-    laborCost, laborHours, materialCost, otherCost, totalJobCost,
+  const {
+    estimatedRevenue, approvedCORevenue, totalExpectedRevenue,
+    laborCost, laborHours,
+    materialsCost, subcontractorCost, feesCost, equipmentCost, otherExpenseCost,
+    totalJobCost,
     invoicesSent, paymentsReceived, remainingBalance,
-    grossProfit, grossMarginPct } = financials;
+    grossProfit, grossMarginPct,
+  } = financials;
 
   const isHealthy = grossMarginPct >= 20;
   const isWarning = grossMarginPct >= 5 && grossMarginPct < 20;
@@ -38,9 +42,12 @@ export default function FinancialSummaryCard({ financials, budget }) {
       <Row label="Total Expected Revenue" value={totalExpectedRevenue} bold />
 
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-3">Job Costs</p>
-      <Row label={`Labor (${laborHours.toFixed(1)} hrs)`} value={laborCost} />
-      <Row label="Materials & Expenses" value={materialCost} />
-      {otherCost > 0 && <Row label="Other Costs" value={otherCost} />}
+      <Row label={`Labor (${(laborHours || 0).toFixed(1)} hrs)`} value={laborCost} indent />
+      {materialsCost > 0 && <Row label="Materials" value={materialsCost} indent />}
+      {subcontractorCost > 0 && <Row label="Subcontractor / Bills" value={subcontractorCost} indent />}
+      {feesCost > 0 && <Row label="Permits & Fees" value={feesCost} indent />}
+      {equipmentCost > 0 && <Row label="Equipment" value={equipmentCost} indent />}
+      {otherExpenseCost > 0 && <Row label="Other" value={otherExpenseCost} indent />}
       <Row label="Total Job Cost" value={totalJobCost} bold />
 
       {budget && (

@@ -58,6 +58,7 @@ export const PERMISSIONS = {
 
   // File Sharing
   share_files_externally:  { label: 'Share Files with Clients/Vendors', category: 'File Sharing', adminDefault: true,  staffDefault: false },
+  delete_job_files:        { label: 'Delete Job Files',                  category: 'File Sharing', adminDefault: true,  staffDefault: false },
 
   // Tasks / Coordination
   view_tasks:              { label: 'View Tasks',               category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },

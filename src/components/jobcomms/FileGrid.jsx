@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { FileText, Image, Lock, Users, Eye, MoreVertical, Download, Trash2 } from 'lucide-react';
+import { FileText, Lock, Users, Eye, MoreVertical, Download, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import PhotoLightbox from '../dailylogs/PhotoLightbox';
 import { getInternalRole } from '@/lib/adminAuth';
-import { logAudit } from '@/lib/audit';
+import { usePermissions } from '@/hooks/usePermissions';
+import { canDeleteFile, deleteJobFile, refreshFileRelations } from '@/lib/fileActions';
 
 const IMAGE_TYPES = ['image/jpeg','image/png','image/webp','image/gif','image/jpg'];
 const isImage = (f) => IMAGE_TYPES.includes(f.file_type) || /\.(jpg|jpeg|png|webp|gif)$/i.test(f.file_name || '');
@@ -54,26 +55,30 @@ function FileCard({ file, onImageClick }) {
   const queryClient = useQueryClient();
   const [showMenu, setShowMenu] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const role = getInternalRole();
-  const canDelete = role === 'admin' || role === 'owner';
+  const { permissions } = usePermissions();
+  const canDelete = canDeleteFile({ role, permissions });
   const vis = VISIBILITY_BADGE[file.visibility] || VISIBILITY_BADGE.internal;
   const VisIcon = vis.icon;
   const isImg = isImage(file);
 
   const handleDelete = async () => {
     setShowConfirm(false);
-    await base44.entities.JobFile.delete(file.id);
+    setDeleting(true);
     const user = await base44.auth.me().catch(() => null);
-    logAudit(file.id, 'record_deleted', user?.email || role, `File permanently deleted from Job Files & Comms: "${file.file_name}"`, {
-      module: 'job',
-      record_id: file.id,
-      job_id: file.job_id,
-      job_address: file.job_address,
-    });
-    queryClient.invalidateQueries({ queryKey: ['job-files', file.job_id] });
-    queryClient.invalidateQueries({ queryKey: ['job-files-all'] });
-    toast.success('File deleted');
+    deleteJobFile({ file, user })
+      .then(() => {
+        refreshFileRelations({ file, queryClient });
+        toast.success('File deleted');
+      })
+      .catch((err) => {
+        setDeleting(false);
+        toast.error(`Delete failed: ${err?.message || 'Unknown error'}`);
+      });
   };
+
+  if (deleting) return null;
 
   return (
     <>

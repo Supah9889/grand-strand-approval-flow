@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import JobEditModal from './JobEditModal';
 import JobAuditLog from './JobAuditLog';
 import { logAudit } from '@/lib/audit';
+import JobStatusBadge from '../jobs/JobStatusBadge';
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  icon: Clock,         class: 'bg-secondary text-secondary-foreground' },
@@ -161,6 +162,11 @@ export default function JobsTable({ jobs, isLoading, role = 'admin', hideFilters
                         </>
                       )}
                     </div>
+                  </div>
+
+                  {/* Op status badge */}
+                  <div className="pl-6 mt-0.5">
+                    <JobStatusBadge status={job.op_status || 'new'} />
                   </div>
 
                   {/* Row 2: customer + price */}

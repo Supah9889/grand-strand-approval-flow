@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { audit } from '@/lib/audit';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getOpStatusConfig } from '@/lib/jobHelpers';
 
 export default function JobSummaryPanel({ job, isAdmin }) {
   const queryClient = useQueryClient();
@@ -27,10 +28,12 @@ export default function JobSummaryPanel({ job, isAdmin }) {
   const derivedSummary = (() => {
     const parts = [];
     if (job.job_type) parts.push(job.job_type);
-    if (job.lifecycle_status && job.lifecycle_status !== 'open') parts.push(`Status: ${job.lifecycle_status.replace(/_/g, ' ')}`);
+    const opCfg = getOpStatusConfig(job.op_status || 'new');
+    parts.push(opCfg.label);
+    if (job.op_status_note) parts.push(job.op_status_note);
     if (job.start_date) parts.push(`Starts ${job.start_date}`);
     if (job.end_date) parts.push(`Due ${job.end_date}`);
-    if (job.assigned_to) parts.push(`Assigned to ${job.assigned_to}`);
+    if (job.assigned_to) parts.push(`Assigned: ${job.assigned_to}`);
     return parts.join(' · ');
   })();
 

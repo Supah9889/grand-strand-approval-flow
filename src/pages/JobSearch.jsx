@@ -10,10 +10,10 @@ import MobileStatusIndicator from '@/components/MobileStatusIndicator';
 import { Search, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import JobLifecycleBadge from '../components/jobs/JobLifecycleBadge';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
+import JobStatusBadge from '../components/jobs/JobStatusBadge';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
-import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG } from '@/lib/jobHelpers';
+import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG, OP_STATUS_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
 
 const STATUS_BADGE = {
   pending:  { label: 'Pending', class: 'bg-amber-50 text-amber-600' },
@@ -25,6 +25,7 @@ export default function JobSearch() {
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState('all');
   const [filterLifecycle, setFilterLifecycle] = useState('all');
+  const [filterOpStatus, setFilterOpStatus] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -46,6 +47,12 @@ export default function JobSearch() {
     if (job.status === 'archived' && filterLifecycle !== 'archived') return false;
     if (filterGroup !== 'all' && job.job_group !== filterGroup) return false;
     if (filterLifecycle !== 'all' && (job.lifecycle_status || 'open') !== filterLifecycle) return false;
+    // Op status bucket filter
+    if (filterOpStatus !== 'all') {
+      const bucket = OP_STATUS_FILTER_BUCKETS.find(b => b.key === filterOpStatus);
+      const jobOpStatus = job.op_status || 'new';
+      if (bucket?.statuses && !bucket.statuses.includes(jobOpStatus)) return false;
+    }
     const q = search.toLowerCase();
     return (
       !q ||
@@ -85,10 +92,7 @@ export default function JobSearch() {
             />
           </div>
           <div className="flex gap-2">
-            <BottomSheetSelect value={filterLifecycle} onChange={setFilterLifecycle} label="Status" options={[
-              { label: 'All Statuses', value: 'all' },
-              ...Object.entries(JOB_LIFECYCLE_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
-            ]} />
+            <BottomSheetSelect value={filterOpStatus} onChange={setFilterOpStatus} label="Status" options={OP_STATUS_FILTER_BUCKETS.map(b => ({ label: b.label, value: b.key }))} />
             <BottomSheetSelect value={filterGroup} onChange={setFilterGroup} label="Group" options={[
               { label: 'All Groups', value: 'all' },
               ...Object.entries(JOB_GROUP_CONFIG).map(([v, c]) => ({ label: c.label, value: v })),
@@ -133,7 +137,7 @@ export default function JobSearch() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    {job.lifecycle_status && <JobLifecycleBadge status={job.lifecycle_status} />}
+                    <JobStatusBadge status={job.op_status || 'new'} />
                     {job.job_group && <JobGroupBadge group={job.job_group} />}
                   </div>
                   {job.buildertrend_id && (

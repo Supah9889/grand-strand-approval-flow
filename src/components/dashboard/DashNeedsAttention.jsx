@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowRight } from 'lucide-react';
+import { getOpStatusConfig } from '@/lib/jobHelpers';
 
 const PRIORITY_COLORS = {
   high:   'border-l-red-400 bg-red-50/50',
@@ -50,15 +51,19 @@ export default function DashNeedsAttention({ jobs = [], invoices = [], tasks = [
     onClick: () => navigate('/invoices'),
   }));
 
-  // Waiting jobs — medium
-  jobs.filter(j => j.lifecycle_status === 'waiting').slice(0, 5).forEach(j => items.push({
-    id: `wait-${j.id}`,
-    label: 'Job waiting / on hold',
-    address: j.address,
-    sub: j.customer_name,
-    priority: 'medium',
-    onClick: () => navigate(`/job-hub?jobId=${j.id}`),
-  }));
+  // Waiting jobs — driven by op_status
+  const WAITING_STATUSES = ['waiting_homeowner','waiting_builder','waiting_vendor','waiting_materials','on_hold','needs_scheduling','needs_review'];
+  jobs.filter(j => WAITING_STATUSES.includes(j.op_status || '')).slice(0, 6).forEach(j => {
+    const cfg = getOpStatusConfig(j.op_status);
+    items.push({
+      id: `wait-${j.id}`,
+      label: cfg.label,
+      address: j.address,
+      sub: j.customer_name,
+      priority: j.op_status === 'on_hold' ? 'medium' : 'medium',
+      onClick: () => navigate(`/job-hub?jobId=${j.id}`),
+    });
+  });
 
   // Unpaid sent invoices — medium
   invoices.filter(i => i.status === 'sent').slice(0, 4).forEach(i => items.push({
@@ -100,10 +105,10 @@ export default function DashNeedsAttention({ jobs = [], invoices = [], tasks = [
     onClick: () => navigate(`/tasks/${t.id}`),
   }));
 
-  // Jobs needing scheduling (presale/open with no start date)
-  jobs.filter(j => ['presale','open'].includes(j.lifecycle_status) && !j.start_date).slice(0, 3).forEach(j => items.push({
+  // Jobs explicitly needing scheduling per op_status (avoid duplicates from waiting section)
+  jobs.filter(j => j.op_status === 'needs_scheduling' && !WAITING_STATUSES.includes(j.op_status)).slice(0, 3).forEach(j => items.push({
     id: `sched-${j.id}`,
-    label: 'Needs scheduling',
+    label: 'Needs Scheduling',
     address: j.address,
     sub: j.customer_name,
     priority: 'low',

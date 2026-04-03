@@ -23,15 +23,16 @@ export default function AccessGate() {
     const trimmed = code.trim();
     if (!trimmed) return;
 
-    // 1. Try override codes first (owner / admin / staff)
-    const overrideRole = attemptOverrideLogin(trimmed);
+    // 1. Try override codes first (owner / admin / staff) — async, reads from AccessConfig entity
+    setLoading(true);
+    const overrideRole = await attemptOverrideLogin(trimmed);
     if (overrideRole) {
+      setLoading(false);
       navigate('/dashboard', { replace: true });
       return;
     }
 
     // 2. Look up employee by their personal code
-    setLoading(true);
     try {
       const matches = await base44.entities.Employee.filter({ employee_code: trimmed, active: true });
       const employee = matches?.[0];
@@ -82,8 +83,7 @@ export default function AccessGate() {
             <input
               ref={inputRef}
               type="password"
-              inputMode="numeric"
-              maxLength={8}
+              maxLength={20}
               value={code}
               onChange={e => { setCode(e.target.value); setError(''); }}
               placeholder="••••"

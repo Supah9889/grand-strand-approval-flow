@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2, Database, Tag, MapPin, Briefcase } from 'lucide-react';
+import { Plus, Upload, List, LogOut, LayoutDashboard, ShieldAlert, Users, Download, BarChart2, Database, Tag, MapPin, Briefcase, KeyRound } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import CsvImportFlow from '../components/admin/CsvImportFlow';
@@ -18,7 +18,8 @@ import QBExportPanel from '../components/admin/QBExportPanel';
 import CostCodeManager from '../components/costcodes/CostCodeManager';
 import GeoSettingsPanel from '../components/timeclock/GeoSettingsPanel';
 import JobTypesManager from '../components/jobs/JobTypesManager';
-import { isAdminAuthed, adminLogout, getInternalRole, isAdmin } from '@/lib/adminAuth';
+import { isAdminAuthed, adminLogout, getInternalRole, isAdmin, isOwner } from '@/lib/adminAuth';
+import AccessConfigPanel from '../components/admin/AccessConfigPanel';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { format } from 'date-fns';
@@ -66,6 +67,7 @@ export default function Admin() {
   const queryClient = useQueryClient();
 
   const isAdminRole = isAdmin(); // true for both 'admin' and 'owner'
+  const isOwnerRole = isOwner(); // true only for owner — can manage access config
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['admin-jobs'],
@@ -146,7 +148,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="dashboard">
-          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? 'grid grid-cols-8' : 'grid grid-cols-1'}`}>
+          <TabsList className={`w-full rounded-xl mb-6 h-11 ${isAdminRole ? (isOwnerRole ? 'grid grid-cols-9' : 'grid grid-cols-8') : 'grid grid-cols-1'}`}>
             <TabsTrigger value="dashboard" className="flex-1 rounded-lg text-sm gap-2">
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
@@ -181,6 +183,12 @@ export default function Admin() {
                   <Briefcase className="w-4 h-4" />
                   Job Types
                 </TabsTrigger>
+                {isOwnerRole && (
+                  <TabsTrigger value="access-config" className="flex-1 rounded-lg text-sm gap-2">
+                    <KeyRound className="w-4 h-4" />
+                    Access
+                  </TabsTrigger>
+                )}
               </>
             )}
           </TabsList>
@@ -289,6 +297,15 @@ export default function Admin() {
             <TabsContent value="jobtypes" className="mt-0">
               <div className="bg-card border border-border rounded-2xl p-5">
                 <JobTypesManager actorName={role} />
+              </div>
+            </TabsContent>
+          )}
+
+          {/* ── ACCESS CONFIG TAB (owner only) ── */}
+          {isOwnerRole && (
+            <TabsContent value="access-config" className="mt-0">
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <AccessConfigPanel actorName={role} />
               </div>
             </TabsContent>
           )}

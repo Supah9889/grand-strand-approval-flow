@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -10,6 +10,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { isUnlocked } from '@/lib/adminAuth';
 
 // Core pages (loaded immediately)
 import Splash from './pages/Splash';
@@ -74,6 +75,24 @@ function RouteLoader() {
   );
 }
 
+/**
+ * UnlockGuard — renders children only if the app session is unlocked.
+ * If locked, redirects to /gate. Public routes (/, /gate) are exempt.
+ */
+const PUBLIC_PATHS = new Set(['/', '/gate']);
+
+function UnlockGuard({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!PUBLIC_PATHS.has(location.pathname) && !isUnlocked()) {
+    // Use an effect-free immediate redirect via Navigate component
+    return <Navigate to="/gate" replace />;
+  }
+
+  return children;
+}
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const location = useLocation();
@@ -110,8 +129,9 @@ const AuthenticatedApp = () => {
           className="flex-1 overflow-y-auto pb-16"
         >
           <Suspense fallback={<RouteLoader />}>
+            <UnlockGuard>
             <Routes>
-              {/* Auth Routes */}
+              {/* Public Routes — accessible without unlock */}
               <Route path="/" element={<Splash />} />
               <Route path="/gate" element={<AccessGate />} />
 
@@ -185,6 +205,7 @@ const AuthenticatedApp = () => {
               {/* 404 */}
               <Route path="*" element={<PageNotFound />} />
             </Routes>
+            </UnlockGuard>
           </Suspense>
         </motion.div>
       </AnimatePresence>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigation } from '@/lib/NavigationContext';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isUnlocked } from '@/lib/adminAuth';
 import { Home, Search, Clock, DollarSign, Settings } from 'lucide-react';
 
 const ALL_NAV_ITEMS = [
@@ -32,6 +32,12 @@ export default function BottomNav() {
   const activeTab = getActiveTab(location.pathname);
 
   const handleTabClick = (tabName, primaryPath) => {
+    // Block navigation entirely if the app session is not unlocked
+    if (!isUnlocked()) {
+      navigate('/gate', { replace: true });
+      return;
+    }
+
     const stack = getTabStack(tabName);
     const lastRoute = stack.length > 0 ? stack[stack.length - 1] : primaryPath;
 

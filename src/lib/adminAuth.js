@@ -112,3 +112,11 @@ export function attemptAdminLogin(pin, role = 'admin') {
 export function adminLogout() {
   sessionStorage.removeItem(SESSION_KEY);
 }
+
+/**
+ * Returns true if ANY valid session exists (staff, admin, owner, or employee code login).
+ * This is the app-level unlock check — the gate must be passed before any protected screen renders.
+ */
+export function isUnlocked() {
+  return !!getInternalRole();
+}

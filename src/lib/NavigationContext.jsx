@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isCordovaAvailable, logNavigation } from './webviewBridge';
+import { isUnlocked } from './adminAuth';
 
 const NavigationContext = createContext();
 
@@ -88,8 +89,9 @@ export function NavigationProvider({ children }) {
       } else {
         // At root of current tab - check if we can go to default home
         if (location.pathname !== '/dashboard') {
-          // Not already at dashboard, navigate there (graceful fallback)
-          navigate('/dashboard', { replace: true });
+          // If locked, send to gate instead of dashboard
+          const target = isUnlocked() ? '/dashboard' : '/gate';
+          navigate(target, { replace: true });
           logNavigation('back_button_home_fallback', { tabName });
         } else {
           // Already at home - let native app handle (minimize/exit)

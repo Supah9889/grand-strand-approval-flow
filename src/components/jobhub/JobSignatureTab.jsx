@@ -79,14 +79,23 @@ function SignatureRecordForm({ jobId, jobAddress, initial, onDone, onCancel }) {
         created_by_name: actorName,
       };
       if (initial?.id) {
+        const oldStatus = initial.status;
         await base44.entities.SignatureRecord.update(initial.id, payload);
-        await logAudit(initial.id, 'record_edited', actorName, `Signature record updated: "${form.title}"`, {
-          module: 'signature', record_id: initial.id, job_id: jobId, is_sensitive: true,
+        // Log status change as a more descriptive audit event when status is transitioning
+        const action = form.status === 'sent' && oldStatus !== 'sent'
+          ? 'invoice_sent' // reuse "sent" action from ACTION_LABELS
+          : 'record_edited';
+        const detail = form.status === 'sent' && oldStatus !== 'sent'
+          ? `${actorName} sent approval record "${form.title}" to ${form.signer_name || 'signer'}.`
+          : `${actorName} updated approval record: "${form.title}" (${oldStatus} → ${form.status}).`;
+        await logAudit(initial.id, action, actorName, detail, {
+          module: 'signature', record_id: initial.id, job_id: jobId, job_address: jobAddress,
+          old_value: oldStatus, new_value: form.status, is_sensitive: true,
         });
       } else {
         const rec = await base44.entities.SignatureRecord.create(payload);
-        await logAudit(rec.id, 'record_created', actorName, `Signature record created: "${form.title}"`, {
-          module: 'signature', record_id: rec.id, job_id: jobId, is_sensitive: true,
+        await logAudit(rec.id, 'record_created', actorName, `${actorName} created approval record: "${form.title}".`, {
+          module: 'signature', record_id: rec.id, job_id: jobId, job_address: jobAddress, is_sensitive: true,
         });
       }
     },

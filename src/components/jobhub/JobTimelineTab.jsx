@@ -12,7 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import {
   NOTE_TYPE_OPTIONS, getNoteTypeConfig, getEventTypeConfig,
   buildNoteItem, buildLogItem, buildChangeOrderItem, buildInvoiceItem,
-  buildExpenseItem, buildTaskItem, buildWarrantyItem, buildFileItem,
+  buildExpenseItem, buildBillItem, buildTaskItem, buildWarrantyItem, buildFileItem,
   buildTimeEntryItem, buildScheduleItem, buildSignatureItem, sortFeed, getNoteVisibilityConfig,
 } from '@/lib/timelineHelpers';
 import { useNoteCreate } from '@/hooks/useNoteCreate';
@@ -44,6 +44,7 @@ const FILTER_OPTIONS = [
   { value: 'time_entry',   label: 'Time' },
   { value: 'schedule',     label: 'Schedule' },
   { value: 'warranty',     label: 'Warranty' },
+  { value: 'bill',         label: 'Bills' },
   { value: 'signature',    label: 'Approvals' },
 ];
 
@@ -74,14 +75,17 @@ function TimelineCard({ item }) {
         className={`flex-1 min-w-0 pb-4 ${isClickable && !isNote ? 'cursor-pointer' : ''}`}
         onClick={isClickable && !isNote ? item.onClick : undefined}
       >
-        {/* Meta row: badge + author + time */}
+        {/* Meta row: badge + attribution + time */}
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${item.badgeColor || 'bg-muted text-muted-foreground'}`}>
                 {item.displayType}
               </span>
-              {item.actor && (
-                <span className="text-[10px] text-muted-foreground">{item.actor}</span>
+              {/* actorLabel is the preferred display e.g. "by Sean H", "Uploaded by Nick" */}
+              {(item.actorLabel || item.actor) && (
+                <span className="text-[10px] text-muted-foreground/80 italic">
+                  {item.actorLabel || item.actor}
+                </span>
               )}
               {item.isUnread && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
@@ -326,6 +330,11 @@ export default function JobTimelineTab({ job, isAdmin }) {
     queryFn: () => base44.entities.CalendarEvent.filter({ job_id: job.id }, '-start_date'),
     enabled: !!job.id,
   });
+  const { data: bills = [] } = useQuery({
+    queryKey: ['hub-tl-bills', job.id],
+    queryFn: () => base44.entities.Bill.filter({ job_id: job.id }, '-created_date'),
+    enabled: !!job.id && isAdmin,
+  });
   const { data: signatureRecords = [] } = useQuery({
     queryKey: ['hub-sig-records', job.id],
     queryFn: () => base44.entities.SignatureRecord.filter({ job_id: job.id }, '-created_date'),
@@ -347,10 +356,11 @@ export default function JobTimelineTab({ job, isAdmin }) {
       ...files.map(f => buildFileItem(f)),
       ...timeEntries.map(e => buildTimeEntryItem(e, navigate)),
       ...scheduleEvents.map(ev => buildScheduleItem(ev, navigate)),
+      ...bills.map(b => buildBillItem(b, navigate)),
       ...signatureRecords.map(r => buildSignatureItem(r, navigate)),
     ];
     return sortFeed(items);
-  }, [notes, logs, cos, invoices, expenses, tasks, warrantyItems, files, timeEntries, scheduleEvents, signatureRecords]);
+  }, [notes, logs, cos, invoices, expenses, tasks, warrantyItems, files, timeEntries, scheduleEvents, bills, signatureRecords]);
 
   const filtered = typeFilter === 'all' ? feed : feed.filter(i => i.type === typeFilter);
   const visible = filtered.slice(0, limit);

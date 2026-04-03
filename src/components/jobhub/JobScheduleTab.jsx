@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { getInternalRole } from '@/lib/adminAuth';
+import { logAudit } from '@/lib/audit';
 
 const STATUS_STYLES = {
   scheduled:   'bg-blue-50 text-blue-700 border-blue-200',
@@ -62,6 +63,9 @@ function EventCard({ event, onClick }) {
             </div>
           )}
           {event.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">{event.notes}</p>}
+          {event.created_by_name && (
+            <p className="text-[10px] text-muted-foreground/50 mt-0.5">Added by {event.created_by_name}</p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${statusStyle}`}>
@@ -98,16 +102,24 @@ export default function JobScheduleTab({ job, isAdmin, defaultShowAdd = false })
   });
 
   const createMut = useMutation({
-    mutationFn: (data) => base44.entities.CalendarEvent.create({
-      ...data,
-      job_id: job.id,
-      job_address: job.address,
-      job_title: job.title || job.address,
-      created_by_name: actorName || 'admin',
-      status: 'scheduled',
-    }),
+    mutationFn: async (data) => {
+      const rec = await base44.entities.CalendarEvent.create({
+        ...data,
+        job_id: job.id,
+        job_address: job.address,
+        job_title: job.title || job.address,
+        created_by_name: actorName || 'admin',
+        status: 'scheduled',
+      });
+      // Light audit trail — fire-and-forget
+      logAudit(rec.id, 'record_created', actorName || 'admin',
+        `${actorName || 'Admin'} added schedule item: "${data.title}" on ${job.address}.`,
+        { module: 'system', record_id: rec.id, job_id: job.id, job_address: job.address });
+      return rec;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hub-schedule', job.id] });
+      queryClient.invalidateQueries({ queryKey: ['hub-tl-schedule', job.id] });
       setShowAdd(false);
       setForm({ title: '', event_type: 'job_visit', start_date: '', start_time: '', end_date: '', end_time: '', assigned_to: '', notes: '', all_day: true });
       toast.success('Schedule item added');

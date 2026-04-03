@@ -76,6 +76,7 @@ export function getNoteVisibilityConfig(vis) {
 
 export function buildNoteItem(note, navigate) {
   const ntCfg = getNoteTypeConfig(note.note_type);
+  const actorRaw = note.author_name || note.author_role || null;
   return {
     id: `note-${note.id}`,
     type: 'note',
@@ -86,7 +87,8 @@ export function buildNoteItem(note, navigate) {
     title: null,
     body: note.content,
     sub: null,
-    actor: note.author_name || note.author_role || null,
+    actor: actorRaw,
+    actorLabel: actorRaw ? `by ${actorRaw}` : null,
     hasFile: !!note.file_url,
     fileUrl: note.file_url,
     fileName: note.file_name,
@@ -101,6 +103,7 @@ export function buildNoteItem(note, navigate) {
 
 export function buildLogItem(log, navigate) {
   const cfg = getEventTypeConfig('daily_log');
+  const actor = log.created_by_name || null;
   return {
     id: `log-${log.id}`,
     type: 'daily_log',
@@ -111,7 +114,8 @@ export function buildLogItem(log, navigate) {
     title: `Daily log · ${log.log_date || ''}`,
     body: log.work_completed || '',
     sub: log.delays_issues ? `Delays: ${log.delays_issues}` : null,
-    actor: log.created_by_name || null,
+    actor,
+    actorLabel: actor ? `by ${actor}` : null,
     hasFile: false,
     fileUrl: null,
     canExpand: (log.work_completed || '').length > 120,
@@ -124,6 +128,7 @@ export function buildChangeOrderItem(co, navigate) {
   const impact = co.total_financial_impact
     ? `${co.total_financial_impact >= 0 ? '+' : ''}$${Number(co.total_financial_impact).toLocaleString()}`
     : null;
+  const actor = co.created_by_name || null;
   return {
     id: `co-${co.id}`,
     type: 'change_order',
@@ -134,7 +139,8 @@ export function buildChangeOrderItem(co, navigate) {
     title: co.title || 'Change Order',
     body: co.scope_summary || co.description || null,
     sub: [co.status, impact].filter(Boolean).join(' · '),
-    actor: co.created_by_name || null,
+    actor,
+    actorLabel: actor ? `by ${actor}` : null,
     hasFile: false,
     fileUrl: null,
     canExpand: false,
@@ -146,6 +152,7 @@ export function buildInvoiceItem(inv, navigate) {
   const cfg = getEventTypeConfig('invoice');
   const amount = `$${Number(inv.amount || 0).toLocaleString()}`;
   const due = inv.balance_due > 0 ? ` · $${Number(inv.balance_due).toLocaleString()} due` : '';
+  const actor = inv.created_by_name || null;
   return {
     id: `inv-${inv.id}`,
     type: 'invoice',
@@ -156,7 +163,8 @@ export function buildInvoiceItem(inv, navigate) {
     title: `Invoice #${inv.invoice_number || 'draft'} · ${amount}`,
     body: inv.notes || inv.memo || null,
     sub: `${inv.status}${due}`,
-    actor: inv.created_by_name || null,
+    actor,
+    actorLabel: actor ? `Added by ${actor}` : null,
     hasFile: !!inv.generated_document_url,
     fileUrl: inv.generated_document_url,
     canExpand: false,
@@ -166,6 +174,7 @@ export function buildInvoiceItem(inv, navigate) {
 
 export function buildExpenseItem(exp, navigate) {
   const cfg = getEventTypeConfig('expense');
+  const actor = exp.submitted_by || exp.created_by_name || null;
   return {
     id: `exp-${exp.id}`,
     type: 'expense',
@@ -176,7 +185,8 @@ export function buildExpenseItem(exp, navigate) {
     title: `${exp.vendor_name || 'Expense'} · $${Number(exp.total_amount || 0).toFixed(2)}`,
     body: exp.description || exp.notes || null,
     sub: [exp.category, exp.inbox_status].filter(Boolean).join(' · '),
-    actor: exp.submitted_by || null,
+    actor,
+    actorLabel: actor ? `by ${actor}` : null,
     hasFile: !!exp.file_url,
     fileUrl: exp.file_url,
     canExpand: false,
@@ -232,6 +242,7 @@ export function buildFileItem(file) {
   const sourceLabel = file.related_module_label || (file.related_module && file.related_module !== 'job'
     ? file.related_module.replace(/_/g, ' ')
     : null);
+  const actor = file.uploaded_by_name || null;
   return {
     id: `file-${file.id}`,
     type: 'file',
@@ -242,12 +253,36 @@ export function buildFileItem(file) {
     title: file.file_name,
     body: file.description || null,
     sub: [catLabel, sourceLabel ? `via ${sourceLabel}` : null].filter(Boolean).join(' · ') || null,
-    actor: file.uploaded_by_name || null,
+    actor,
+    actorLabel: actor ? `Uploaded by ${actor}` : null,
     hasFile: true,
     fileUrl: file.file_url,
     fileName: file.file_name,
     canExpand: false,
     onClick: () => window.open(file.file_url, '_blank'),
+  };
+}
+
+export function buildBillItem(bill, navigate) {
+  const cfg = getEventTypeConfig('expense'); // reuse orange cost color
+  const actor = bill.created_by_name || null;
+  const amount = `$${Number(bill.amount || 0).toLocaleString()}`;
+  return {
+    id: `bill-${bill.id}`,
+    type: 'bill',
+    displayType: 'Bill',
+    badgeColor: 'bg-amber-50 text-amber-700',
+    dotColor: 'bg-amber-500',
+    ts: bill.created_date,
+    title: `${bill.vendor_name || 'Bill'} · ${amount}`,
+    body: bill.notes || null,
+    sub: [bill.category, bill.status].filter(Boolean).join(' · '),
+    actor,
+    actorLabel: actor ? `Added by ${actor}` : null,
+    hasFile: false,
+    fileUrl: null,
+    canExpand: false,
+    onClick: () => navigate('/bills'),
   };
 }
 
@@ -279,6 +314,8 @@ export function buildScheduleItem(ev, navigate) {
   const dateStr = ev.start_date
     ? (() => { try { return new Date(ev.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return ev.start_date; } })()
     : null;
+  const actor = ev.created_by_name || null;
+  const updatedBy = ev.updated_by_name || null;
   return {
     id: `sched-${ev.id}`,
     type: 'schedule',
@@ -289,7 +326,10 @@ export function buildScheduleItem(ev, navigate) {
     title: ev.title,
     body: ev.notes || null,
     sub: [dateStr, ev.status, ev.assigned_to].filter(Boolean).join(' · '),
-    actor: ev.created_by_name || null,
+    actor,
+    actorLabel: updatedBy
+      ? `Edited by ${updatedBy}`
+      : actor ? `Added by ${actor}` : null,
     hasFile: false,
     fileUrl: null,
     canExpand: false,
@@ -308,6 +348,12 @@ export function buildSignatureItem(rec, navigate) {
     archived: { badge: 'bg-slate-100 text-slate-500',       dot: 'bg-slate-300' },
   };
   const cfg = STATUS_COLORS[rec.status] || STATUS_COLORS.draft;
+  const actor = rec.created_by_name || null;
+  // Action label depends on status
+  const actionVerb = rec.status === 'sent' ? 'Sent by'
+    : rec.status === 'signed' ? 'Signed'
+    : rec.status === 'declined' ? 'Declined'
+    : 'Added by';
   return {
     id: `sig-${rec.id}`,
     type: 'signature',
@@ -317,11 +363,9 @@ export function buildSignatureItem(rec, navigate) {
     ts: rec.signed_date || rec.created_date,
     title: rec.title || 'Signature Record',
     body: rec.description || null,
-    sub: [
-      rec.signer_name,
-      rec.status,
-    ].filter(Boolean).join(' · '),
-    actor: rec.created_by_name || null,
+    sub: [rec.signer_name, rec.signer_role].filter(Boolean).join(' · ') || null,
+    actor,
+    actorLabel: actor ? `${actionVerb} ${actor}` : (rec.signer_name && rec.status === 'signed' ? `Signed by ${rec.signer_name}` : null),
     hasFile: !!rec.output_file_url,
     fileUrl: rec.output_file_url,
     fileName: rec.output_file_name,

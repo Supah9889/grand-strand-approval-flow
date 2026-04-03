@@ -66,6 +66,7 @@ export default function JobHub() {
     await queryClient.refetchQueries({ queryKey: ['job-hub', jobId] });
     await queryClient.refetchQueries({ queryKey: ['hub-tl-notes', jobId] });
     await queryClient.refetchQueries({ queryKey: ['hub-schedule', jobId] });
+    await queryClient.refetchQueries({ queryKey: ['hub-contacts', jobId] });
     setIsRefreshing(false);
   };
 
@@ -161,7 +162,7 @@ export default function JobHub() {
           <JobSummaryPanel job={job} isAdmin={isAdmin} />
 
           {/* ── Contacts: customer + team members ────────────────────── */}
-          <JobContactsPanel job={job} assignments={assignments} />
+          <JobContactsPanel job={job} assignments={assignments} isAdmin={isAdmin} />
 
           {/* ── Tab bar ──────────────────────────────────────────────── */}
           <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">

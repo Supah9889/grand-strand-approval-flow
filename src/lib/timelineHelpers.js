@@ -226,6 +226,12 @@ export function buildWarrantyItem(w, navigate) {
 
 export function buildFileItem(file) {
   const cfg = getEventTypeConfig('file');
+  const catLabel = file.category
+    ? file.category.replace(/_/g, ' ')
+    : null;
+  const sourceLabel = file.related_module_label || (file.related_module && file.related_module !== 'job'
+    ? file.related_module.replace(/_/g, ' ')
+    : null);
   return {
     id: `file-${file.id}`,
     type: 'file',
@@ -235,7 +241,7 @@ export function buildFileItem(file) {
     ts: file.created_date,
     title: file.file_name,
     body: file.description || null,
-    sub: file.category?.replace(/_/g, ' ') || null,
+    sub: [catLabel, sourceLabel ? `via ${sourceLabel}` : null].filter(Boolean).join(' · ') || null,
     actor: file.uploaded_by_name || null,
     hasFile: true,
     fileUrl: file.file_url,

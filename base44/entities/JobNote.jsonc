@@ -1,0 +1,74 @@
+{
+  "name": "JobNote",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "Linked job ID"
+    },
+    "job_address": {
+      "type": "string",
+      "description": "Job address for display"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Job title for display"
+    },
+    "event_id": {
+      "type": "string",
+      "description": "Linked calendar event ID (optional)"
+    },
+    "event_title": {
+      "type": "string",
+      "description": "Calendar event title (optional)"
+    },
+    "note_type": {
+      "type": "string",
+      "enum": [
+        "internal_update",
+        "homeowner_contact",
+        "builder_contact",
+        "vendor_sub_update",
+        "schedule_update",
+        "estimate_note",
+        "invoice_note",
+        "bill_cost_note",
+        "field_update",
+        "access_info",
+        "completion_note",
+        "photo_file",
+        "general"
+      ],
+      "default": "general",
+      "description": "Operational category for this note"
+    },
+    "content": {
+      "type": "string",
+      "description": "Note content"
+    },
+    "author_role": {
+      "type": "string",
+      "description": "Role of person who added the note (admin or staff)"
+    },
+    "author_name": {
+      "type": "string",
+      "description": "Name of the person who added the note"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Optional attached file URL"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Attached file name"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this note has been viewed/acknowledged"
+    }
+  },
+  "required": [
+    "content"
+  ]
+}

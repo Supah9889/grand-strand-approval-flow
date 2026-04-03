@@ -97,6 +97,12 @@ export default function DashQuickSearch({ jobs = [], invoices = [], expenses = [
           placeholder="Search address, name, invoice #, phone..."
           value={query}
           onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && query.length >= 2) {
+              navigate(`/global-search?q=${encodeURIComponent(query)}`);
+              setQuery('');
+            }
+          }}
           className="w-full pl-9 pr-9 h-10 rounded-xl border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         {query ? (
@@ -111,6 +117,7 @@ export default function DashQuickSearch({ jobs = [], invoices = [], expenses = [
           >
             <ArrowRight className="w-4 h-4" />
           </button>
+        
         )}
       </div>
 
@@ -118,7 +125,7 @@ export default function DashQuickSearch({ jobs = [], invoices = [], expenses = [
         <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-lg overflow-hidden">
           {results.length === 0 ? (
             <div className="px-4 py-6 text-center">
-              <p className="text-xs text-muted-foreground">No results — <button onClick={() => navigate(`/global-search`)} className="text-primary underline">full search</button></p>
+              <p className="text-xs text-muted-foreground">No results — <button onClick={() => navigate(`/global-search?q=${encodeURIComponent(query)}`)} className="text-primary underline">full search</button></p>
             </div>
           ) : (
             <div className="divide-y divide-border max-h-72 overflow-y-auto">
@@ -140,10 +147,10 @@ export default function DashQuickSearch({ jobs = [], invoices = [], expenses = [
                 );
               })}
               <button
-                onClick={() => { navigate('/global-search'); setQuery(''); }}
+                onClick={() => { navigate(`/global-search?q=${encodeURIComponent(query)}`); setQuery(''); }}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs text-primary hover:bg-muted transition-colors"
               >
-                <Search className="w-3 h-3" /> Full search
+                <Search className="w-3 h-3" /> Full search →
               </button>
             </div>
           )}

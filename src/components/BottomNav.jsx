@@ -6,7 +6,7 @@ import { Home, Search, Clock, DollarSign, Settings } from 'lucide-react';
 
 const ALL_NAV_ITEMS = [
   { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
-  { label: 'Search', tabName: 'search', primaryPath: '/search', icon: Search },
+  { label: 'Search', tabName: 'search', primaryPath: '/global-search', icon: Search },
   { label: 'Time', tabName: 'time', primaryPath: '/time-entries', icon: Clock },
   { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign, adminOnly: true },
   { label: 'Admin', tabName: 'admin', primaryPath: '/admin', icon: Settings },
@@ -14,7 +14,7 @@ const ALL_NAV_ITEMS = [
 
 function getActiveTab(pathname) {
   if (/^\/(dashboard|job-hub|admin-overview)/.test(pathname)) return 'dashboard';
-  if (/^\/search/.test(pathname)) return 'search';
+  if (/^\/(search|global-search)/.test(pathname)) return 'search';
   if (/^\/(time-entries|time-clock)/.test(pathname)) return 'time';
   if (/^\/(financials|invoices|expenses|payments)/.test(pathname)) return 'finance';
   if (/^\/admin/.test(pathname)) return 'admin';

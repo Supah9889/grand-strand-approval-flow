@@ -149,6 +149,7 @@ const AuthenticatedApp = () => {
               <Route path="/admin-overview" element={<AdminOverview />} />
               <Route path="/search" element={<JobSearch />} />
               <Route path="/global-search" element={<GlobalSearch />} />
+              {/* /search-jobs is the old scoped job-only search, kept for back-compat */}
               <Route path="/new-job" element={<NewJobPage />} />
 
               {/* Time Tracking Routes */}

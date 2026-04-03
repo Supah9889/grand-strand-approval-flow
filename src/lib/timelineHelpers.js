@@ -64,6 +64,16 @@ export function getEventTypeConfig(type) {
 // ── Feed item builders ────────────────────────────────────────────────────────
 // Each returns a normalized feed item: { id, type, displayType, ts, title, body, sub, actor, hasFile, fileUrl, onClick }
 
+export const NOTE_VISIBILITY_CONFIG = {
+  internal:        { label: 'Internal',        color: 'bg-slate-100 text-slate-500' },
+  shareable:       { label: 'Shareable',       color: 'bg-blue-50 text-blue-600' },
+  admin_sensitive: { label: 'Admin Only',      color: 'bg-red-50 text-red-600' },
+};
+
+export function getNoteVisibilityConfig(vis) {
+  return NOTE_VISIBILITY_CONFIG[vis] || NOTE_VISIBILITY_CONFIG.internal;
+}
+
 export function buildNoteItem(note, navigate) {
   const ntCfg = getNoteTypeConfig(note.note_type);
   return {
@@ -73,7 +83,7 @@ export function buildNoteItem(note, navigate) {
     badgeColor: ntCfg.color,
     dotColor: ntCfg.dot,
     ts: note.created_date,
-    title: null,                       // notes use body directly as the primary content
+    title: null,
     body: note.content,
     sub: null,
     actor: note.author_name || note.author_role || null,
@@ -82,8 +92,9 @@ export function buildNoteItem(note, navigate) {
     fileName: note.file_name,
     sourceId: note.id,
     canExpand: (note.content || '').length > 120,
-    onClick: () => {},                 // notes are self-contained in the feed
+    onClick: () => {},
     noteType: note.note_type || 'general',
+    visibility: note.visibility || 'internal',
     isUnread: !note.read,
   };
 }

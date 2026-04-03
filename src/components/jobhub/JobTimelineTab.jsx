@@ -1,22 +1,22 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import {
   Activity, Loader2, Plus, StickyNote, ChevronDown, ChevronUp,
-  Paperclip, ExternalLink, Filter, X
+  Paperclip, ExternalLink, X
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { getInternalRole, isAdmin as checkAdmin } from '@/lib/adminAuth';
 import {
   NOTE_TYPE_OPTIONS, getNoteTypeConfig, getEventTypeConfig,
   buildNoteItem, buildLogItem, buildChangeOrderItem, buildInvoiceItem,
   buildExpenseItem, buildTaskItem, buildWarrantyItem, buildFileItem,
-  buildTimeEntryItem, buildScheduleItem, sortFeed,
+  buildTimeEntryItem, buildScheduleItem, sortFeed, getNoteVisibilityConfig,
 } from '@/lib/timelineHelpers';
+import { useNoteCreate } from '@/hooks/useNoteCreate';
+import { Lock, Eye, ShieldAlert } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function safeRelative(ts) {
@@ -74,18 +74,26 @@ function TimelineCard({ item }) {
         onClick={isClickable && !isNote ? item.onClick : undefined}
       >
         {/* Meta row: badge + author + time */}
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${item.badgeColor || 'bg-muted text-muted-foreground'}`}>
-              {item.displayType}
-            </span>
-            {item.actor && (
-              <span className="text-[10px] text-muted-foreground">{item.actor}</span>
-            )}
-            {item.isUnread && (
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-            )}
-          </div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${item.badgeColor || 'bg-muted text-muted-foreground'}`}>
+                {item.displayType}
+              </span>
+              {item.actor && (
+                <span className="text-[10px] text-muted-foreground">{item.actor}</span>
+              )}
+              {item.isUnread && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+              )}
+              {item.type === 'note' && item.visibility && item.visibility !== 'internal' && (() => {
+                const vcfg = getNoteVisibilityConfig(item.visibility);
+                return (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none ${vcfg.color}`}>
+                    {vcfg.label}
+                  </span>
+                );
+              })()}
+            </div>
           <div className="flex items-center gap-1 shrink-0">
             <span className="text-[10px] text-muted-foreground/60" title={absolute || ''}>
               {relative || absolute || '—'}
@@ -146,52 +154,19 @@ function TimelineCard({ item }) {
   );
 }
 
+const VISIBILITY_OPTIONS = [
+  { value: 'internal',        label: 'Internal' },
+  { value: 'shareable',       label: 'Shareable' },
+  { value: 'admin_sensitive', label: 'Admin Only' },
+];
+
 // ── Quick Add Note inline form ────────────────────────────────────────────────
 function QuickAddNote({ job, onAdded, isAdmin }) {
-  const queryClient = useQueryClient();
-  const actorName = getInternalRole();
-  const fileInputRef = useRef(null);
   const [open, setOpen] = useState(false);
-  const [content, setContent] = useState('');
-  const [noteType, setNoteType] = useState('general');
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
 
-  const saveMut = useMutation({
-    mutationFn: async () => {
-      let file_url = null;
-      let file_name = null;
-      if (file) {
-        setUploading(true);
-        const res = await base44.integrations.Core.UploadFile({ file });
-        file_url = res.file_url;
-        file_name = file.name;
-        setUploading(false);
-      }
-      return base44.entities.JobNote.create({
-        job_id: job.id,
-        job_address: job.address,
-        job_title: job.title || job.address,
-        content,
-        note_type: noteType,
-        author_role: isAdmin ? 'admin' : 'staff',
-        author_name: actorName || null,
-        file_url,
-        file_name,
-        read: false,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hub-tl-notes', job.id] });
-      queryClient.invalidateQueries({ queryKey: ['hub-notes', job.id] });
-      setContent('');
-      setNoteType('general');
-      setFile(null);
-      setOpen(false);
-      toast.success('Note added');
-      onAdded?.();
-    },
-    onError: () => { setUploading(false); toast.error('Failed to add note'); },
+  const noteState = useNoteCreate({
+    job,
+    onSuccess: () => { setOpen(false); onAdded?.(); },
   });
 
   if (!open) {
@@ -206,12 +181,15 @@ function QuickAddNote({ job, onAdded, isAdmin }) {
     );
   }
 
+  const { content, setContent, noteType, setNoteType, visibility, setVisibility,
+          file, setFile, fileInputRef, uploading, isPending, canSave, save } = noteState;
+
   return (
     <div className="bg-secondary/30 border border-border rounded-2xl p-4 space-y-3">
-      {/* Type selector */}
+      {/* Type + visibility */}
       <div className="flex items-center gap-2">
         <Select value={noteType} onValueChange={setNoteType}>
-          <SelectTrigger className="h-8 rounded-xl text-xs flex-1 max-w-56">
+          <SelectTrigger className="h-8 rounded-xl text-xs flex-1 max-w-52">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -220,12 +198,26 @@ function QuickAddNote({ job, onAdded, isAdmin }) {
             ))}
           </SelectContent>
         </Select>
-        <button onClick={() => setOpen(false)} className="ml-auto text-muted-foreground hover:text-foreground">
+
+        {isAdmin && (
+          <Select value={visibility} onValueChange={setVisibility}>
+            <SelectTrigger className="h-8 rounded-xl text-xs w-32 shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VISIBILITY_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <button onClick={() => { setOpen(false); noteState.reset(); }} className="ml-auto text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Content area */}
+      {/* Content */}
       <Textarea
         value={content}
         onChange={e => setContent(e.target.value)}
@@ -234,14 +226,14 @@ function QuickAddNote({ job, onAdded, isAdmin }) {
         autoFocus
       />
 
-      {/* File attach */}
+      {/* File + actions */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <Paperclip className="w-3.5 h-3.5" />
-          {file ? file.name : 'Attach file'}
+          {file ? <span className="max-w-[100px] truncate">{file.name}</span> : 'Attach file'}
         </button>
         {file && (
           <button onClick={() => setFile(null)} className="text-xs text-destructive hover:underline">Remove</button>
@@ -254,20 +246,19 @@ function QuickAddNote({ job, onAdded, isAdmin }) {
           onChange={e => setFile(e.target.files?.[0] || null)}
         />
 
-        {/* Actions */}
         <div className="ml-auto flex items-center gap-2">
           <button
-            onClick={() => { setOpen(false); setContent(''); setFile(null); }}
+            onClick={() => { setOpen(false); noteState.reset(); }}
             className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-muted transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending || uploading || !content.trim()}
+            onClick={save}
+            disabled={!canSave}
             className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-4 py-1.5 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
-            {(saveMut.isPending || uploading) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {(isPending || uploading) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <StickyNote className="w-3.5 h-3.5" />
             Save
           </button>

@@ -67,6 +67,7 @@ export default function JobHub() {
     await queryClient.refetchQueries({ queryKey: ['hub-tl-notes', jobId] });
     await queryClient.refetchQueries({ queryKey: ['hub-schedule', jobId] });
     await queryClient.refetchQueries({ queryKey: ['hub-contacts', jobId] });
+    await queryClient.refetchQueries({ queryKey: ['hub-sig-records', jobId] });
     setIsRefreshing(false);
   };
 

@@ -13,7 +13,7 @@ import {
   NOTE_TYPE_OPTIONS, getNoteTypeConfig, getEventTypeConfig,
   buildNoteItem, buildLogItem, buildChangeOrderItem, buildInvoiceItem,
   buildExpenseItem, buildTaskItem, buildWarrantyItem, buildFileItem,
-  buildTimeEntryItem, buildScheduleItem, sortFeed, getNoteVisibilityConfig,
+  buildTimeEntryItem, buildScheduleItem, buildSignatureItem, sortFeed, getNoteVisibilityConfig,
 } from '@/lib/timelineHelpers';
 import { useNoteCreate } from '@/hooks/useNoteCreate';
 import { Lock, Eye, ShieldAlert } from 'lucide-react';
@@ -44,6 +44,7 @@ const FILTER_OPTIONS = [
   { value: 'time_entry',   label: 'Time' },
   { value: 'schedule',     label: 'Schedule' },
   { value: 'warranty',     label: 'Warranty' },
+  { value: 'signature',    label: 'Approvals' },
 ];
 
 // ── Timeline Item Card ────────────────────────────────────────────────────────
@@ -325,6 +326,11 @@ export default function JobTimelineTab({ job, isAdmin }) {
     queryFn: () => base44.entities.CalendarEvent.filter({ job_id: job.id }, '-start_date'),
     enabled: !!job.id,
   });
+  const { data: signatureRecords = [] } = useQuery({
+    queryKey: ['hub-sig-records', job.id],
+    queryFn: () => base44.entities.SignatureRecord.filter({ job_id: job.id }, '-created_date'),
+    enabled: !!job.id,
+  });
 
   const coreLoading = ln || ll || lc;
 
@@ -341,9 +347,10 @@ export default function JobTimelineTab({ job, isAdmin }) {
       ...files.map(f => buildFileItem(f)),
       ...timeEntries.map(e => buildTimeEntryItem(e, navigate)),
       ...scheduleEvents.map(ev => buildScheduleItem(ev, navigate)),
+      ...signatureRecords.map(r => buildSignatureItem(r, navigate)),
     ];
     return sortFeed(items);
-  }, [notes, logs, cos, invoices, expenses, tasks, warrantyItems, files, timeEntries, scheduleEvents]);
+  }, [notes, logs, cos, invoices, expenses, tasks, warrantyItems, files, timeEntries, scheduleEvents, signatureRecords]);
 
   const filtered = typeFilter === 'all' ? feed : feed.filter(i => i.type === typeFilter);
   const visible = filtered.slice(0, limit);

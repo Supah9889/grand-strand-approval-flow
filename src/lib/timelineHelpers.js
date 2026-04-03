@@ -297,6 +297,39 @@ export function buildScheduleItem(ev, navigate) {
   };
 }
 
+export function buildSignatureItem(rec, navigate) {
+  const STATUS_COLORS = {
+    draft:    { badge: 'bg-muted text-muted-foreground',    dot: 'bg-muted-foreground' },
+    sent:     { badge: 'bg-blue-50 text-blue-700',          dot: 'bg-blue-400' },
+    viewed:   { badge: 'bg-cyan-50 text-cyan-700',          dot: 'bg-cyan-400' },
+    signed:   { badge: 'bg-green-50 text-green-700',        dot: 'bg-green-500' },
+    declined: { badge: 'bg-red-50 text-red-700',            dot: 'bg-red-400' },
+    replaced: { badge: 'bg-amber-50 text-amber-700',        dot: 'bg-amber-400' },
+    archived: { badge: 'bg-slate-100 text-slate-500',       dot: 'bg-slate-300' },
+  };
+  const cfg = STATUS_COLORS[rec.status] || STATUS_COLORS.draft;
+  return {
+    id: `sig-${rec.id}`,
+    type: 'signature',
+    displayType: `Approval · ${rec.status || 'draft'}`,
+    badgeColor: cfg.badge,
+    dotColor: cfg.dot,
+    ts: rec.signed_date || rec.created_date,
+    title: rec.title || 'Signature Record',
+    body: rec.description || null,
+    sub: [
+      rec.signer_name,
+      rec.status,
+    ].filter(Boolean).join(' · '),
+    actor: rec.created_by_name || null,
+    hasFile: !!rec.output_file_url,
+    fileUrl: rec.output_file_url,
+    fileName: rec.output_file_name,
+    canExpand: false,
+    onClick: () => {},
+  };
+}
+
 // Sort feed items newest-first
 export function sortFeed(items) {
   return [...items].sort((a, b) => {

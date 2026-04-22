@@ -76,7 +76,8 @@ function RecordRow({ item, type, onClick }) {
 function TypeSection({ type, jobId, isAdmin, navigate }) {
   const [open, setOpen] = useState(false);
   const meta = TYPE_META[type];
-  if (meta.adminOnly && !isAdmin) return null;
+
+  const shouldShow = !(meta.adminOnly && !isAdmin);
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ['linked', type, jobId],
@@ -91,8 +92,10 @@ function TypeSection({ type, jobId, isAdmin, navigate }) {
       if (type === 'logs')          return base44.entities.DailyLog.filter({ job_id: jobId }, '-log_date', 20);
       if (type === 'files')         return base44.entities.JobFile.filter({ job_id: jobId }, '-created_date', 30);
     },
-    enabled: open,
+    enabled: open && shouldShow,
   });
+
+  if (!shouldShow) return null;
 
   const Icon = meta.icon;
 

@@ -201,8 +201,8 @@ export default function NewJobPage() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Resolve client info
-      let customerName = form.customer_name;
+      // Resolve client info — always prefer effectiveCustomerName (covers Clients tab selections)
+      let customerName = effectiveCustomerName;
       let customerEmail = form.customer_email;
       let customerPhone = form.customer_phone;
       let customerId = '';
@@ -216,19 +216,36 @@ export default function NewJobPage() {
           status: 'new_lead',
         });
         customerName = newClientFields.name;
-        customerEmail = newClientFields.email;
-        customerPhone = newClientFields.phone;
+        customerEmail = newClientFields.email || form.customer_email;
+        customerPhone = newClientFields.phone || form.customer_phone;
         customerId = newLead.id;
       } else if (selectedClient) {
         // Lead entity uses contact_name as the primary name field
-        customerName = selectedClient.contact_name || selectedClient.name || selectedClient.customer_name || customerName;
-        customerEmail = selectedClient.email || customerEmail;
-        customerPhone = selectedClient.phone || customerPhone;
+        customerName = selectedClient.contact_name || selectedClient.name || selectedClient.customer_name || form.customer_name;
+        customerEmail = selectedClient.email || form.customer_email;
+        customerPhone = selectedClient.phone || form.customer_phone;
         customerId = selectedClient.id;
       }
 
-      // Assemble address
-      const fullAddress = [form.address, form.city, form.state && form.zip ? `${form.state} ${form.zip}` : (form.state || form.zip)].filter(Boolean).join(', ');
+      if (!customerName) {
+        throw new Error('Customer name is required. Please add or select a client in the Clients tab.');
+      }
+
+      // Assemble address — city/state/zip are optional components
+      const fullAddress = [
+        form.address,
+        form.city,
+        form.state && form.zip ? `${form.state} ${form.zip}` : (form.state || form.zip),
+      ].filter(Boolean).join(', ');
+
+      const resolvedAddress = fullAddress || form.address;
+      if (!resolvedAddress) {
+        throw new Error('Street address is required.');
+      }
+
+      if (!form.description) {
+        throw new Error('Job description is required.');
+      }
 
       // Resolve vendor
       let vendorId = selectedVendor?.id || '';
@@ -239,11 +256,12 @@ export default function NewJobPage() {
         vendorName = nv.company_name;
       }
 
-      // Create job
+      // Create job — only send fields the entity schema accepts; strip city/state/zip from the root payload
+      const { city, state, zip, ...formWithoutCityStateZip } = form;
       const job = await base44.entities.Job.create({
-        ...form,
+        ...formWithoutCityStateZip,
         price: form.price ? Number(form.price) : 0,
-        address: fullAddress || form.address,
+        address: resolvedAddress,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
@@ -255,7 +273,7 @@ export default function NewJobPage() {
       for (const pa of pendingAssignments) {
         await base44.entities.JobAssignment.create({
           job_id: job.id,
-          job_address: fullAddress || form.address,
+          job_address: resolvedAddress,
           employee_id: pa.emp.id,
           employee_name: pa.emp.name,
           employee_code: pa.emp.employee_code,
@@ -270,9 +288,9 @@ export default function NewJobPage() {
           job.id,
           role || 'Admin',
           pa.emp.name,
-          fullAddress || form.address || `Job ${job.id}`,
+          resolvedAddress || `Job ${job.id}`,
           pa.notify,
-          { job_address: fullAddress || form.address }
+          { job_address: resolvedAddress }
         );
 
         // Send notification email if chosen
@@ -280,12 +298,12 @@ export default function NewJobPage() {
           base44.integrations.Core.SendEmail({
             to: pa.emp.email,
             subject: `You've been assigned to a new job`,
-            body: `Hi ${pa.emp.name},\n\nYou have been assigned to the following job:\n\n${fullAddress || form.address}\nRole: ${pa.role}\n\nAssigned by: ${role || 'Admin'}\n\nPlease log in for details.`,
+            body: `Hi ${pa.emp.name},\n\nYou have been assigned to the following job:\n\n${resolvedAddress}\nRole: ${pa.role}\n\nAssigned by: ${role || 'Admin'}\n\nPlease log in for details.`,
           }).catch(() => {});
         }
       }
 
-      await logAudit(job.id, 'job_created', role || 'admin', `Master job file created: ${fullAddress || form.address}`);
+      await logAudit(job.id, 'job_created', role || 'admin', `Master job file created: ${resolvedAddress}`);
       return job;
     },
     onSuccess: (job) => {
@@ -297,7 +315,13 @@ export default function NewJobPage() {
       navigate(`/job-hub?jobId=${job.id}`);
     },
     onError: (err) => {
-      const msg = err?.message || String(err) || 'Unknown error';
+      // Unwrap Base44 / Axios errors which may nest the real message
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        String(err) ||
+        'Unknown error';
       setSaveError(msg);
       toast.error(`Failed to create job: ${msg}`);
     },

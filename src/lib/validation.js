@@ -24,10 +24,8 @@ function isPhone(v) {
 // ─── Job / Project ────────────────────────────────────────────────────────────
 export function validateJob(job) {
   const issues = [];
+  // Only the assembled address string is required — city/state/zip are optional components
   if (!hasValue(job.address))        issues.push(err('address', 'Street address is required'));
-  if (!hasValue(job.city))           issues.push(err('city', 'City is required'));
-  if (!hasValue(job.state))          issues.push(err('state', 'State is required'));
-  if (!hasValue(job.zip))            issues.push(err('zip', 'ZIP code is required'));
   if (!hasValue(job.customer_name))  issues.push(err('customer_name', 'Customer name is required'));
   if (!hasValue(job.description))    issues.push(err('description', 'Job description is required'));
   if (!isPositive(job.price))        issues.push(warn('price', 'Job price is $0 — confirm this is intentional'));

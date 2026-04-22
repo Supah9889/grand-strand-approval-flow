@@ -8,6 +8,7 @@
  *  - Edge cases (no data, archived expenses, no hourly rate)
  */
 
+import { describe, test, expect } from 'vitest';
 import { calcJobFinancials, getExpenseBucket } from '../financialHelpers';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 
-const GOOGLE_REVIEW_URL = 'https://search.google.com/local/writereview?placeid=ChIJM6-cTydvAIkRHtfzycsBAPc';
+const GOOGLE_REVIEW_URL = 'https://maps.app.goo.gl/nE6phzt8wjxLm2Aw8';
 
 const ratings = [
   { value: 'great',    label: 'Great',    icon: ThumbsUp,   color: 'text-primary' },

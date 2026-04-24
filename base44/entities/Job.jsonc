@@ -1,0 +1,284 @@
+{
+  "name": "Job",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Job title / project name"
+    },
+    "job_number": {
+      "type": "string",
+      "description": "Internal job number e.g. JOB-2026-001"
+    },
+    "job_type": {
+      "type": "string",
+      "description": "Job type from managed JobType list"
+    },
+    "address": {
+      "type": "string",
+      "description": "Full assembled job site address"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer full name"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "Internal Lead/customer record ID"
+    },
+    "customer_email": {
+      "type": "string"
+    },
+    "customer_phone": {
+      "type": "string"
+    },
+    "billing_address": {
+      "type": "string",
+      "description": "Customer billing address if different from job site"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short job description"
+    },
+    "internal_notes": {
+      "type": "string",
+      "description": "Notes visible to internal users only"
+    },
+    "vendor_notes": {
+      "type": "string",
+      "description": "Notes visible to subs/vendors"
+    },
+    "price": {
+      "type": "number",
+      "description": "Total contract price"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color code for this job"
+    },
+    "buildertrend_id": {
+      "type": "string",
+      "description": "Optional Buildertrend reference ID"
+    },
+    "email": {
+      "type": "string",
+      "description": "Customer email address (legacy)"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Customer phone number (legacy)"
+    },
+    "job_group": {
+      "type": "string",
+      "enum": [
+        "painting",
+        "drywall",
+        "carpentry",
+        "water_mitigation",
+        "warranty",
+        "estimate_only",
+        "insurance",
+        "builder_vendor",
+        "residential",
+        "commercial",
+        "internal",
+        "other"
+      ],
+      "default": "painting"
+    },
+    "lifecycle_status": {
+      "type": "string",
+      "enum": [
+        "presale",
+        "open",
+        "in_progress",
+        "waiting",
+        "completed",
+        "warranty",
+        "closed",
+        "archived",
+        "canceled",
+        "on_hold"
+      ],
+      "default": "open"
+    },
+    "op_status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "needs_review",
+        "needs_scheduling",
+        "waiting_homeowner",
+        "waiting_builder",
+        "waiting_vendor",
+        "waiting_materials",
+        "scheduled",
+        "in_progress",
+        "on_hold",
+        "complete",
+        "invoiced",
+        "paid",
+        "closed"
+      ],
+      "default": "new",
+      "description": "Primary operational status \u2014 reflects the current real-world reality of this job"
+    },
+    "op_status_updated_at": {
+      "type": "string",
+      "description": "ISO timestamp of last op_status change"
+    },
+    "op_status_updated_by": {
+      "type": "string",
+      "description": "Who last changed op_status"
+    },
+    "op_status_note": {
+      "type": "string",
+      "description": "Short optional note about the current status (e.g. reason for hold)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "archived"
+      ],
+      "default": "pending",
+      "description": "Signature approval status"
+    },
+    "locked": {
+      "type": "boolean",
+      "default": false
+    },
+    "signature_url": {
+      "type": "string"
+    },
+    "approval_timestamp": {
+      "type": "string"
+    },
+    "terms_version": {
+      "type": "string"
+    },
+    "approval_statement": {
+      "type": "string"
+    },
+    "review_rating": {
+      "type": "string",
+      "enum": [
+        "great",
+        "okay",
+        "not_good"
+      ]
+    },
+    "review_feedback": {
+      "type": "string"
+    },
+    "review_prompt_shown": {
+      "type": "boolean",
+      "default": false
+    },
+    "google_review_clicked": {
+      "type": "boolean",
+      "default": false
+    },
+    "internal_feedback_submitted": {
+      "type": "boolean",
+      "default": false
+    },
+    "custom_fields": {
+      "type": "string",
+      "description": "JSON object of custom field key\u2192value pairs"
+    },
+    "start_date": {
+      "type": "string",
+      "description": "Projected start date ISO"
+    },
+    "actual_start_date": {
+      "type": "string",
+      "description": "Actual start date ISO"
+    },
+    "end_date": {
+      "type": "string",
+      "description": "Projected completion date ISO"
+    },
+    "actual_end_date": {
+      "type": "string",
+      "description": "Actual completion date ISO"
+    },
+    "work_days": {
+      "type": "string",
+      "description": "Estimated work days"
+    },
+    "square_footage": {
+      "type": "number",
+      "description": "Square footage of the job"
+    },
+    "permit_number": {
+      "type": "string"
+    },
+    "lot_info": {
+      "type": "string",
+      "description": "Lot/parcel info"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "linked_estimate_id": {
+      "type": "string"
+    },
+    "linked_estimate_number": {
+      "type": "string"
+    },
+    "linked_invoice_id": {
+      "type": "string"
+    },
+    "linked_invoice_number": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_customer_id": {
+      "type": "string"
+    },
+    "qb_project_id": {
+      "type": "string"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
+      "type": "string"
+    },
+    "qb_export_date": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "address",
+    "customer_name",
+    "description",
+    "price"
+  ]
+}

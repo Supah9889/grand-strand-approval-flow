@@ -1,0 +1,26 @@
+{
+  "name": "AccessConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string",
+      "description": "Unique key for this config record \u2014 use 'override_codes' for the primary role code map"
+    },
+    "config_value": {
+      "type": "string",
+      "description": "JSON string payload. For override_codes: {\"<code>\": \"<role>\"} where role is staff | admin | owner"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this config does \u2014 shown in the admin panel"
+    },
+    "last_updated_by": {
+      "type": "string",
+      "description": "Name of the person who last updated this record"
+    }
+  },
+  "required": [
+    "config_key",
+    "config_value"
+  ]
+}

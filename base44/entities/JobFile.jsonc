@@ -1,0 +1,92 @@
+{
+  "name": "JobFile",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "file_type": {
+      "type": "string",
+      "description": "mime type or extension"
+    },
+    "file_size": {
+      "type": "number"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "photo",
+        "before_photo",
+        "progress_photo",
+        "after_photo",
+        "punch_list_photo",
+        "jobsite_photo",
+        "warranty_photo",
+        "field_documentation",
+        "signed_doc",
+        "contract",
+        "estimate",
+        "proposal",
+        "change_order",
+        "invoice_support",
+        "bill_attachment",
+        "receipt",
+        "vendor_document",
+        "homeowner_reference",
+        "permit",
+        "internal",
+        "other"
+      ],
+      "default": "other"
+    },
+    "description": {
+      "type": "string",
+      "description": "Internal notes about this file"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "client",
+        "vendor",
+        "both"
+      ],
+      "default": "internal"
+    },
+    "uploaded_by_name": {
+      "type": "string"
+    },
+    "related_module": {
+      "type": "string",
+      "description": "Source record type: job, note, invoice, bill, schedule, signature, estimate, change_order, daily_log, task, expense"
+    },
+    "related_module_id": {
+      "type": "string"
+    },
+    "related_module_label": {
+      "type": "string",
+      "description": "Human-readable label for the source record, e.g. 'Invoice #INV-2026-003' or 'Note: Field update'"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "job_id",
+    "file_url",
+    "file_name"
+  ]
+}

@@ -19,5 +19,12 @@ export const TERMS_TEXT = `By signing this approval, you ("Customer") agree to t
 7. Electronic Signature: By providing your electronic signature, you acknowledge that it carries the same legal weight as a handwritten signature.`;
 
 export function buildApprovalStatement(customerName, address, price) {
-  return `I, ${customerName}, hereby approve the painting work at ${address} for a total price of $${Number(price).toLocaleString('en-US', { minimumFractionDigits: 2 })}. I have read and agree to the Terms of Service (${TERMS_VERSION}) as presented to me at the time of signing.`;
+  const signer = customerName || 'the customer';
+  const jobAddress = address || 'the listed job address';
+  const amount = Number(price);
+  const priceText = Number.isFinite(amount)
+    ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : 'the listed contract price';
+
+  return `I, ${signer}, hereby approve the painting work at ${jobAddress} for a total price of ${priceText}. I have read and agree to the Terms of Service (${TERMS_VERSION}) as presented to me at the time of signing.`;
 }

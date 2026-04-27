@@ -13,6 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { getSession } from '@/lib/adminAuth';
+import { normalizeSignatureRecordPayload, validateSignatureRecordPayload } from '@/lib/signatureRecords';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -65,19 +66,29 @@ function SignatureRecordForm({ jobId, jobAddress, initial, onDone, onCancel }) {
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const payload = normalizeSignatureRecordPayload({
         job_id: jobId,
         job_address: jobAddress,
         title: form.title.trim(),
-        description: form.description.trim() || null,
+        description: form.description,
         signer_name: form.signer_name.trim() || null,
         signer_role: form.signer_role,
         status: form.status,
-        notes: form.notes.trim() || null,
-        output_file_url: form.output_file_url.trim() || null,
-        output_file_name: form.output_file_name.trim() || null,
+        signed_date: initial?.signed_date,
+        notes: form.notes,
+        output_file_url: form.output_file_url,
+        output_file_name: form.output_file_name,
+        is_primary: Boolean(initial?.is_primary),
+        linked_job_approval: Boolean(initial?.linked_job_approval),
         created_by_name: actorName,
-      };
+      });
+      const errors = validateSignatureRecordPayload(payload);
+      if (errors.length) {
+        throw new Error(errors.join(' '));
+      }
+      if (initial?.id && payload.status !== 'signed' && initial.signed_date) {
+        payload.signed_date = '';
+      }
       if (initial?.id) {
         const oldStatus = initial.status;
         await base44.entities.SignatureRecord.update(initial.id, payload);
@@ -103,6 +114,9 @@ function SignatureRecordForm({ jobId, jobAddress, initial, onDone, onCancel }) {
       queryClient.invalidateQueries({ queryKey: ['hub-sig-records', jobId] });
       toast.success(initial?.id ? 'Record updated' : 'Record created');
       onDone?.();
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Could not save approval record');
     },
   });
 

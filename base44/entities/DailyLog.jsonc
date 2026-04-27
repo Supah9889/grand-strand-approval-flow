@@ -1,0 +1,80 @@
+{
+  "name": "DailyLog",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "log_date": {
+      "type": "string",
+      "description": "Daily log date"
+    },
+    "crew_present": {
+      "type": "string"
+    },
+    "work_completed": {
+      "type": "string"
+    },
+    "delays_issues": {
+      "type": "string"
+    },
+    "materials_delivered": {
+      "type": "string"
+    },
+    "general_notes": {
+      "type": "string"
+    },
+    "weather": {
+      "type": "string",
+      "enum": [
+        "sunny",
+        "cloudy",
+        "rain",
+        "storm",
+        "windy",
+        "cold",
+        "hot",
+        "humid",
+        "other"
+      ]
+    },
+    "safety_notes": {
+      "type": "string"
+    },
+    "subcontractors_present": {
+      "type": "string"
+    },
+    "follow_up_needed": {
+      "type": "boolean",
+      "default": false
+    },
+    "follow_up_note": {
+      "type": "string"
+    },
+    "follow_up_status": {
+      "type": "string",
+      "description": "Follow-up state such as resolved"
+    },
+    "photos": {
+      "type": "string",
+      "description": "JSON array of uploaded photo URLs"
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "log_date",
+    "work_completed"
+  ]
+}

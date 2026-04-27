@@ -1,0 +1,78 @@
+{
+  "name": "Attachment",
+  "type": "object",
+  "properties": {
+    "record_type": {
+      "type": "string"
+    },
+    "record_id": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "original_file_name": {
+      "type": "string"
+    },
+    "file_type": {
+      "type": "string"
+    },
+    "file_size": {
+      "type": "number"
+    },
+    "category": {
+      "type": "string"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "client",
+        "vendor",
+        "both"
+      ],
+      "default": "internal"
+    },
+    "description": {
+      "type": "string"
+    },
+    "uploaded_by": {
+      "type": "string"
+    },
+    "uploaded_by_name": {
+      "type": "string"
+    },
+    "upload_date": {
+      "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    },
+    "archived_by": {
+      "type": "string"
+    },
+    "archived_at": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "replaced_by_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_type",
+    "record_id",
+    "file_url",
+    "file_name"
+  ]
+}

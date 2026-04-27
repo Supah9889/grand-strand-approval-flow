@@ -1,0 +1,123 @@
+{
+  "name": "CostCode",
+  "type": "object",
+  "properties": {
+    "code_number": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "archived"
+      ],
+      "default": "active"
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "category": {
+      "type": "string"
+    },
+    "subcategory": {
+      "type": "string"
+    },
+    "code_type": {
+      "type": "string"
+    },
+    "allowed_on": {
+      "type": "string",
+      "description": "JSON array of record types where this code is allowed"
+    },
+    "internal_accounting_category": {
+      "type": "string"
+    },
+    "accounting_direction": {
+      "type": "string"
+    },
+    "default_usage_notes": {
+      "type": "string"
+    },
+    "qb_account_name": {
+      "type": "string"
+    },
+    "qb_account_id": {
+      "type": "string"
+    },
+    "qb_income_account": {
+      "type": "string"
+    },
+    "qb_item_name": {
+      "type": "string"
+    },
+    "qb_class_name": {
+      "type": "string"
+    },
+    "qb_location_name": {
+      "type": "string"
+    },
+    "qb_direction": {
+      "type": "string"
+    },
+    "qb_vendor_mapping": {
+      "type": "string"
+    },
+    "default_taxable": {
+      "type": "boolean",
+      "default": false
+    },
+    "export_eligible": {
+      "type": "boolean",
+      "default": true
+    },
+    "default_vendor_name": {
+      "type": "string"
+    },
+    "default_rate": {
+      "type": "number"
+    },
+    "labor_category": {
+      "type": "string"
+    },
+    "requires_memo": {
+      "type": "boolean",
+      "default": false
+    },
+    "requires_vendor": {
+      "type": "boolean",
+      "default": false
+    },
+    "requires_employee": {
+      "type": "boolean",
+      "default": false
+    },
+    "requires_approval": {
+      "type": "boolean",
+      "default": false
+    },
+    "requires_attachment": {
+      "type": "boolean",
+      "default": false
+    },
+    "display_order": {
+      "type": "number"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "last_modified_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "code_number",
+    "name"
+  ]
+}

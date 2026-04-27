@@ -1,0 +1,95 @@
+{
+  "name": "WarrantyItem",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "date_reported": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "issue_description": {
+      "type": "string"
+    },
+    "area_location": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "default": "normal"
+    },
+    "status": {
+      "type": "string",
+      "description": "Warranty workflow status",
+      "default": "new"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "customer_notes": {
+      "type": "string"
+    },
+    "internal_notes": {
+      "type": "string"
+    },
+    "resolution_summary": {
+      "type": "string"
+    },
+    "coverage_decision_notes": {
+      "type": "string"
+    },
+    "appointment_required": {
+      "type": "boolean",
+      "default": false
+    },
+    "appointment_date": {
+      "type": "string"
+    },
+    "appointment_start_time": {
+      "type": "string"
+    },
+    "appointment_end_time": {
+      "type": "string"
+    },
+    "appointment_notes": {
+      "type": "string"
+    },
+    "follow_up_needed": {
+      "type": "boolean",
+      "default": false
+    },
+    "covered_under_warranty": {
+      "type": "boolean",
+      "default": true
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "photos": {
+      "type": "string",
+      "description": "JSON array of uploaded photo or file URLs"
+    }
+  },
+  "required": [
+    "job_id",
+    "title"
+  ]
+}

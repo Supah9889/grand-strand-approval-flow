@@ -46,14 +46,7 @@ export default function Signature() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const now = new Date().toISOString();
       const statement = buildApprovalStatement(latestJob.customer_name, latestJob.address, latestJob.price);
-      await base44.entities.Job.update(jobId, {
-        signature_url: file_url,
-        approval_timestamp: now,
-        status: 'approved',
-        locked: true,
-        terms_version: TERMS_VERSION,
-        approval_statement: statement,
-      });
+
       try {
         await upsertPrimaryJobApprovalRecord({
           job: latestJob,
@@ -62,15 +55,24 @@ export default function Signature() {
           actorName: 'Customer',
         });
       } catch (recordError) {
-        console.error('Signature record sync failed after job approval', recordError);
+        throw new Error('Signature was captured, but the approval record could not be saved. Please try submitting again before leaving this page.', { cause: recordError });
       }
-      await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${job.customer_name} · Terms ${TERMS_VERSION}`);
+
+      await base44.entities.Job.update(jobId, {
+        signature_url: file_url,
+        approval_timestamp: now,
+        status: 'approved',
+        locked: true,
+        terms_version: TERMS_VERSION,
+        approval_statement: statement,
+      });
+      await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${latestJob.customer_name} · Terms ${TERMS_VERSION}`);
     },
     onSuccess: () => {
       navigate(`/confirmation?jobId=${jobId}`);
     },
-    onError: () => {
-      toast.error('Submission failed. Please try again.');
+    onError: (error) => {
+      toast.error(error?.message || 'Submission failed. Please try again.');
     },
   });
 

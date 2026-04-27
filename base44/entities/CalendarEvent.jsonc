@@ -1,0 +1,41 @@
+{
+  "name": "CalendarEvent",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string"
+    },
+    "end_date": {
+      "type": "string"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "internal_notes": {
+      "type": "string"
+    },
+    "share_with_client": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "start_date"
+  ]
+}

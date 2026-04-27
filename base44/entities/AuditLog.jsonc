@@ -1,0 +1,59 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "record_id": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "module": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "actor_role": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "old_value": {
+      "type": "string"
+    },
+    "new_value": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "is_sensitive": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_override": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "record_id",
+    "action",
+    "actor",
+    "detail"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "name": "Expense",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "vendor_name": {
+      "type": "string"
+    },
+    "store_location": {
+      "type": "string"
+    },
+    "receipt_url": {
+      "type": "string"
+    },
+    "receipt_number": {
+      "type": "string"
+    },
+    "transaction_date": {
+      "type": "string"
+    },
+    "payment_method": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "cost_code": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "subtotal": {
+      "type": "number"
+    },
+    "tax": {
+      "type": "number"
+    },
+    "tip": {
+      "type": "number"
+    },
+    "inbox_status": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "string",
+      "description": "JSON array of receipt line items"
+    }
+  },
+  "required": []
+}

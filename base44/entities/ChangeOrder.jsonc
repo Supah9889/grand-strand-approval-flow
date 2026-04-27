@@ -1,0 +1,44 @@
+{
+  "name": "ChangeOrder",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "co_number": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "schedule_days": {
+      "type": "number"
+    },
+    "schedule_notes": {
+      "type": "string"
+    },
+    "client_facing_notes": {
+      "type": "string"
+    },
+    "attachments": {
+      "type": "string",
+      "description": "JSON array of attachment references"
+    }
+  },
+  "required": [
+    "job_id",
+    "title"
+  ]
+}

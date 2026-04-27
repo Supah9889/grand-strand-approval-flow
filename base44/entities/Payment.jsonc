@@ -1,0 +1,36 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "invoice_id": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "payment_date": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "reference": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "created_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "amount"
+  ]
+}

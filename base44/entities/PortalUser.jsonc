@@ -1,0 +1,35 @@
+{
+  "name": "PortalUser",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "access_token": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "client_email": {
+      "type": "string"
+    },
+    "portal_type": {
+      "type": "string"
+    },
+    "allowed_sections": {
+      "type": "string",
+      "description": "JSON array of portal sections"
+    },
+    "status": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "access_token"
+  ]
+}

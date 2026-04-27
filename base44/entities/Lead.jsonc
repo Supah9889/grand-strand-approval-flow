@@ -1,0 +1,54 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "referral_source": {
+      "type": "string"
+    },
+    "referral_source_name": {
+      "type": "string"
+    },
+    "project_type": {
+      "type": "string"
+    },
+    "project_timeline": {
+      "type": "string"
+    },
+    "project_description": {
+      "type": "string"
+    },
+    "follow_up_notes": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "converted_job_id": {
+      "type": "string"
+    },
+    "vendor_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "Employee",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "employee_code": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "default_cost_code": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "invite_status": {
+      "type": "string"
+    },
+    "invite_token": {
+      "type": "string"
+    },
+    "invite_token_expires": {
+      "type": "string"
+    },
+    "invite_sent_from": {
+      "type": "string"
+    },
+    "invite_sent_date": {
+      "type": "string"
+    },
+    "last_invite_resent_date": {
+      "type": "string"
+    },
+    "verification_status": {
+      "type": "string"
+    },
+    "permissions_override": {
+      "type": "string",
+      "description": "JSON object of employee-specific permission overrides"
+    }
+  },
+  "required": [
+    "name",
+    "employee_code"
+  ]
+}

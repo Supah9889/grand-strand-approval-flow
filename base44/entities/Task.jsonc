@@ -1,0 +1,40 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "completion_note": {
+      "type": "string"
+    },
+    "attachments": {
+      "type": "string",
+      "description": "JSON array of attachment references"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Bill",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "vendor_id": {
+      "type": "string"
+    },
+    "vendor_name": {
+      "type": "string"
+    },
+    "bill_number": {
+      "type": "string"
+    },
+    "bill_date": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "cost_code": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

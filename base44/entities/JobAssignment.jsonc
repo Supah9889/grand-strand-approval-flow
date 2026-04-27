@@ -1,0 +1,29 @@
+{
+  "name": "JobAssignment",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "notify_on_updates": {
+      "type": "boolean",
+      "default": false
+    },
+    "assigned_date": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "employee_id"
+  ]
+}

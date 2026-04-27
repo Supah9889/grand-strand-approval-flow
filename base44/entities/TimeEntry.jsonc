@@ -1,0 +1,59 @@
+{
+  "name": "TimeEntry",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "employee_code": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "clock_in": {
+      "type": "string"
+    },
+    "clock_out": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "approval_status": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "cost_code": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "admin_note": {
+      "type": "string"
+    },
+    "edit_reason": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string",
+      "description": "JSON location payload"
+    },
+    "hours": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "employee_id",
+    "clock_in"
+  ]
+}

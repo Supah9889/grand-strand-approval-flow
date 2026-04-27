@@ -1,0 +1,61 @@
+{
+  "name": "Invoice",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "estimate_id": {
+      "type": "string"
+    },
+    "change_order_id": {
+      "type": "string"
+    },
+    "invoice_number": {
+      "type": "string"
+    },
+    "invoice_date": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "paid_amount": {
+      "type": "number"
+    },
+    "balance_due": {
+      "type": "number"
+    },
+    "line_items": {
+      "type": "string",
+      "description": "JSON array of invoice line items"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "cost_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id"
+  ]
+}

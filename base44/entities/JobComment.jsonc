@@ -1,0 +1,49 @@
+{
+  "name": "JobComment",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "comment_type": {
+      "type": "string",
+      "enum": [
+        "comment",
+        "internal_note"
+      ],
+      "default": "comment"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "client",
+        "vendor",
+        "both"
+      ],
+      "default": "internal"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "author_role": {
+      "type": "string"
+    },
+    "attached_file_url": {
+      "type": "string"
+    },
+    "attached_file_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "body"
+  ]
+}

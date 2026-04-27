@@ -1,0 +1,25 @@
+{
+  "name": "EstimateActivity",
+  "type": "object",
+  "properties": {
+    "estimate_id": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "estimate_id",
+    "action"
+  ]
+}

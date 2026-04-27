@@ -1,0 +1,24 @@
+{
+  "name": "RolePermission",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "staff"
+      ]
+    },
+    "permissions": {
+      "type": "string",
+      "description": "JSON object of permission keys to boolean values"
+    },
+    "updated_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "role",
+    "permissions"
+  ]
+}

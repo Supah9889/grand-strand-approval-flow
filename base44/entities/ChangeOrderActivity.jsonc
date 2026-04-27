@@ -1,0 +1,25 @@
+{
+  "name": "ChangeOrderActivity",
+  "type": "object",
+  "properties": {
+    "co_id": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "co_id",
+    "action"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "JobType",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "display_order": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

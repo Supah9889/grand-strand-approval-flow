@@ -1,0 +1,23 @@
+{
+  "name": "ApprovedEmail",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "email"
+  ]
+}

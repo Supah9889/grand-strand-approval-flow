@@ -1,0 +1,48 @@
+{
+  "name": "Estimate",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "estimate_number": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "line_items": {
+      "type": "string",
+      "description": "JSON array of estimate line items"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_current_version": {
+      "type": "boolean",
+      "default": true
+    },
+    "parent_estimate_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number"
+    }
+  },
+  "required": []
+}

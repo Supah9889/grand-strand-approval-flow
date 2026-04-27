@@ -1,0 +1,36 @@
+{
+  "name": "DocumentTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "estimate",
+        "contract",
+        "work_authorization",
+        "invoice_support",
+        "change_order",
+        "other"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "file_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

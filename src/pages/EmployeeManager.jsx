@@ -30,6 +30,7 @@ export default function EmployeeManager() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
   const actor = getInternalRole() || 'Admin';
+  const isAdmin = isAdminAuthed();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -37,21 +38,10 @@ export default function EmployeeManager() {
     setIsRefreshing(false);
   };
 
-  if (!isAdminAuthed()) {
-    return (
-      <AppLayout title="Employees">
-        <div className="flex-1 flex items-center justify-center flex-col gap-3 px-4">
-          <Users className="w-10 h-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground text-center">Admin access required.</p>
-          <Button variant="outline" className="rounded-xl" onClick={() => window.location.href = '/admin'}>Go to Admin</Button>
-        </div>
-      </AppLayout>
-    );
-  }
-
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees'],
     queryFn: () => base44.entities.Employee.list('name'),
+    enabled: isAdmin,
   });
 
   const createMutation = useMutation({
@@ -76,6 +66,18 @@ export default function EmployeeManager() {
     },
     onError: () => toast.error('Failed to update employee status'),
   });
+
+  if (!isAdmin) {
+    return (
+      <AppLayout title="Employees">
+        <div className="flex-1 flex items-center justify-center flex-col gap-3 px-4">
+          <Users className="w-10 h-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground text-center">Admin access required.</p>
+          <Button variant="outline" className="rounded-xl" onClick={() => window.location.href = '/admin'}>Go to Admin</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Employees">

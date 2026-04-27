@@ -29,22 +29,12 @@ export default function DocumentTemplates() {
   const [templateFile, setTemplateFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
-
-  if (!isAdminAuthed()) {
-    return (
-      <AppLayout title="Document Templates">
-        <div className="flex-1 flex items-center justify-center flex-col gap-3 px-4">
-          <FileText className="w-10 h-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground text-center">Admin access required to manage document templates.</p>
-          <Button variant="outline" className="rounded-xl" onClick={() => window.location.href = '/admin'}>Go to Admin</Button>
-        </div>
-      </AppLayout>
-    );
-  }
+  const isAdmin = isAdminAuthed();
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['doc-templates'],
     queryFn: () => base44.entities.DocumentTemplate.list('-created_date'),
+    enabled: isAdmin,
   });
 
   const saveMutation = useMutation({
@@ -72,6 +62,18 @@ export default function DocumentTemplates() {
     mutationFn: ({ id, active }) => base44.entities.DocumentTemplate.update(id, { active }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['doc-templates'] }),
   });
+
+  if (!isAdmin) {
+    return (
+      <AppLayout title="Document Templates">
+        <div className="flex-1 flex items-center justify-center flex-col gap-3 px-4">
+          <FileText className="w-10 h-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground text-center">Admin access required to manage document templates.</p>
+          <Button variant="outline" className="rounded-xl" onClick={() => window.location.href = '/admin'}>Go to Admin</Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Document Templates">

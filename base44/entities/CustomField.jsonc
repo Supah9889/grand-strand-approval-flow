@@ -1,0 +1,70 @@
+{
+  "name": "CustomField",
+  "type": "object",
+  "properties": {
+    "label": {
+      "type": "string"
+    },
+    "field_key": {
+      "type": "string"
+    },
+    "field_type": {
+      "type": "string",
+      "enum": [
+        "text",
+        "textarea",
+        "number",
+        "currency",
+        "date",
+        "dropdown",
+        "yes_no",
+        "phone",
+        "email",
+        "readonly"
+      ]
+    },
+    "help_text": {
+      "type": "string"
+    },
+    "default_value": {
+      "type": "string"
+    },
+    "required": {
+      "type": "boolean",
+      "default": false
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "display_order": {
+      "type": "number"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "admin_only",
+        "staff_visible",
+        "all"
+      ]
+    },
+    "editable_by": {
+      "type": "string",
+      "enum": [
+        "admin_only",
+        "staff_editable"
+      ]
+    },
+    "dropdown_options": {
+      "type": "string",
+      "description": "JSON array of dropdown option strings"
+    },
+    "apply_to_groups": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "label",
+    "field_key"
+  ]
+}

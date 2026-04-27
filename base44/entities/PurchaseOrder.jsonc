@@ -1,0 +1,67 @@
+{
+  "name": "PurchaseOrder",
+  "type": "object",
+  "properties": {
+    "po_number": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "vendor_name": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "ordered",
+        "received",
+        "closed",
+        "canceled"
+      ],
+      "default": "draft"
+    },
+    "date_created": {
+      "type": "string"
+    },
+    "expected_delivery": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "internal_notes": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "string",
+      "description": "JSON array of purchase order line items"
+    },
+    "subtotal": {
+      "type": "number"
+    },
+    "tax": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "vendor_name"
+  ]
+}

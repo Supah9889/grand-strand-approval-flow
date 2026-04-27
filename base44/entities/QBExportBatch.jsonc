@@ -1,0 +1,55 @@
+{
+  "name": "QBExportBatch",
+  "type": "object",
+  "properties": {
+    "batch_number": {
+      "type": "string"
+    },
+    "export_type": {
+      "type": "string"
+    },
+    "export_format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "xlsx"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "failed"
+      ]
+    },
+    "record_count": {
+      "type": "number"
+    },
+    "exported_count": {
+      "type": "number"
+    },
+    "failed_count": {
+      "type": "number"
+    },
+    "date_range_start": {
+      "type": "string"
+    },
+    "date_range_end": {
+      "type": "string"
+    },
+    "exported_by": {
+      "type": "string"
+    },
+    "exported_at": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "batch_number",
+    "export_type",
+    "status"
+  ]
+}

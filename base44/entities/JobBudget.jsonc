@@ -1,0 +1,15 @@
+{
+  "name": "JobBudget",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "estimated_revenue": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "job_id"
+  ]
+}

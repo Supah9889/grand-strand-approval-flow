@@ -1,0 +1,44 @@
+{
+  "name": "VendorComplianceDocument",
+  "type": "object",
+  "properties": {
+    "vendor_id": {
+      "type": "string"
+    },
+    "vendor_name": {
+      "type": "string"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "certificate_of_insurance",
+        "workers_compensation"
+      ]
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "file_size": {
+      "type": "number"
+    },
+    "uploaded_by": {
+      "type": "string"
+    },
+    "upload_date": {
+      "type": "string"
+    },
+    "is_current": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "vendor_id",
+    "document_type",
+    "file_url",
+    "file_name"
+  ]
+}

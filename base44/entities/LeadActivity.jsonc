@@ -1,0 +1,38 @@
+{
+  "name": "LeadActivity",
+  "type": "object",
+  "properties": {
+    "lead_id": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record_created",
+        "status_changed",
+        "assigned_changed",
+        "note_added",
+        "estimate_scheduled",
+        "estimate_sent",
+        "follow_up_changed",
+        "converted_to_job",
+        "marked_won",
+        "marked_lost",
+        "field_updated"
+      ]
+    },
+    "detail": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "lead_id",
+    "action"
+  ]
+}

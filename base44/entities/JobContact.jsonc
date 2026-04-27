@@ -1,0 +1,50 @@
+{
+  "name": "JobContact",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "homeowner",
+        "tenant",
+        "builder_rep",
+        "project_lead",
+        "estimator",
+        "vendor_sub",
+        "office",
+        "billing_contact",
+        "other"
+      ],
+      "default": "other"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "company": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "job_id",
+    "name"
+  ]
+}

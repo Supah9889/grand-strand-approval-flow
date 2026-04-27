@@ -1,0 +1,99 @@
+{
+  "name": "SignatureRecord",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "description": "e.g. Work Authorization, Estimate Acceptance, Change Order Approval"
+    },
+    "description": {
+      "type": "string"
+    },
+    "signer_name": {
+      "type": "string"
+    },
+    "signer_email": {
+      "type": "string"
+    },
+    "signer_role": {
+      "type": "string",
+      "enum": [
+        "homeowner",
+        "tenant",
+        "builder_rep",
+        "customer",
+        "internal_approver",
+        "vendor_sub",
+        "office_admin",
+        "general"
+      ],
+      "default": "customer"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "viewed",
+        "signed",
+        "declined",
+        "replaced",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "signed_date": {
+      "type": "string",
+      "description": "ISO timestamp when signed"
+    },
+    "signature_url": {
+      "type": "string",
+      "description": "URL to captured signature image"
+    },
+    "output_file_url": {
+      "type": "string",
+      "description": "URL to signed/output document"
+    },
+    "output_file_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if this is the main job approval (mirrors job.status approval flow)"
+    },
+    "linked_job_approval": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if this record was auto-created from the job signature flow"
+    },
+    "terms_version": {
+      "type": "string",
+      "description": "Terms version accepted when signed"
+    },
+    "approval_statement": {
+      "type": "string",
+      "description": "Approval language presented at signing"
+    },
+    "signed_price": {
+      "type": "number",
+      "description": "Contract price captured at signing"
+    },
+    "created_by_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "title"
+  ]
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Archive, ToggleLeft, ToggleRight, ChevronRight } from 'lucide-react';
+import { Edit2, Archive, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const CATEGORY_LABELS = {
   labor: 'Labor', materials: 'Materials', equipment: 'Equipment',

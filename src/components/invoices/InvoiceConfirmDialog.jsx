@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Archive, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Archive, Trash2 } from 'lucide-react';
 
 export default function InvoiceConfirmDialog({ type, invoice, onConfirm, onCancel }) {
   const isDelete = type === 'delete';

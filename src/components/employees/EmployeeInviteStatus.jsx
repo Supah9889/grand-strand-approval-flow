@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock, AlertTriangle, XCircle, RotateCcw, MinusCircle } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, RotateCcw, MinusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUS_CONFIG = {

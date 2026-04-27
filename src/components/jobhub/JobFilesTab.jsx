@@ -1,10 +1,10 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
   FolderOpen, Upload, Image, FileText, File, Loader2,
   ExternalLink, Paperclip, StickyNote, Calendar, Receipt,
-  FileSignature, X, ChevronDown, ChevronUp, Filter
+  FileSignature, X
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';

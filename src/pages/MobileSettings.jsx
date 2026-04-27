@@ -5,9 +5,8 @@ import BottomSheet from '@/components/BottomSheet';
 import AccountDeletionDialog from '@/components/AccountDeletionDialog';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ChevronRight, LogOut } from 'lucide-react';
+import { ChevronRight, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 
 const THEME_OPTIONS = [

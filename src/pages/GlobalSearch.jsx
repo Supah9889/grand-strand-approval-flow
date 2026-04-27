@@ -4,13 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import {
-  Search, MapPin, FileText, Receipt, Clock, DollarSign, Building2,
-  Loader2, X, StickyNote, Calendar, Paperclip, Users, Phone, Mail,
+  Search,
+  Loader2, X,
   ChevronRight, AlertCircle
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { format, parseISO, isWithinInterval } from 'date-fns';
-import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { format, parseISO } from 'date-fns';
+import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 
 // ── Type config ───────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {

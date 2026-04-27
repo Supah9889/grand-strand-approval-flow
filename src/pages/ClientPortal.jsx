@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import CompanyLogo from '../components/CompanyLogo';
-import { parseSections, SECTION_LABELS } from '@/lib/portalSections';
+import { parseSections } from '@/lib/portalSections';
 
 const IMAGE_EXTS = /\.(jpg|jpeg|png|webp|gif)$/i;
 const isImage = (f) => IMAGE_EXTS.test(f.file_name || '') || IMAGE_EXTS.test(f.file_url || '');

@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import { BLOCK_PRESETS, EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG } from '@/lib/calendarHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
-import { format } from 'date-fns';
 
 const empty = {
   title: '', job_id: '', job_address: '', color: '',

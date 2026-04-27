@@ -12,7 +12,7 @@
  */
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import ExpenseEditScreen from './ExpenseEditScreen';
 
 export default function MultiReceiptQueue({ receipts, fileUrl, fileName, jobs, onSaveOne, onDone }) {

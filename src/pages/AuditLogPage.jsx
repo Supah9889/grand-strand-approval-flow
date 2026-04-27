@@ -8,9 +8,9 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Shield, AlertTriangle, Search, ChevronDown, ChevronUp,
-  ExternalLink, Filter, X, Clock, Calendar, Download, ChevronsUpDown, Check
+  ExternalLink, Filter, X, Clock, ChevronsUpDown, Check
 } from 'lucide-react';
-import { format, parseISO, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import { ACTION_LABELS } from '@/lib/audit';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';

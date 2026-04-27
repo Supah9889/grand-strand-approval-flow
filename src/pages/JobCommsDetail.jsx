@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Paperclip, MessageSquare, Plus, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Paperclip, MessageSquare, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import FileUploadArea from '../components/jobcomms/FileUploadArea';

@@ -5,7 +5,6 @@ import { base44 } from '@/api/base44Client';
 import { FileText, DollarSign, Receipt, CreditCard, ArrowRight, Loader2, TrendingUp } from 'lucide-react';
 import { fmt } from '@/lib/financialHelpers';
 import { calcJobFinancials } from '@/lib/financialHelpers';
-import { format } from 'date-fns';
 
 const STATUS_COLORS = {
   draft:    'bg-muted text-muted-foreground',

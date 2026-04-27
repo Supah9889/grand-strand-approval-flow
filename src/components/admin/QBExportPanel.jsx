@@ -6,15 +6,13 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  EXPORT_TYPES, buildCSV, downloadCSV, downloadXLSX,
-  validateRecord, EXPORT_STATUS_CONFIG, getExportStatus,
+  EXPORT_TYPES, buildCSV, downloadCSV, downloadXLSX, EXPORT_STATUS_CONFIG, getExportStatus,
 } from '@/lib/exportHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import ExportTypeSelector from './export/ExportTypeSelector';
 import ExportFilters from './export/ExportFilters';
 import ExportPreviewModal from './export/ExportPreviewModal';
 import ExportHistory from './export/ExportHistory';
-import ExportStatusBadge from './export/ExportStatusBadge';
 
 // ── Fetch functions by entity ────────────────────────────────────────────────
 const ENTITY_FETCHERS = {

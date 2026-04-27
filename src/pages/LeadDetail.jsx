@@ -7,7 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowLeft, Loader2, Pencil, ArrowRight, Phone, Mail, MapPin,
-  Calendar, User, Tag, DollarSign, AlertCircle, CheckCircle2, StickyNote
+  Calendar, User, DollarSign, AlertCircle, CheckCircle2, StickyNote
 } from 'lucide-react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { motion } from 'framer-motion';

@@ -10,8 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import COCard from '../components/changeorders/COCard';
 import COForm from '../components/changeorders/COForm';
-import COStatusBadge from '../components/changeorders/COStatusBadge';
-import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS, generateCONumber } from '@/lib/changeOrderHelpers';
+import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS } from '@/lib/changeOrderHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 

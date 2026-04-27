@@ -6,14 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
 import PullToRefresh from '@/components/PullToRefresh';
-import { Plus, Search, Loader2, FileText, X, DollarSign, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { format, parseISO, isPast, isToday } from 'date-fns';
+import { Plus, Search, Loader2, FileText, AlertCircle } from 'lucide-react';
+import { format, parseISO, isPast } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import EstimateStatusBadge from '../components/estimates/EstimateStatusBadge';
 import { ESTIMATE_STATUS_CONFIG, generateEstimateNumber } from '@/lib/estimateHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
-import { toast } from 'sonner';
 
 const STAT_GROUPS = [
   { key: 'total',           label: 'Total',            color: 'text-slate-700',  bg: 'bg-slate-50',  border: 'border-slate-200' },

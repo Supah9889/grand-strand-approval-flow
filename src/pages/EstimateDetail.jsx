@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
-  ArrowLeft, Loader2, Send, CheckCircle2, X, Copy, Printer,
-  DollarSign, FileText, History, RefreshCw, AlertCircle, Save
+  ArrowLeft, Loader2, Send, CheckCircle2, RefreshCw, Save
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -17,7 +16,7 @@ import EstimateStatusBadge from '../components/estimates/EstimateStatusBadge';
 import LineItemEditor from '../components/estimates/LineItemEditor';
 import EstimateActivityFeed from '../components/estimates/EstimateActivityFeed';
 import SendEstimateModal from '../components/estimates/SendEstimateModal';
-import { ESTIMATE_STATUS_CONFIG, generateEstimateNumber, calcTotals } from '@/lib/estimateHelpers';
+import { ESTIMATE_STATUS_CONFIG, calcTotals } from '@/lib/estimateHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';

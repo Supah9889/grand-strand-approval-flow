@@ -2,13 +2,13 @@
  * ClientPortalManager — embedded in a Job's Clients tab
  * Manages portal users linked to this specific job and their section permissions.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Plus, Link as LinkIcon, X, CheckCircle2, ShieldOff, RefreshCw,
+  Plus, Link as LinkIcon, CheckCircle2, ShieldOff, RefreshCw,
   Mail, Eye, ChevronDown, ChevronUp, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';

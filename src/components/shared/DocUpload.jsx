@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Paperclip, Loader2, FileText, X } from 'lucide-react';
+import { Paperclip, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const DOC_ACCEPT = 'application/pdf,image/png,image/jpeg,image/jpg';

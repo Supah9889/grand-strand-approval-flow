@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,11 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import PullToRefresh from '@/components/PullToRefresh';
 import { Plus, Search, Loader2, CheckSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format, isPast, isToday, parseISO } from 'date-fns';
+import { isPast, isToday, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
-import TaskStatusBadge, { STATUS_CONFIG, PRIORITY_CONFIG } from '../components/tasks/TaskStatusBadge';
+import { STATUS_CONFIG, PRIORITY_CONFIG } from '../components/tasks/TaskStatusBadge';
 import { getInternalRole } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';

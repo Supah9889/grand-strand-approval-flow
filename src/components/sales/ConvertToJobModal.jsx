@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { X, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
 import { getInternalRole } from '@/lib/adminAuth';
 
 export default function ConvertToJobModal({ lead, open, onClose, onConverted }) {

@@ -13,7 +13,7 @@ import AppLayout from '../components/AppLayout';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import JobStatusBadge from '../components/jobs/JobStatusBadge';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
-import { JOB_GROUP_CONFIG, JOB_LIFECYCLE_CONFIG, OP_STATUS_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
+import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
 
 const STATUS_BADGE = {
   pending:  { label: 'Pending', class: 'bg-amber-50 text-amber-600' },

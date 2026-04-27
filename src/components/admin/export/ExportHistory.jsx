@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertTriangle, Clock, Download } from 'lucide-react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { EXPORT_TYPES } from '@/lib/exportHelpers';
 

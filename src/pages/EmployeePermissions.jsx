@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import AppLayout from '../components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Loader2, ShieldAlert, ShieldCheck, User, ChevronDown, ChevronUp, Save, RotateCcw, Info } from 'lucide-react';
-import { isAdmin, isOwnerOnly, getSessionEmployee } from '@/lib/adminAuth';
+import { isAdmin, isOwnerOnly } from '@/lib/adminAuth';
 import { PERMISSIONS, PERMISSION_CATEGORIES, getRoleDefaults, resolvePermissions } from '@/lib/permissions';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';

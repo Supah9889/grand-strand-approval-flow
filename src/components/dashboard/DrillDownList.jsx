@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, ArrowRight } from 'lucide-react';
 import JobLifecycleBadge from '../jobs/JobLifecycleBadge';
 import JobGroupBadge from '../jobs/JobGroupBadge';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 
 // Generic drill-down list shown beneath the stat cards when a section is active
 export default function DrillDownList({ section, data, label, onClear }) {

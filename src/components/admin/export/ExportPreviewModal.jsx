@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, AlertTriangle, CheckCircle2, Download, FileText } from 'lucide-react';
+import { X, AlertTriangle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { EXPORT_STATUS_CONFIG, validateRecord } from '@/lib/exportHelpers';
+import { validateRecord } from '@/lib/exportHelpers';
 import { motion } from 'framer-motion';
 
 export default function ExportPreviewModal({ typeCfg, records, format, batchId, onConfirm, onCancel }) {

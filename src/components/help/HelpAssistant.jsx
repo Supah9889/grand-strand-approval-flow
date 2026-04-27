@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, X, Send, Loader2, Bot, User, ChevronDown } from 'lucide-react';
+import { HelpCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useLocation } from 'react-router-dom';
 import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';

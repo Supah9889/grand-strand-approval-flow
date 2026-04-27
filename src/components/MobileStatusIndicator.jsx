@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Wifi, WifiOff, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { WifiOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**

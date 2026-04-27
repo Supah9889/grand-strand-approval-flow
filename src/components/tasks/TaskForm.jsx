@@ -5,9 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Loader2, Camera, X } from 'lucide-react';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { STATUS_CONFIG, PRIORITY_CONFIG } from './TaskStatusBadge';
+import { PRIORITY_CONFIG } from './TaskStatusBadge';
 
 const TYPE_LABELS = { todo: 'To-Do', task: 'Task', punch_list: 'Punch List' };
 

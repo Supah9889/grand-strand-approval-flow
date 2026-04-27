@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Plus, Trash2, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateNumber, INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
+import { generateNumber, INVOICE_STATUS_CONFIG } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 
 function newLine() {

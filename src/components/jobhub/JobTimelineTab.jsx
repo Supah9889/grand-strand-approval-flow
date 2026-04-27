@@ -10,13 +10,12 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
-  NOTE_TYPE_OPTIONS, getNoteTypeConfig, getEventTypeConfig,
+  NOTE_TYPE_OPTIONS,
   buildNoteItem, buildLogItem, buildChangeOrderItem, buildInvoiceItem,
   buildExpenseItem, buildBillItem, buildTaskItem, buildWarrantyItem, buildFileItem,
   buildTimeEntryItem, buildScheduleItem, buildSignatureItem, sortFeed, getNoteVisibilityConfig,
 } from '@/lib/timelineHelpers';
 import { useNoteCreate } from '@/hooks/useNoteCreate';
-import { Lock, Eye, ShieldAlert } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function safeRelative(ts) {

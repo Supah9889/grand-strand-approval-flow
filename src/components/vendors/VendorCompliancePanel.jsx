@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertCircle, Upload, Download, Trash2, Calendar, Loader2, File, Check } from 'lucide-react';
+import { Upload, Download, Trash2, Calendar, Loader2, File } from 'lucide-react';
 import { parseISO, isPast, format, isToday } from 'date-fns';
 import { toast } from 'sonner';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';

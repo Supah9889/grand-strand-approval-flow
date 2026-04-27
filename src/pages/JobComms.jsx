@@ -5,13 +5,12 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Search, Loader2, FolderOpen, Plus, X, Paperclip, MessageSquare, Filter } from 'lucide-react';
-import { format, parseISO, isToday, startOfWeek, isAfter } from 'date-fns';
+import { Search, Loader2, Plus, Paperclip, MessageSquare } from 'lucide-react';
+import { format, parseISO, isToday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import FileUploadArea from '../components/jobcomms/FileUploadArea';
 import FileGrid from '../components/jobcomms/FileGrid';
-import CommentThread from '../components/jobcomms/CommentThread';
 import { getInternalRole } from '@/lib/adminAuth';
 
 const CATEGORY_LABEL = {

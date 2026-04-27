@@ -11,6 +11,7 @@ import SignatureCanvas from '../components/SignatureCanvas';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { TERMS_VERSION, buildApprovalStatement } from '@/lib/terms';
+import { upsertPrimaryJobApprovalRecord } from '@/lib/signatureRecords';
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -29,11 +30,22 @@ export default function Signature() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
+      if (!jobId) throw new Error('Missing job id');
+      if (!signatureData?.startsWith('data:image/png')) throw new Error('Missing signature');
+
+      const latestJobs = await base44.entities.Job.filter({ id: jobId });
+      const latestJob = latestJobs[0];
+      if (!latestJob) throw new Error('Job not found');
+
+      if (latestJob.locked || latestJob.status === 'approved') {
+        return;
+      }
+
       const blob = await (await fetch(signatureData)).blob();
       const file = new File([blob], 'signature.png', { type: 'image/png' });
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const now = new Date().toISOString();
-      const statement = buildApprovalStatement(job.customer_name, job.address, job.price);
+      const statement = buildApprovalStatement(latestJob.customer_name, latestJob.address, latestJob.price);
       await base44.entities.Job.update(jobId, {
         signature_url: file_url,
         approval_timestamp: now,
@@ -42,16 +54,16 @@ export default function Signature() {
         terms_version: TERMS_VERSION,
         approval_statement: statement,
       });
-      await base44.entities.SignatureRecord.create({
-        job_id: jobId,
-        title: 'Work Authorization',
-        signer_name: job.customer_name,
-        signer_role: 'customer',
-        status: 'signed',
-        signed_date: now,
-        is_primary: true,
-        linked_job_approval: true,
-      });
+      try {
+        await upsertPrimaryJobApprovalRecord({
+          job: latestJob,
+          signatureUrl: file_url,
+          signedAt: now,
+          actorName: 'Customer',
+        });
+      } catch (recordError) {
+        console.error('Signature record sync failed after job approval', recordError);
+      }
       await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${job.customer_name} · Terms ${TERMS_VERSION}`);
     },
     onSuccess: () => {

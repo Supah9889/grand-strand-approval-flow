@@ -18,6 +18,9 @@
     "signer_name": {
       "type": "string"
     },
+    "signer_email": {
+      "type": "string"
+    },
     "signer_role": {
       "type": "string",
       "enum": [
@@ -49,6 +52,10 @@
       "type": "string",
       "description": "ISO timestamp when signed"
     },
+    "signature_url": {
+      "type": "string",
+      "description": "URL to captured signature image"
+    },
     "output_file_url": {
       "type": "string",
       "description": "URL to signed/output document"
@@ -68,6 +75,18 @@
       "type": "boolean",
       "default": false,
       "description": "True if this record was auto-created from the job signature flow"
+    },
+    "terms_version": {
+      "type": "string",
+      "description": "Terms version accepted when signed"
+    },
+    "approval_statement": {
+      "type": "string",
+      "description": "Approval language presented at signing"
+    },
+    "signed_price": {
+      "type": "number",
+      "description": "Contract price captured at signing"
     },
     "created_by_name": {
       "type": "string"

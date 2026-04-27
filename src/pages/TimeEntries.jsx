@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Loader2, Clock, Search, User, MapPin, Plus, X, AlertTriangle } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, isToday } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';

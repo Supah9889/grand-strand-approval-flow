@@ -6,7 +6,7 @@ import {
   FileText, Building2, Receipt, CalendarDays, Users,
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
-  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, Briefcase, LogOut
+  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';

@@ -1,7 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Upload, FileText, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Upload, X } from 'lucide-react';
 import { parseCSV } from '@/lib/csvParser';
 
 export default function CsvUploader({ onParsed }) {

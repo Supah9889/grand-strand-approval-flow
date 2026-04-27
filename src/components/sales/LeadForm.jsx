@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { STATUSES } from './LeadStatusBadge';
 
 const SOURCES = ['website','google','referral','repeat_customer','buildertrend','facebook','instagram','yard_sign','door_hanger','nextdoor','other'];
 const SERVICE_TYPES = ['interior_painting','exterior_painting','cabinet_painting','deck_staining','commercial_painting','drywall_repair','power_washing','epoxy_floor','other'];

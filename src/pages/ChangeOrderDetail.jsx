@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
   ArrowLeft, Loader2, Pencil, CheckCircle2, XCircle, Send,
-  TrendingUp, TrendingDown, Clock, AlertCircle, Save, FileText, Paperclip
+  TrendingUp, TrendingDown, Clock, Save, FileText, Paperclip
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -16,7 +15,7 @@ import AppLayout from '../components/AppLayout';
 import COStatusBadge from '../components/changeorders/COStatusBadge';
 import COActivityFeed from '../components/changeorders/COActivityFeed';
 import COForm from '../components/changeorders/COForm';
-import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS, calcCOTotal } from '@/lib/changeOrderHelpers';
+import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS } from '@/lib/changeOrderHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';

@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import {
-  ShieldCheck, Pen, CheckCircle2, Clock, AlertCircle, ExternalLink,
+import { Pen, CheckCircle2, Clock, AlertCircle, ExternalLink,
   Lock, Plus, X, Save, Loader2, FileText, ChevronDown, ChevronUp,
   Paperclip, User, Calendar, RefreshCw, Archive, XCircle, Eye
 } from 'lucide-react';

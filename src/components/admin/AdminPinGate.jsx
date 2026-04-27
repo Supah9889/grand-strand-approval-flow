@@ -7,7 +7,7 @@
  * Kept in place to avoid breaking any remaining import references during transition.
  * If no pages import this component, it can be safely deleted.
  */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAdminAuthed } from '@/lib/adminAuth';
 

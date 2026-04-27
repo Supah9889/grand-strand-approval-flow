@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, DollarSign, ArrowRight, Receipt, FileText } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 
 function FinRow({ icon: Icon, iconBg, label, meta, sub, urgent, onClick }) {
   return (

@@ -8,7 +8,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { getInternalRole } from '@/lib/adminAuth';
 
 // ── Role config ───────────────────────────────────────────────────────────────
 const ROLE_CONFIG = {

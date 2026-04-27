@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Loader2, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { WARRANTY_STATUS_CONFIG, WARRANTY_CATEGORY_LABELS } from '@/lib/warrantyHelpers';
+import { WARRANTY_CATEGORY_LABELS } from '@/lib/warrantyHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 
 export default function WarrantyForm({ jobs = [], onSave, onCancel, prefillJobId }) {

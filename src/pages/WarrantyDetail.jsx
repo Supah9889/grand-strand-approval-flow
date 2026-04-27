@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Paperclip, X, Calendar, User, AlertTriangle, Save }
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import { WARRANTY_STATUS_CONFIG, WARRANTY_CATEGORY_LABELS, WARRANTY_PRIORITY_CONFIG } from '@/lib/warrantyHelpers';
+import { WARRANTY_STATUS_CONFIG, WARRANTY_CATEGORY_LABELS } from '@/lib/warrantyHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';

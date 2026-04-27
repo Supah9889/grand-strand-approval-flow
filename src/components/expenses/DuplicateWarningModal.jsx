@@ -3,7 +3,7 @@
  * Allows human review/override before proceeding.
  */
 import React from 'react';
-import { AlertTriangle, Copy, ExternalLink } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 

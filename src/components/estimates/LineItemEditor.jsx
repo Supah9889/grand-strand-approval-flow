@@ -1,7 +1,6 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 const empty = () => ({ id: crypto.randomUUID(), description: '', qty: 1, unit: 'each', unit_price: 0, taxable: false });
 

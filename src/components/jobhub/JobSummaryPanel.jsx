@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Pencil, Save, X, Loader2, AlignLeft } from 'lucide-react';
+import { Pencil, Save, Loader2, AlignLeft } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { audit } from '@/lib/audit';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink, Pencil, Archive, Trash2, MoreVertical } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, CreditCard, ExternalLink, Pencil, Archive, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import AttachmentManager from '@/components/attachments/AttachmentManager';

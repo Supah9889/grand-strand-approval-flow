@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
-  Search, Loader2, DollarSign, FileText, Receipt, CreditCard,
-  TrendingUp, TrendingDown, Plus, X, AlertCircle
+  Search, DollarSign, FileText, Receipt, CreditCard,
+  TrendingUp, Plus, X, AlertCircle
 } from 'lucide-react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';

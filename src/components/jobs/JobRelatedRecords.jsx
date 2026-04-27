@@ -8,11 +8,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText, DollarSign, Clock, Zap, Users, Globe, Folder,
-  ChevronRight, ExternalLink, AlertCircle, Loader2,
+  ChevronRight, AlertCircle, Loader2,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fmt } from '@/lib/financialHelpers';
-import { RELATED_RECORD_COLORS, getRelatedRecordLabel } from '@/lib/recordLinking';
+import { RELATED_RECORD_COLORS } from '@/lib/recordLinking';
 
 const RECORD_TYPES = [
   { key: 'invoices', label: 'Invoices', icon: FileText, color: RELATED_RECORD_COLORS.invoice },

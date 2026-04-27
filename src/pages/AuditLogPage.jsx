@@ -158,6 +158,7 @@ function AuditEntryRow({ log }) {
 export default function AuditLogPage() {
   const navigate = useNavigate();
   const role = getInternalRole();
+  const isAdmin = getIsAdmin();
 
   const [search, setSearch] = useState('');
   const [filterModule, setFilterModule] = useState('all');
@@ -168,23 +169,15 @@ export default function AuditLogPage() {
   const [sortOrder, setSortOrder] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(0);
+  const [actorSearch, setActorSearch] = useState('');
+  const [actorPopoverOpen, setActorPopoverOpen] = useState(false);
   const PAGE_SIZE = 100;
-
-  if (!getIsAdmin()) {
-    return (
-      <AppLayout title="Audit Log">
-        <div className="flex-1 flex items-center justify-center flex-col gap-3">
-          <Shield className="w-8 h-8 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">Admin access required to view the audit log.</p>
-        </div>
-      </AppLayout>
-    );
-  }
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['audit-log-page'],
     queryFn: () => base44.entities.AuditLog.list('-timestamp', 2000),
     staleTime: 30000,
+    enabled: isAdmin,
   });
 
   // Actor options come from structured employee/vendor sources — NOT raw audit log strings.
@@ -193,15 +186,14 @@ export default function AuditLogPage() {
     queryKey: ['employees-for-audit-filter'],
     queryFn: () => base44.entities.Employee.filter({ active: true }),
     staleTime: 60000,
+    enabled: isAdmin,
   });
   const { data: vendors = [] } = useQuery({
     queryKey: ['vendors-for-audit-filter'],
     queryFn: () => base44.entities.Vendor.filter({ active: true }),
     staleTime: 60000,
+    enabled: isAdmin,
   });
-
-  const [actorSearch, setActorSearch] = useState('');
-  const [actorPopoverOpen, setActorPopoverOpen] = useState(false);
 
   // Build curated actor options: employees by name, vendors/subs by company name.
   const actorOptions = useMemo(() => {
@@ -260,6 +252,17 @@ export default function AuditLogPage() {
     if (sortOrder === 'oldest') l = l.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
     return l;
   }, [logs, filterModule, filterSensitive, filterActor, filterDateFrom, filterDateTo, search, sortOrder]);
+
+  if (!isAdmin) {
+    return (
+      <AppLayout title="Audit Log">
+        <div className="flex-1 flex items-center justify-center flex-col gap-3">
+          <Shield className="w-8 h-8 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">Admin access required to view the audit log.</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);

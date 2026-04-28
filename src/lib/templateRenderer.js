@@ -6,6 +6,7 @@ export function buildSignatureTemplateData(job = {}, signatureRecord = {}) {
     job_address: job.address,
     price: job.price,
     approval_statement: signatureRecord.approval_statement,
+    terms_version: signatureRecord.terms_version,
     signed_date: signatureRecord.signed_date,
     signature_image: signatureRecord.signature_url,
   };

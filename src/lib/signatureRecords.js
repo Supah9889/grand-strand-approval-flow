@@ -92,8 +92,6 @@ export function buildJobApprovalRecordPayload({ job, signatureUrl, signedAt, act
     status: 'signed',
     signed_date: signedAt,
     signature_url: signatureUrl,
-    output_file_url: signatureUrl,
-    output_file_name: 'Customer signature',
     terms_version: TERMS_VERSION,
     approval_statement: approvalStatement,
     signed_price: Number(job.price),

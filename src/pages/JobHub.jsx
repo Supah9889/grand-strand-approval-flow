@@ -21,6 +21,7 @@ import JobFilesTab from '../components/jobhub/JobFilesTab';
 import JobTimeTab from '../components/jobhub/JobTimeTab';
 import JobSignatureTab from '../components/jobhub/JobSignatureTab';
 import JobAddNoteSheet from '../components/jobhub/JobAddNoteSheet';
+import JobNextStep from '../components/jobhub/JobNextStep';
 
 // Existing reusable sub-components still used
 import JobDetailsExpandedTab from '../components/jobs/JobDetailsExpandedTab';
@@ -157,6 +158,13 @@ export default function JobHub() {
             onAddNote={handleAddNote}
             onAddSchedule={handleAddSchedule}
             onUploadFile={handleUploadFile}
+          />
+
+          {/* ── Next Step: guided action banner ──────────────────────── */}
+          <JobNextStep
+            job={job}
+            isAdmin={isAdmin}
+            onGoToSignature={() => setActiveTab('signature')}
           />
 
           {/* ── Summary: editable plain-language field ───────────────── */}

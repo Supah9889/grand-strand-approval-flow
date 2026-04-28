@@ -14,6 +14,8 @@ import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import JobStatusBadge from '../components/jobs/JobStatusBadge';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
+import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
+import { isJobSigned, buildSignedDocPreview } from '@/lib/signedDocHelpers';
 
 const STATUS_BADGE = {
   pending:  { label: 'Pending', class: 'bg-amber-50 text-amber-600' },
@@ -27,6 +29,7 @@ export default function JobSearch() {
   const [filterLifecycle, setFilterLifecycle] = useState('all');
   const [filterOpStatus, setFilterOpStatus] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -62,8 +65,23 @@ export default function JobSearch() {
     );
   });
 
+  const handleSignView = (job) => {
+    if (isJobSigned(job)) {
+      const doc = buildSignedDocPreview(job);
+      if (doc) { setPreviewDoc(doc); return; }
+    }
+    navigate(`/approve?jobId=${job.id}`);
+  };
+
   return (
     <AppLayout title="Job Search">
+      <DocumentPreviewModal
+        open={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        url={previewDoc?.url}
+        title={previewDoc?.title}
+        docType={previewDoc?.docType}
+      />
       <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
         <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-5">
 
@@ -145,11 +163,11 @@ export default function JobSearch() {
                   )}
                   <div className="flex gap-2 mt-2">
                     <button 
-                      onClick={() => navigate(`/approve?jobId=${job.id}`)} 
+                      onClick={() => handleSignView(job)}
                       aria-label={`Sign or view job at ${job.address}`}
                       className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
                     >
-                      Sign / View
+                      {isJobSigned(job) ? 'View Signed Document' : 'Sign Document'}
                     </button>
                     <button 
                       onClick={() => navigate(`/job-hub?jobId=${job.id}`)} 

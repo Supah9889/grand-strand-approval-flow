@@ -18,10 +18,11 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { SIGNATURE_DOCUMENT_MODES } from '@/lib/signatureDocumentModes';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
+import { isJobSigned, getBestSignedDocUrl } from '@/lib/signedDocHelpers';
 
 // ── Determine the current step ────────────────────────────────────────────────
 function getStep(job) {
-  if (job.status === 'approved') {
+  if (isJobSigned(job)) {
     return 'signed';
   }
   if (job.status === 'pending' && job.approval_timestamp) {
@@ -31,11 +32,6 @@ function getStep(job) {
     return 'ready_to_send';
   }
   return 'needs_pdf';
-}
-
-// Pick the best signed doc URL: stamped output first, then job-level
-function getBestSignedDocUrl(job) {
-  return job.signed_output_file_url || null;
 }
 
 // ── Step config ───────────────────────────────────────────────────────────────
@@ -100,10 +96,8 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
           title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order (Final)',
           docType: 'Signed Work Order (Final)',
         });
-      } else {
-        // No stamped PDF yet — fall back to approval page
-        navigate(`/approve?jobId=${job.id}`);
       }
+      // If no doc URL at all, do nothing (don't route to /approve for signed jobs)
       return;
     }
     if (step === 'waiting' || step === 'ready_to_send') {

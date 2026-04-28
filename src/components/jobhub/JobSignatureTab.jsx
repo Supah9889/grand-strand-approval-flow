@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { getSession } from '@/lib/adminAuth';
 import { normalizeSignatureRecordPayload, validateSignatureRecordPayload } from '@/lib/signatureRecords';
+import { isJobSigned, getBestSignedDocUrl } from '@/lib/signedDocHelpers';
 import {
   SIGNATURE_DOCUMENT_MODES,
   SIGNATURE_PLACEMENTS,
@@ -660,30 +661,12 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
   );
 }
 
-// ── Pick the best signed document URL from records + job ─────────────────────
-function getBestSignedDocUrl(records, job) {
-  // 1. Primary signed SignatureRecord (signed_output_file_url or output_file_url)
-  const primary = records.find(r => r.status === 'signed' && r.is_primary);
-  if (primary?.signed_output_file_url) return primary.signed_output_file_url;
-  if (primary?.output_file_url) return primary.output_file_url;
-
-  // 2. Any signed SignatureRecord
-  const anySigned = records.find(r => r.status === 'signed');
-  if (anySigned?.signed_output_file_url) return anySigned.signed_output_file_url;
-  if (anySigned?.output_file_url) return anySigned.output_file_url;
-
-  // 3. Job-level stamped output
-  if (job.signed_output_file_url) return job.signed_output_file_url;
-
-  return null;
-}
-
 // ── Job-level approval summary (from job.status) ──────────────────────────────
 function JobApprovalSummary({ job, records, navigate, onPreview }) {
-  const isSigned = job.status === 'approved';
+  const isSigned = isJobSigned(job);
   const isPending = job.status === 'pending';
 
-  const signedDocUrl = getBestSignedDocUrl(records, job);
+  const signedDocUrl = getBestSignedDocUrl(job, records);
   const hasOriginal = !!job.source_work_order_file_url;
 
   const handleViewSigned = () => {

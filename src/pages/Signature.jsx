@@ -13,7 +13,8 @@ import { logAudit } from '@/lib/audit';
 import { TERMS_VERSION, buildApprovalStatement } from '@/lib/terms';
 import { upsertPrimaryJobApprovalRecord } from '@/lib/signatureRecords';
 import { renderDefaultApprovalDocument } from '@/lib/defaultApprovalTemplate';
-import { DEFAULT_SIGNATURE_DOCUMENT_MODE } from '@/lib/signatureDocumentModes';
+import { isStampUploadedPdfMode, normalizeSignatureDocumentMode } from '@/lib/signatureDocumentModes';
+import { stampWorkOrderPdf } from '@/lib/workOrderPdfStamping';
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -67,17 +68,34 @@ export default function Signature() {
 
       let signedOutputFileUrl = '';
       try {
-        const approvalHtml = renderDefaultApprovalDocument(latestJob, approvalRecord);
-        const documentBlob = new Blob([approvalHtml], { type: 'text/html;charset=utf-8' });
-        const documentFile = new File([documentBlob], `work-authorization-${jobId}.html`, { type: 'text/html' });
+        const signatureDocumentMode = normalizeSignatureDocumentMode(approvalRecord.signature_document_mode || latestJob.signature_document_mode);
+        const usesStampedPdf = isStampUploadedPdfMode(signatureDocumentMode);
+
+        if (usesStampedPdf && !approvalRecord.source_work_order_file_url) {
+          throw new Error('A source work order PDF is required before this job can be approved.');
+        }
+
+        const documentBlob = usesStampedPdf
+          ? await stampWorkOrderPdf({
+              sourcePdfUrl: approvalRecord.source_work_order_file_url,
+              signatureUrl: file_url,
+              signerName: approvalRecord.signer_name || latestJob.customer_name,
+              signedAt: approvalRecord.signed_date || now,
+              placement: approvalRecord.signature_placement,
+            })
+          : new Blob([renderDefaultApprovalDocument(latestJob, approvalRecord)], { type: 'text/html;charset=utf-8' });
+        const documentFileName = usesStampedPdf ? `work-authorization-${jobId}.pdf` : `work-authorization-${jobId}.html`;
+        const documentFileType = usesStampedPdf ? 'application/pdf' : 'text/html';
+        const documentDisplayName = usesStampedPdf ? 'Stamped Work Order PDF' : 'Customer Approval / Work Authorization';
+        const documentFile = new File([documentBlob], documentFileName, { type: documentFileType });
         const { file_url: outputFileUrl } = await base44.integrations.Core.UploadFile({ file: documentFile });
         signedOutputFileUrl = outputFileUrl;
 
         await base44.entities.SignatureRecord.update(approvalRecord.id, {
           output_file_url: signedOutputFileUrl,
-          output_file_name: 'Customer Approval / Work Authorization',
+          output_file_name: documentDisplayName,
           signed_output_file_url: signedOutputFileUrl,
-          signature_document_mode: DEFAULT_SIGNATURE_DOCUMENT_MODE,
+          signature_document_mode: signatureDocumentMode,
         });
       } catch (documentError) {
         throw new Error('Signature was captured, but the signed approval document could not be saved. Please try submitting again before leaving this page.', { cause: documentError });
@@ -88,7 +106,7 @@ export default function Signature() {
         approval_timestamp: now,
         status: 'approved',
         locked: true,
-        signature_document_mode: DEFAULT_SIGNATURE_DOCUMENT_MODE,
+        signature_document_mode: normalizeSignatureDocumentMode(approvalRecord.signature_document_mode || latestJob.signature_document_mode),
         signed_output_file_url: signedOutputFileUrl,
         terms_version: TERMS_VERSION,
         approval_statement: statement,

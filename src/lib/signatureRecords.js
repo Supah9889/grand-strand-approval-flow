@@ -91,6 +91,8 @@ export function validateSignatureRecordPayload(payload) {
 
 export function buildJobApprovalRecordPayload({ job, signatureUrl, signedAt, actorName = 'Customer' }) {
   const approvalStatement = buildApprovalStatement(job.customer_name, job.address, job.price);
+  const signatureDocumentMode = normalizeSignatureDocumentMode(job.signature_document_mode);
+  const signaturePlacement = normalizeSignaturePlacement(job.signature_placement);
 
   return normalizeSignatureRecordPayload({
     job_id: job.id,
@@ -103,8 +105,10 @@ export function buildJobApprovalRecordPayload({ job, signatureUrl, signedAt, act
     status: 'signed',
     signed_date: signedAt,
     signature_url: signatureUrl,
-    signature_document_mode: DEFAULT_SIGNATURE_DOCUMENT_MODE,
-    signature_placement: DEFAULT_SIGNATURE_PLACEMENT,
+    signature_document_mode: signatureDocumentMode || DEFAULT_SIGNATURE_DOCUMENT_MODE,
+    source_work_order_file_url: job.source_work_order_file_url,
+    source_work_order_file_name: job.source_work_order_file_name,
+    signature_placement: signaturePlacement || DEFAULT_SIGNATURE_PLACEMENT,
     terms_version: TERMS_VERSION,
     approval_statement: approvalStatement,
     signed_price: Number(job.price),

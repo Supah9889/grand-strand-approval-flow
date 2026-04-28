@@ -8,6 +8,7 @@
  *  4. Both PaymentsPage and Financials use the same shared path (structural)
  */
 
+import { describe, test, expect, vi } from 'vitest';
 import { PAYMENT_QUERY_KEYS } from '../paymentMutations';
 import { recalculateInvoiceFromPayments } from '../paymentIntegrity';
 

@@ -9,8 +9,9 @@
  */
 
 import { describe, test, expect, vi } from 'vitest';
-import { PAYMENT_QUERY_KEYS } from '../paymentMutations';
+import { PAYMENT_QUERY_KEYS, invalidatePaymentQueries, executePaymentCreate, executePaymentDelete } from '../paymentMutations';
 import { recalculateInvoiceFromPayments } from '../paymentIntegrity';
+import { audit, ACTION_LABELS } from '../audit';
 
 // ─── PAYMENT_QUERY_KEYS ───────────────────────────────────────────────────────
 
@@ -29,7 +30,6 @@ describe('PAYMENT_QUERY_KEYS', () => {
 
   test('invalidatePaymentQueries calls invalidateQueries once per key', () => {
     const mockClient = { invalidateQueries: vi.fn() };
-    const { invalidatePaymentQueries } = require('../paymentMutations');
     invalidatePaymentQueries(mockClient);
     expect(mockClient.invalidateQueries).toHaveBeenCalledTimes(PAYMENT_QUERY_KEYS.length);
     PAYMENT_QUERY_KEYS.forEach(key => {
@@ -189,11 +189,9 @@ describe('executePaymentDelete — two-phase error model (unit)', () => {
 
   test('audit action for deletion is logged_payment_deleted (not record_deleted)', () => {
     // Verify the audit module uses the correct action label for payment deletion
-    const { audit } = require('../audit');
     expect(typeof audit.payment.deleted).toBe('function');
     // The implementation calls logAudit with 'logged_payment_deleted' action
     // This is verified via ACTION_LABELS entry
-    const { ACTION_LABELS } = require('../audit');
     expect(ACTION_LABELS['logged_payment_deleted']).toBeDefined();
     expect(ACTION_LABELS['logged_payment_deleted'].label).toMatch(/Deleted/i);
     expect(ACTION_LABELS['logged_payment_deleted'].color).toMatch(/destructive/);
@@ -333,23 +331,19 @@ describe('executePaymentDelete — failed Phase A leaves no false-deleted state'
 
 describe('paymentMutations module exports', () => {
   test('exports executePaymentCreate function', () => {
-    const mod = require('../paymentMutations');
-    expect(typeof mod.executePaymentCreate).toBe('function');
+    expect(typeof executePaymentCreate).toBe('function');
   });
 
   test('exports executePaymentDelete function', () => {
-    const mod = require('../paymentMutations');
-    expect(typeof mod.executePaymentDelete).toBe('function');
+    expect(typeof executePaymentDelete).toBe('function');
   });
 
   test('exports invalidatePaymentQueries function', () => {
-    const mod = require('../paymentMutations');
-    expect(typeof mod.invalidatePaymentQueries).toBe('function');
+    expect(typeof invalidatePaymentQueries).toBe('function');
   });
 
   test('exports PAYMENT_QUERY_KEYS array', () => {
-    const mod = require('../paymentMutations');
-    expect(Array.isArray(mod.PAYMENT_QUERY_KEYS)).toBe(true);
-    expect(mod.PAYMENT_QUERY_KEYS.length).toBeGreaterThan(0);
+    expect(Array.isArray(PAYMENT_QUERY_KEYS)).toBe(true);
+    expect(PAYMENT_QUERY_KEYS.length).toBeGreaterThan(0);
   });
 });

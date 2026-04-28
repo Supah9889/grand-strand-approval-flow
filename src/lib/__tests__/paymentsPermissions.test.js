@@ -7,8 +7,9 @@
  *  3. payment.deleted emits audit action = 'logged_payment_deleted'
  */
 
+import { describe, test, expect } from 'vitest';
 import { resolvePermissions } from '../permissions';
-import { audit } from '../audit';
+import { audit, ACTION_LABELS } from '../audit';
 
 // ─── Permission resolution ───────────────────────────────────────────────────
 
@@ -109,7 +110,6 @@ describe('audit.payment.deleted — emits logged_payment_deleted action', () => 
   });
 
   test('ACTION_LABELS has entry for logged_payment_deleted', () => {
-    const { ACTION_LABELS } = require('../audit');
     const entry = ACTION_LABELS['logged_payment_deleted'];
     expect(entry).toBeDefined();
     expect(entry.label).toBe('Logged Payment Deleted');

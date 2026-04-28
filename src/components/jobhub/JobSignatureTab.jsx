@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Pen, CheckCircle2, Clock, AlertCircle, ExternalLink,
   Lock, Plus, X, Save, Loader2, FileText, ChevronDown, ChevronUp,
-  Paperclip, User, Calendar, RefreshCw, Archive, XCircle, Eye
+  Paperclip, User, Calendar, RefreshCw, Archive, XCircle, Eye, Upload
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,12 @@ import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { getSession } from '@/lib/adminAuth';
 import { normalizeSignatureRecordPayload, validateSignatureRecordPayload } from '@/lib/signatureRecords';
+import {
+  SIGNATURE_DOCUMENT_MODES,
+  SIGNATURE_PLACEMENTS,
+  normalizeSignatureDocumentMode,
+  normalizeSignaturePlacement,
+} from '@/lib/signatureDocumentModes';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -38,6 +44,24 @@ const SIGNER_ROLE_OPTIONS = [
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ value, label }));
 
+const DOCUMENT_MODE_OPTIONS = [
+  {
+    value: SIGNATURE_DOCUMENT_MODES.GENERATED_TEMPLATE,
+    label: 'Generated template',
+    description: 'Creates a signed approval document from the app template.',
+  },
+  {
+    value: SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF,
+    label: 'Stamp uploaded PDF',
+    description: "Stamps the customer's signature and timestamp onto the uploaded work order PDF.",
+  },
+];
+
+const PLACEMENT_OPTIONS = [
+  { value: SIGNATURE_PLACEMENTS.BOTTOM_LEFT, label: 'Bottom-left' },
+  { value: SIGNATURE_PLACEMENTS.BOTTOM_RIGHT, label: 'Bottom-right' },
+];
+
 function getStatusConfig(status) {
   return STATUS_CONFIG[status] || STATUS_CONFIG.draft;
 }
@@ -45,6 +69,164 @@ function getStatusConfig(status) {
 function fmtDate(ts) {
   if (!ts) return null;
   try { return format(parseISO(ts), 'MMM d, yyyy'); } catch { return null; }
+}
+
+function SignatureDocumentSetup({ job, isAdmin }) {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef(null);
+  const [mode, setMode] = useState(normalizeSignatureDocumentMode(job.signature_document_mode));
+  const [placement, setPlacement] = useState(normalizeSignaturePlacement(job.signature_placement));
+  const [sourceUrl, setSourceUrl] = useState(job.source_work_order_file_url || '');
+  const [sourceName, setSourceName] = useState(job.source_work_order_file_name || '');
+  const [uploading, setUploading] = useState(false);
+
+  const isPdfMode = mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF;
+  const selectedMode = DOCUMENT_MODE_OPTIONS.find(option => option.value === mode) || DOCUMENT_MODE_OPTIONS[0];
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      if (isPdfMode && !sourceUrl) {
+        throw new Error('Upload a source work order PDF before saving PDF stamping mode.');
+      }
+
+      await base44.entities.Job.update(job.id, {
+        signature_document_mode: mode,
+        source_work_order_file_url: sourceUrl,
+        source_work_order_file_name: sourceName,
+        signature_placement: placement,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
+      toast.success('Signature document setup saved');
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Could not save signature document setup');
+    },
+  });
+
+  const handlePdfUpload = async (file) => {
+    if (!file) return;
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      toast.error('Upload a PDF work order.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setSourceUrl(file_url);
+      setSourceName(file.name);
+      toast.success('Work order PDF uploaded');
+    } catch {
+      toast.error('Work order upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="bg-muted/40 rounded-xl px-4 py-3">
+        <p className="text-xs font-semibold text-muted-foreground mb-1">Signature Document Setup</p>
+        <p className="text-xs text-muted-foreground">{selectedMode.description}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Signature Document Setup</p>
+        <p className="text-xs text-muted-foreground mt-1">{selectedMode.description}</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground">Document mode</label>
+        <Select value={mode} onValueChange={value => setMode(normalizeSignatureDocumentMode(value))}>
+          <SelectTrigger className="h-9 rounded-xl text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DOCUMENT_MODE_OPTIONS.map(option => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isPdfMode && (
+        <div className="space-y-3 rounded-xl border border-dashed border-border bg-secondary/30 p-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Source work order PDF</label>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className={`w-full min-h-16 rounded-xl border border-border bg-background px-3 py-3 text-left text-sm transition-colors ${
+                sourceUrl ? 'text-foreground hover:border-primary/40' : 'text-muted-foreground hover:border-primary/40'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Upload className="w-4 h-4 text-primary" />}
+                <span className="min-w-0">
+                  <span className="block truncate">{sourceName || 'Upload work order PDF'}</span>
+                  {sourceUrl && <span className="block text-xs text-muted-foreground mt-0.5">Ready for signature stamping</span>}
+                </span>
+              </span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={event => handlePdfUpload(event.target.files?.[0] || null)}
+            />
+          </div>
+
+          {sourceUrl && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <Paperclip className="w-3 h-3" />
+              View uploaded work order
+              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+            </a>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Signature placement</label>
+            <Select value={placement} onValueChange={value => setPlacement(normalizeSignaturePlacement(value))}>
+              <SelectTrigger className="h-9 rounded-xl text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PLACEMENT_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => saveMut.mutate()}
+          disabled={saveMut.isPending || uploading || (isPdfMode && !sourceUrl)}
+          className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors"
+        >
+          {saveMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          Save setup
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ── Inline create/edit form ───────────────────────────────────────────────────
@@ -423,6 +605,8 @@ export default function JobSignatureTab({ job, isAdmin }) {
 
       {/* ── Job-level approval summary (existing flow) ── */}
       <JobApprovalSummary job={job} navigate={navigate} />
+
+      <SignatureDocumentSetup job={job} isAdmin={isAdmin} />
 
       {/* ── Structured records section ── */}
       <div className="space-y-2">

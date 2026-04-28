@@ -117,6 +117,7 @@ function SignatureDocumentSetup({ job, isAdmin }) {
   const [sourceUrl, setSourceUrl] = useState(job.source_work_order_file_url || '');
   const [sourceName, setSourceName] = useState(job.source_work_order_file_name || '');
   const [uploading, setUploading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState({ state: 'idle', message: '', details: null });
 
   const isPdfMode = mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF;
   const selectedMode = DOCUMENT_MODE_OPTIONS.find(option => option.value === mode) || DOCUMENT_MODE_OPTIONS[0];
@@ -132,6 +133,8 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
   const saveMut = useMutation({
     mutationFn: async () => {
+      setSaveStatus({ state: 'saving', message: 'Saving signature setup...', details: null });
+
       if (isPdfMode && !sourceUrl) {
         throw new Error('Please upload a work order PDF');
       }
@@ -163,10 +166,21 @@ function SignatureDocumentSetup({ job, isAdmin }) {
     onSuccess: (savedJob) => {
       queryClient.setQueryData(['job-hub', job.id], savedJob);
       queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
+      setSaveStatus({
+        state: 'success',
+        message: 'Saved successfully',
+        details: {
+          mode: getDocumentModeLabel(savedJob.signature_document_mode),
+          fileName: savedJob.source_work_order_file_name || 'None uploaded',
+          placement: getPlacementLabel(savedJob.signature_placement),
+        },
+      });
       toast.success(`Signature setup saved: ${getDocumentModeLabel(mode)}`);
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, 'Could not save signature document setup'));
+      const message = getErrorMessage(error, 'Failed to save signature setup');
+      setSaveStatus({ state: 'error', message, details: null });
+      toast.error(message);
     },
   });
 
@@ -190,6 +204,7 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
       setSourceUrl(uploadResult.file_url);
       setSourceName(file.name);
+      setSaveStatus({ state: 'idle', message: '', details: null });
       toast.success('Work order PDF uploaded');
     } catch (error) {
       toast.error(getErrorMessage(error, 'Work order upload failed'));
@@ -200,10 +215,16 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
   const handleSave = () => {
     if (isPdfMode && !sourceUrl) {
+      setSaveStatus({ state: 'error', message: 'Please upload a work order PDF', details: null });
       toast.error('Please upload a work order PDF');
       return;
     }
     saveMut.mutate();
+  };
+
+  const markDirty = (fn) => (value) => {
+    setSaveStatus({ state: 'idle', message: '', details: null });
+    fn(value);
   };
 
   if (!isAdmin) {
@@ -234,7 +255,7 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground">Document mode</label>
-        <Select value={mode} onValueChange={value => setMode(normalizeSignatureDocumentMode(value))}>
+        <Select value={mode} onValueChange={markDirty(value => setMode(normalizeSignatureDocumentMode(value)))}>
           <SelectTrigger className="h-9 rounded-xl text-sm">
             <SelectValue />
           </SelectTrigger>
@@ -290,7 +311,7 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Signature placement</label>
-            <Select value={placement} onValueChange={value => setPlacement(normalizeSignaturePlacement(value))}>
+            <Select value={placement} onValueChange={markDirty(value => setPlacement(normalizeSignaturePlacement(value)))}>
               <SelectTrigger className="h-9 rounded-xl text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -301,6 +322,28 @@ function SignatureDocumentSetup({ job, isAdmin }) {
               </SelectContent>
             </Select>
           </div>
+        </div>
+      )}
+
+      {saveStatus.state !== 'idle' && (
+        <div className={`rounded-xl border px-3 py-2 text-xs ${
+          saveStatus.state === 'success'
+            ? 'border-green-200 bg-green-50 text-green-800'
+            : saveStatus.state === 'error'
+              ? 'border-red-200 bg-red-50 text-red-800'
+              : 'border-primary/20 bg-secondary text-primary'
+        }`}>
+          <div className="flex items-center gap-2 font-semibold">
+            {saveStatus.state === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <span>{saveStatus.message}</span>
+          </div>
+          {saveStatus.state === 'success' && saveStatus.details && (
+            <div className="mt-2 grid gap-1 text-green-900 sm:grid-cols-3">
+              <p>Mode: <span className="font-medium">{saveStatus.details.mode}</span></p>
+              <p className="truncate">File: <span className="font-medium">{saveStatus.details.fileName}</span></p>
+              <p>Placement: <span className="font-medium">{saveStatus.details.placement}</span></p>
+            </div>
+          )}
         </div>
       )}
 

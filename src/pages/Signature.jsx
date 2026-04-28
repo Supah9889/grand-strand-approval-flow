@@ -13,6 +13,7 @@ import { logAudit } from '@/lib/audit';
 import { TERMS_VERSION, buildApprovalStatement } from '@/lib/terms';
 import { upsertPrimaryJobApprovalRecord } from '@/lib/signatureRecords';
 import { renderDefaultApprovalDocument } from '@/lib/defaultApprovalTemplate';
+import { DEFAULT_SIGNATURE_DOCUMENT_MODE } from '@/lib/signatureDocumentModes';
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -64,15 +65,19 @@ export default function Signature() {
         throw new Error('Signature was captured, but the approval document could not be linked to the approval record. Please try submitting again before leaving this page.');
       }
 
+      let signedOutputFileUrl = '';
       try {
         const approvalHtml = renderDefaultApprovalDocument(latestJob, approvalRecord);
         const documentBlob = new Blob([approvalHtml], { type: 'text/html;charset=utf-8' });
         const documentFile = new File([documentBlob], `work-authorization-${jobId}.html`, { type: 'text/html' });
         const { file_url: outputFileUrl } = await base44.integrations.Core.UploadFile({ file: documentFile });
+        signedOutputFileUrl = outputFileUrl;
 
         await base44.entities.SignatureRecord.update(approvalRecord.id, {
-          output_file_url: outputFileUrl,
+          output_file_url: signedOutputFileUrl,
           output_file_name: 'Customer Approval / Work Authorization',
+          signed_output_file_url: signedOutputFileUrl,
+          signature_document_mode: DEFAULT_SIGNATURE_DOCUMENT_MODE,
         });
       } catch (documentError) {
         throw new Error('Signature was captured, but the signed approval document could not be saved. Please try submitting again before leaving this page.', { cause: documentError });
@@ -83,6 +88,8 @@ export default function Signature() {
         approval_timestamp: now,
         status: 'approved',
         locked: true,
+        signature_document_mode: DEFAULT_SIGNATURE_DOCUMENT_MODE,
+        signed_output_file_url: signedOutputFileUrl,
         terms_version: TERMS_VERSION,
         approval_statement: statement,
       });

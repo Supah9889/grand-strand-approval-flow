@@ -161,6 +161,34 @@
     "signature_url": {
       "type": "string"
     },
+    "signature_document_mode": {
+      "type": "string",
+      "enum": [
+        "generated_template",
+        "stamp_uploaded_pdf"
+      ],
+      "default": "generated_template",
+      "description": "Primary approval document mode for this job"
+    },
+    "source_work_order_file_url": {
+      "type": "string",
+      "description": "Uploaded work order PDF for future stamp_uploaded_pdf approvals"
+    },
+    "source_work_order_file_name": {
+      "type": "string"
+    },
+    "signature_placement": {
+      "type": "string",
+      "enum": [
+        "bottom_left",
+        "bottom_right"
+      ],
+      "default": "bottom_right"
+    },
+    "signed_output_file_url": {
+      "type": "string",
+      "description": "Signed approval output document for this job"
+    },
     "approval_timestamp": {
       "type": "string"
     },

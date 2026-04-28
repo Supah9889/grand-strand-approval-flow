@@ -660,21 +660,39 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
   );
 }
 
+// ── Pick the best signed document URL from records + job ─────────────────────
+function getBestSignedDocUrl(records, job) {
+  // 1. Primary signed SignatureRecord (signed_output_file_url or output_file_url)
+  const primary = records.find(r => r.status === 'signed' && r.is_primary);
+  if (primary?.signed_output_file_url) return primary.signed_output_file_url;
+  if (primary?.output_file_url) return primary.output_file_url;
+
+  // 2. Any signed SignatureRecord
+  const anySigned = records.find(r => r.status === 'signed');
+  if (anySigned?.signed_output_file_url) return anySigned.signed_output_file_url;
+  if (anySigned?.output_file_url) return anySigned.output_file_url;
+
+  // 3. Job-level stamped output
+  if (job.signed_output_file_url) return job.signed_output_file_url;
+
+  return null;
+}
+
 // ── Job-level approval summary (from job.status) ──────────────────────────────
-function JobApprovalSummary({ job, navigate, onPreview }) {
+function JobApprovalSummary({ job, records, navigate, onPreview }) {
   const isSigned = job.status === 'approved';
   const isPending = job.status === 'pending';
 
-  // Prefer stamped output PDF, then fall back to navigate
-  const signedDocUrl = job.signed_output_file_url || null;
-  const signedDocType = job.signed_output_file_url ? 'Signed Work Order (Stamped)' : 'Approval Document';
-  const signedDocTitle = job.signed_output_file_url
-    ? (job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order')
-    : 'Approval Document';
+  const signedDocUrl = getBestSignedDocUrl(records, job);
+  const hasOriginal = !!job.source_work_order_file_url;
 
   const handleViewSigned = () => {
     if (signedDocUrl) {
-      onPreview({ url: signedDocUrl, title: signedDocTitle, docType: signedDocType });
+      onPreview({
+        url: signedDocUrl,
+        title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order (Final)',
+        docType: 'Signed Work Order (Final)',
+      });
     } else {
       navigate(`/approve?jobId=${job.id}`);
     }
@@ -696,6 +714,7 @@ function JobApprovalSummary({ job, navigate, onPreview }) {
             : <AlertCircle className="w-4 h-4 text-muted-foreground" />
         }
       </div>
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-foreground">
@@ -715,41 +734,71 @@ function JobApprovalSummary({ job, navigate, onPreview }) {
               : 'No signature collected yet'
           }
         </p>
-        {isSigned && job.signature_url && (
-          <div className="mt-2">
-            <img src={job.signature_url} alt="Customer signature" className="max-h-10 rounded border border-green-200 bg-white" />
-          </div>
-        )}
-        {/* Document links — clearly labelled */}
+
+        {/* Signed: show signature thumbnail + doc action buttons */}
         {isSigned && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {job.signed_output_file_url && (
-              <button
-                onClick={() => onPreview({ url: job.signed_output_file_url, title: signedDocTitle, docType: 'Signed Work Order (Stamped)' })}
-                className="inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-100 border border-green-200 rounded-full px-2.5 py-1 hover:bg-green-200 transition-colors"
-              >
-                <FileSearch className="w-3 h-3" /> Signed Work Order (Stamped)
-              </button>
+          <div className="mt-2 space-y-2">
+            {job.signature_url && (
+              <img src={job.signature_url} alt="Customer signature" className="max-h-10 rounded border border-green-200 bg-white" />
             )}
-            {job.source_work_order_file_url && (
-              <button
-                onClick={() => onPreview({ url: job.source_work_order_file_url, title: job.source_work_order_file_name || 'Work Order', docType: 'Work Order (Original)' })}
-                className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-100 border border-blue-200 rounded-full px-2.5 py-1 hover:bg-blue-200 transition-colors"
-              >
-                <FileSearch className="w-3 h-3" /> Work Order (Original)
-              </button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {/* Primary: view signed document */}
+              {signedDocUrl && (
+                <button
+                  onClick={handleViewSigned}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-800 bg-green-100 border border-green-300 rounded-full px-2.5 py-1 hover:bg-green-200 transition-colors"
+                >
+                  <FileSearch className="w-3 h-3" /> View Signed Document
+                </button>
+              )}
+              {/* Secondary: original work order */}
+              {hasOriginal && (
+                <button
+                  onClick={() => onPreview({
+                    url: job.source_work_order_file_url,
+                    title: job.source_work_order_file_name || 'Original Work Order',
+                    docType: 'Original Work Order',
+                  })}
+                  className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1 hover:bg-blue-100 transition-colors"
+                >
+                  <FileSearch className="w-3 h-3" /> View Original Work Order
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
-      <button
-        onClick={isSigned ? handleViewSigned : () => navigate(`/approve?jobId=${job.id}`)}
-        className="flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 mt-0.5"
-      >
-        <Pen className="w-3 h-3" />
-        {isSigned ? 'Approval Page' : 'Open'}
-        <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-      </button>
+
+      {/* Right action: signed → "View Signed Document" button; unsigned → "Open" */}
+      {isSigned ? (
+        signedDocUrl ? (
+          <button
+            onClick={handleViewSigned}
+            className="flex items-center gap-1 text-[11px] font-semibold text-green-700 hover:text-green-800 shrink-0 mt-0.5"
+          >
+            <FileSearch className="w-3.5 h-3.5" />
+            View Signed Doc
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate(`/approve?jobId=${job.id}`)}
+            className="flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 mt-0.5"
+          >
+            <Pen className="w-3 h-3" />
+            Approval Page
+            <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+          </button>
+        )
+      ) : (
+        <button
+          onClick={() => navigate(`/approve?jobId=${job.id}`)}
+          className="flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 mt-0.5"
+        >
+          <Pen className="w-3 h-3" />
+          Open
+          <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+        </button>
+      )}
     </div>
   );
 }
@@ -797,7 +846,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
       />
 
       {/* ── Job-level approval summary (existing flow) ── */}
-      <JobApprovalSummary job={job} navigate={navigate} onPreview={setPreviewDoc} />
+      <JobApprovalSummary job={job} records={records} navigate={navigate} onPreview={setPreviewDoc} />
 
       <SignatureDocumentSetup job={job} isAdmin={isAdmin} onPreview={setPreviewDoc} />
 

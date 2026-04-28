@@ -14,7 +14,9 @@ import React from 'react';
 import { X, ExternalLink, Download } from 'lucide-react';
 
 const DOC_TYPE_STYLES = {
-  'Signed Work Order (Stamped)': 'bg-green-100 text-green-700',
+  'Signed Work Order (Final)':    'bg-green-100 text-green-700',
+  'Signed Work Order (Stamped)':  'bg-green-100 text-green-700',
+  'Original Work Order':          'bg-blue-100 text-blue-700',
   'Work Order (Original)':        'bg-blue-100 text-blue-700',
   'Approval Document':            'bg-primary/10 text-primary',
 };

@@ -12,7 +12,7 @@ import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  CheckCircle2, Clock, FileUp, Send, ExternalLink, Loader2, ChevronRight,
+  CheckCircle2, Clock, FileUp, Send, ExternalLink, Loader2, ChevronRight, FileSearch,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
@@ -21,17 +21,21 @@ import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 
 // ── Determine the current step ────────────────────────────────────────────────
 function getStep(job) {
-  if (job.status === 'approved' && job.signature_url) {
+  if (job.status === 'approved') {
     return 'signed';
   }
   if (job.status === 'pending' && job.approval_timestamp) {
-    // approval_timestamp is set when signature request is sent
     return 'waiting';
   }
   if (job.source_work_order_file_url || job.signature_url) {
     return 'ready_to_send';
   }
   return 'needs_pdf';
+}
+
+// Pick the best signed doc URL: stamped output first, then job-level
+function getBestSignedDocUrl(job) {
+  return job.signed_output_file_url || null;
 }
 
 // ── Step config ───────────────────────────────────────────────────────────────
@@ -43,7 +47,7 @@ const STEP_CONFIG = {
     title: 'Job Signed & Approved',
     subtitle: 'The customer has signed. You\'re all set.',
     actionLabel: 'View Signed Document',
-    actionIcon: ExternalLink,
+    actionIcon: FileSearch,
   },
   waiting: {
     icon: Clock,
@@ -89,24 +93,20 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
 
   const handleAction = async () => {
     if (step === 'signed') {
-      // Prefer stamped output, then signature_url
-      const docUrl = job.signed_output_file_url || job.signature_url;
+      const docUrl = getBestSignedDocUrl(job);
       if (docUrl) {
         setPreviewDoc({
           url: docUrl,
-          title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Document',
-          docType: job.signed_output_file_url ? 'Signed Work Order (Stamped)' : 'Approval Document',
+          title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order (Final)',
+          docType: 'Signed Work Order (Final)',
         });
       } else {
+        // No stamped PDF yet — fall back to approval page
         navigate(`/approve?jobId=${job.id}`);
       }
       return;
     }
-    if (step === 'waiting') {
-      navigate(`/approve?jobId=${job.id}`);
-      return;
-    }
-    if (step === 'ready_to_send') {
+    if (step === 'waiting' || step === 'ready_to_send') {
       navigate(`/approve?jobId=${job.id}`);
       return;
     }

@@ -41,6 +41,37 @@ const empty = {
   job_group: 'painting',
 };
 
+function normalizeNumericInput(value, label, { blankValue } = {}) {
+  const raw = typeof value === 'string' ? value.trim() : value;
+  if (raw === '' || raw === null || raw === undefined) {
+    return { value: blankValue, hasValue: blankValue !== undefined };
+  }
+
+  const numberValue = Number(raw);
+  if (!Number.isFinite(numberValue)) {
+    throw new Error(`${label} must be a valid number.`);
+  }
+
+  return { value: numberValue, hasValue: true };
+}
+
+function getNumericValidationError(form) {
+  try {
+    normalizeNumericInput(form.price, 'Contract price', { blankValue: 0 });
+    return null;
+  } catch (error) {
+    return error.message;
+  }
+}
+
+function numericValueForValidation(value, label, options) {
+  try {
+    return normalizeNumericInput(value, label, options).value;
+  } catch {
+    return 0;
+  }
+}
+
 export default function NewJobModal({ open, onClose }) {
   const [form, setForm] = useState(empty);
   const queryClient = useQueryClient();
@@ -54,9 +85,10 @@ export default function NewJobModal({ open, onClose }) {
     mutationFn: async (data) => {
       // Assemble a full address string for downstream display/geo use
       const fullAddress = [data.address, data.city, data.state && data.zip ? `${data.state} ${data.zip}` : (data.state || data.zip)].filter(Boolean).join(', ');
+      const price = normalizeNumericInput(data.price, 'Contract price', { blankValue: 0 }).value;
       const job = await base44.entities.Job.create({
         ...data,
-        price: data.price ? Number(data.price) : 0,
+        price,
         // Keep `address` as the full assembled string for all display/geo usage;
         // city/state/zip are stored separately in their own fields.
         address: fullAddress || data.address,
@@ -76,12 +108,17 @@ export default function NewJobModal({ open, onClose }) {
 
   const [touched, setTouched] = useState(false);
   // Validate using `address` as street field; city/state/zip are separate
-  const issues = validateJob({ ...form, price: form.price ? Number(form.price) : 0 });
+  const issues = validateJob({ ...form, price: numericValueForValidation(form.price, 'Contract price', { blankValue: 0 }) });
   const errors = issues.filter(i => i.level === 'error');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setTouched(true);
+    const numericError = getNumericValidationError(form);
+    if (numericError) {
+      toast.error(numericError);
+      return;
+    }
     if (errors.length > 0) return;
     createMutation.mutate(form);
   };

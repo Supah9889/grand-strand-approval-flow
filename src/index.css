@@ -6,31 +6,31 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 20% 98%;
     --foreground: 210 11% 15%;
     --card: 0 0% 100%;
     --card-foreground: 210 11% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 11% 15%;
-    --primary: 173 58% 32%;
+    --primary: 173 58% 28%;
     --primary-foreground: 0 0% 100%;
     --secondary: 173 30% 96%;
     --secondary-foreground: 173 58% 25%;
-    --muted: 210 11% 96%;
-    --muted-foreground: 210 7% 46%;
+    --muted: 210 18% 95%;
+    --muted-foreground: 210 8% 43%;
     --accent: 173 30% 93%;
     --accent-foreground: 173 58% 25%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 14% 91%;
-    --input: 210 14% 91%;
+    --border: 210 16% 88%;
+    --input: 210 16% 84%;
     --ring: 173 58% 32%;
     --chart-1: 173 58% 39%;
     --chart-2: 173 40% 55%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     --font-inter: 'Inter', sans-serif;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -94,6 +94,12 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  h1,
+  h2,
+  h3 {
+    @apply text-foreground;
+  }
+
   input,
   textarea,
   button,
@@ -132,11 +138,83 @@
 }
 
 @layer components {
+  .app-shell {
+    @apply min-h-screen bg-background font-inter text-foreground;
+  }
+
+  .app-main {
+    @apply flex-1 flex flex-col;
+  }
+
+  .app-page {
+    @apply w-full max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8;
+  }
+
+  .app-page-header {
+    @apply flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .app-page-title {
+    @apply text-xl font-semibold tracking-tight text-foreground;
+  }
+
+  .app-page-subtitle {
+    @apply mt-1 text-sm text-muted-foreground;
+  }
+
+  .app-page-actions {
+    @apply flex items-center gap-2 sm:justify-end;
+  }
+
+  .app-card {
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .app-card-header {
+    @apply flex items-start justify-between gap-3 border-b border-border/70 px-4 py-3;
+  }
+
+  .app-card-title {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .app-card-description {
+    @apply mt-0.5 text-xs text-muted-foreground;
+  }
+
+  .app-card-content {
+    @apply p-4;
+  }
+
+  .app-section-header {
+    @apply flex items-center justify-between gap-3 border-b border-border/70 pb-2;
+  }
+
+  .app-section-title {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .app-table-wrap {
+    @apply overflow-hidden rounded-lg border border-border bg-card shadow-sm;
+  }
+
+  .app-table {
+    @apply w-full text-sm;
+  }
+
+  .app-table-head {
+    @apply bg-muted/70 text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .app-table-row {
+    @apply border-b border-border/70 transition-colors last:border-0 hover:bg-muted/40;
+  }
+
   .mobile-button {
-    @apply h-11 rounded-xl min-h-[44px];
+    @apply h-11 rounded-lg min-h-[44px];
   }
 
   .mobile-input {
-    @apply h-10 rounded-xl min-h-[44px];
+    @apply h-10 rounded-lg min-h-[44px];
   }
 }

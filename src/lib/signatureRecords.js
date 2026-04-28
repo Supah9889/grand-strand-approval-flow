@@ -1,5 +1,11 @@
 import { base44 } from '@/api/base44Client';
 import { TERMS_VERSION, buildApprovalStatement } from '@/lib/terms';
+import {
+  DEFAULT_SIGNATURE_DOCUMENT_MODE,
+  DEFAULT_SIGNATURE_PLACEMENT,
+  normalizeSignatureDocumentMode,
+  normalizeSignaturePlacement,
+} from '@/lib/signatureDocumentModes';
 
 export const SIGNATURE_STATUSES = ['draft', 'sent', 'viewed', 'signed', 'declined', 'replaced', 'archived'];
 export const SIGNER_ROLES = [
@@ -39,6 +45,8 @@ export function normalizeSignatureRecordPayload(input = {}) {
     title,
     status,
     signer_role: pickEnum(input.signer_role, SIGNER_ROLES, 'customer'),
+    signature_document_mode: normalizeSignatureDocumentMode(input.signature_document_mode),
+    signature_placement: normalizeSignaturePlacement(input.signature_placement),
     is_primary: Boolean(input.is_primary),
     linked_job_approval: Boolean(input.linked_job_approval),
   };
@@ -52,6 +60,9 @@ export function normalizeSignatureRecordPayload(input = {}) {
     'signature_url',
     'output_file_url',
     'output_file_name',
+    'source_work_order_file_url',
+    'source_work_order_file_name',
+    'signed_output_file_url',
     'terms_version',
     'approval_statement',
     'created_by_name',
@@ -92,6 +103,8 @@ export function buildJobApprovalRecordPayload({ job, signatureUrl, signedAt, act
     status: 'signed',
     signed_date: signedAt,
     signature_url: signatureUrl,
+    signature_document_mode: DEFAULT_SIGNATURE_DOCUMENT_MODE,
+    signature_placement: DEFAULT_SIGNATURE_PLACEMENT,
     terms_version: TERMS_VERSION,
     approval_statement: approvalStatement,
     signed_price: Number(job.price),

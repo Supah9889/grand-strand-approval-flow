@@ -63,6 +63,35 @@
     "output_file_name": {
       "type": "string"
     },
+    "signature_document_mode": {
+      "type": "string",
+      "enum": [
+        "generated_template",
+        "stamp_uploaded_pdf"
+      ],
+      "default": "generated_template",
+      "description": "generated_template creates the signed approval document from app data; stamp_uploaded_pdf will stamp the signature onto an uploaded work order PDF"
+    },
+    "source_work_order_file_url": {
+      "type": "string",
+      "description": "Original uploaded work order PDF used when signature_document_mode is stamp_uploaded_pdf"
+    },
+    "source_work_order_file_name": {
+      "type": "string"
+    },
+    "signature_placement": {
+      "type": "string",
+      "enum": [
+        "bottom_left",
+        "bottom_right"
+      ],
+      "default": "bottom_right",
+      "description": "Requested signature stamp location for uploaded PDF mode"
+    },
+    "signed_output_file_url": {
+      "type": "string",
+      "description": "Canonical URL for the signed approval output document"
+    },
     "notes": {
       "type": "string"
     },

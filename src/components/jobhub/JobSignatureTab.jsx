@@ -77,6 +77,29 @@ function getErrorMessage(error, fallback) {
     fallback;
 }
 
+function withTimeout(promise, message, timeoutMs = 15000) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
+function verifySignatureSetup(savedJob, expected) {
+  if (!savedJob) return false;
+  if (savedJob.signature_document_mode !== expected.signature_document_mode) return false;
+  if ((savedJob.signature_placement || '') !== (expected.signature_placement || '')) return false;
+
+  if (expected.signature_document_mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF) {
+    return Boolean(savedJob.source_work_order_file_url) &&
+      savedJob.source_work_order_file_url === expected.source_work_order_file_url &&
+      savedJob.source_work_order_file_name === expected.source_work_order_file_name;
+  }
+
+  return true;
+}
+
 function getStatusConfig(status) {
   return STATUS_CONFIG[status] || STATUS_CONFIG.draft;
 }
@@ -113,15 +136,33 @@ function SignatureDocumentSetup({ job, isAdmin }) {
         throw new Error('Please upload a work order PDF');
       }
 
-      await base44.entities.Job.update(job.id, {
+      const payload = {
         signature_document_mode: mode,
         source_work_order_file_url: sourceUrl,
         source_work_order_file_name: sourceName,
         signature_placement: placement,
-      });
+      };
+
+      await withTimeout(
+        base44.entities.Job.update(job.id, payload),
+        'Signature setup save timed out. Please try again.'
+      );
+
+      const refreshedJobs = await withTimeout(
+        base44.entities.Job.filter({ id: job.id }),
+        'Signature setup saved, but verification timed out. Please refresh and check the job.'
+      );
+      const refreshedJob = refreshedJobs?.[0];
+
+      if (!verifySignatureSetup(refreshedJob, payload)) {
+        throw new Error('Signature setup did not persist. Please try again.');
+      }
+
+      return refreshedJob;
     },
-    onSuccess: async () => {
-      await queryClient.refetchQueries({ queryKey: ['job-hub', job.id] });
+    onSuccess: (savedJob) => {
+      queryClient.setQueryData(['job-hub', job.id], savedJob);
+      queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
       toast.success(`Signature setup saved: ${getDocumentModeLabel(mode)}`);
     },
     onError: (error) => {
@@ -139,8 +180,15 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setSourceUrl(file_url);
+      const uploadResult = await withTimeout(
+        base44.integrations.Core.UploadFile({ file }),
+        'Work order upload timed out. Please try again.'
+      );
+      if (!uploadResult?.file_url) {
+        throw new Error('Work order upload failed: missing file URL');
+      }
+
+      setSourceUrl(uploadResult.file_url);
       setSourceName(file.name);
       toast.success('Work order PDF uploaded');
     } catch (error) {

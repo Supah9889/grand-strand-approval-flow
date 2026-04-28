@@ -7,10 +7,10 @@ export default function AppLayout({ children, title }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background font-inter flex flex-col">
+    <div className="app-shell flex flex-col">
       <AppTopBar onMenuOpen={() => setSidebarOpen(true)} title={title} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="flex-1 flex flex-col">
+      <main className="app-main">
         {children}
       </main>
       <HelpAssistant />

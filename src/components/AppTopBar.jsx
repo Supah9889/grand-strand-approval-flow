@@ -22,11 +22,11 @@ export default function AppTopBar({ onMenuOpen, title }) {
   const showBackButton = stack.length > 1;
 
   return (
-    <div className="sticky top-0 z-30 bg-white border-b border-border flex items-center h-14 px-4 gap-3 shadow-sm">
+    <div className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card/95 px-4 shadow-sm backdrop-blur">
       {showBackButton ? (
         <button
           onClick={handleBack}
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
           aria-label="Go back"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -34,7 +34,7 @@ export default function AppTopBar({ onMenuOpen, title }) {
       ) : (
         <button
           onClick={onMenuOpen}
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
           aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />
@@ -45,8 +45,8 @@ export default function AppTopBar({ onMenuOpen, title }) {
         <CompanyLogo className="h-7 w-auto shrink-0" />
         {title && (
           <>
-            <span className="text-border">|</span>
-            <span className="text-sm font-medium text-foreground truncate">{title}</span>
+            <span className="h-5 w-px bg-border" />
+            <span className="truncate text-sm font-semibold text-foreground">{title}</span>
           </>
         )}
       </div>

@@ -87,17 +87,27 @@ function withTimeout(promise, message, timeoutMs = 15000) {
 }
 
 function verifySignatureSetup(savedJob, expected) {
-  if (!savedJob) return false;
-  if (savedJob.signature_document_mode !== expected.signature_document_mode) return false;
-  if ((savedJob.signature_placement || '') !== (expected.signature_placement || '')) return false;
+  if (!savedJob) return { ok: false, reason: 'Job record not found after save' };
+
+  const checks = [
+    ['signature_document_mode', expected.signature_document_mode, savedJob.signature_document_mode],
+    ['signature_placement', expected.signature_placement || '', savedJob.signature_placement || ''],
+  ];
 
   if (expected.signature_document_mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF) {
-    return Boolean(savedJob.source_work_order_file_url) &&
-      savedJob.source_work_order_file_url === expected.source_work_order_file_url &&
-      savedJob.source_work_order_file_name === expected.source_work_order_file_name;
+    checks.push(
+      ['source_work_order_file_url', expected.source_work_order_file_url, savedJob.source_work_order_file_url],
+      ['source_work_order_file_name', expected.source_work_order_file_name, savedJob.source_work_order_file_name],
+    );
   }
 
-  return true;
+  for (const [field, exp, got] of checks) {
+    if (exp !== got) {
+      return { ok: false, reason: `${field} expected "${exp}" but got "${got || '(empty)'}"` };
+    }
+  }
+
+  return { ok: true, reason: null };
 }
 
 function getStatusConfig(status) {
@@ -157,8 +167,9 @@ function SignatureDocumentSetup({ job, isAdmin }) {
       );
       const refreshedJob = refreshedJobs?.[0];
 
-      if (!verifySignatureSetup(refreshedJob, payload)) {
-        throw new Error('Signature setup did not persist. Please try again.');
+      const verification = verifySignatureSetup(refreshedJob, payload);
+      if (!verification.ok) {
+        throw new Error(`Signature setup did not persist: ${verification.reason}`);
       }
 
       return refreshedJob;

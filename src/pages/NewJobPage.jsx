@@ -53,6 +53,38 @@ const EMPTY_FORM = {
   assigned_to: '', buildertrend_id: '',
 };
 
+function normalizeNumericInput(value, label, { blankValue } = {}) {
+  const raw = typeof value === 'string' ? value.trim() : value;
+  if (raw === '' || raw === null || raw === undefined) {
+    return { value: blankValue, hasValue: blankValue !== undefined };
+  }
+
+  const numberValue = Number(raw);
+  if (!Number.isFinite(numberValue)) {
+    throw new Error(`${label} must be a valid number.`);
+  }
+
+  return { value: numberValue, hasValue: true };
+}
+
+function getNumericValidationError(form) {
+  try {
+    normalizeNumericInput(form.price, 'Contract price', { blankValue: 0 });
+    normalizeNumericInput(form.square_footage, 'Square footage');
+    return null;
+  } catch (error) {
+    return error.message;
+  }
+}
+
+function numericValueForValidation(value, label, options) {
+  try {
+    return normalizeNumericInput(value, label, options).value;
+  } catch {
+    return 0;
+  }
+}
+
 // ── Searchable dropdown helper ──────────────────────────────────
 function SearchableSelect({ placeholder, items, labelKey, onSelect, onCreate, createLabel }) {
   const [q, setQ] = useState('');
@@ -187,7 +219,7 @@ export default function NewJobPage() {
   // Validation — use effective customer name so Clients tab satisfies the requirement
   const issues = validateJob({
     ...form,
-    price: form.price ? Number(form.price) : 0,
+    price: numericValueForValidation(form.price, 'Contract price', { blankValue: 0 }),
     customer_name: effectiveCustomerName,
   }).map(issue => {
     // Give a clearer message pointing to the Clients tab
@@ -257,17 +289,24 @@ export default function NewJobPage() {
       }
 
       // Create job — only send fields the entity schema accepts; strip city/state/zip from the root payload
-      const { city, state, zip, ...formWithoutCityStateZip } = form;
-      const job = await base44.entities.Job.create({
+      const { city, state, zip, square_footage, ...formWithoutCityStateZip } = form;
+      const price = normalizeNumericInput(form.price, 'Contract price', { blankValue: 0 }).value;
+      const squareFootage = normalizeNumericInput(square_footage, 'Square footage');
+      const jobPayload = {
         ...formWithoutCityStateZip,
-        price: form.price ? Number(form.price) : 0,
+        price,
         address: resolvedAddress,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
         customer_id: customerId,
         source_system: 'app',
-      });
+      };
+      if (squareFootage.hasValue) {
+        jobPayload.square_footage = squareFootage.value;
+      }
+
+      const job = await base44.entities.Job.create(jobPayload);
 
       // Create job assignments
       for (const pa of pendingAssignments) {
@@ -329,6 +368,13 @@ export default function NewJobPage() {
 
   const handleSave = () => {
     setTouched(true);
+    const numericError = getNumericValidationError(form);
+    if (numericError) {
+      setSaveError(numericError);
+      toast.error(numericError);
+      setActiveTab('details');
+      return;
+    }
     if (errors.length > 0) {
       const hasCustomerError = errors.some(e => e.field === 'customer_name');
       const hasOtherErrors = errors.some(e => e.field !== 'customer_name');

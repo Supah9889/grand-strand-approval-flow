@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { TERMS_VERSION, buildApprovalStatement } from '@/lib/terms';
 import { upsertPrimaryJobApprovalRecord } from '@/lib/signatureRecords';
+import { renderDefaultApprovalDocument } from '@/lib/defaultApprovalTemplate';
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -47,8 +48,9 @@ export default function Signature() {
       const now = new Date().toISOString();
       const statement = buildApprovalStatement(latestJob.customer_name, latestJob.address, latestJob.price);
 
+      let approvalRecord;
       try {
-        await upsertPrimaryJobApprovalRecord({
+        approvalRecord = await upsertPrimaryJobApprovalRecord({
           job: latestJob,
           signatureUrl: file_url,
           signedAt: now,
@@ -56,6 +58,24 @@ export default function Signature() {
         });
       } catch (recordError) {
         throw new Error('Signature was captured, but the approval record could not be saved. Please try submitting again before leaving this page.', { cause: recordError });
+      }
+
+      if (!approvalRecord?.id) {
+        throw new Error('Signature was captured, but the approval document could not be linked to the approval record. Please try submitting again before leaving this page.');
+      }
+
+      try {
+        const approvalHtml = renderDefaultApprovalDocument(latestJob, approvalRecord);
+        const documentBlob = new Blob([approvalHtml], { type: 'text/html;charset=utf-8' });
+        const documentFile = new File([documentBlob], `work-authorization-${jobId}.html`, { type: 'text/html' });
+        const { file_url: outputFileUrl } = await base44.integrations.Core.UploadFile({ file: documentFile });
+
+        await base44.entities.SignatureRecord.update(approvalRecord.id, {
+          output_file_url: outputFileUrl,
+          output_file_name: 'Customer Approval / Work Authorization',
+        });
+      } catch (documentError) {
+        throw new Error('Signature was captured, but the signed approval document could not be saved. Please try submitting again before leaving this page.', { cause: documentError });
       }
 
       await base44.entities.Job.update(jobId, {

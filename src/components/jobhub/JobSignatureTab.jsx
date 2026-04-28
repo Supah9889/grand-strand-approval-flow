@@ -4,8 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Pen, CheckCircle2, Clock, AlertCircle, ExternalLink,
   Lock, Plus, X, Save, Loader2, FileText, ChevronDown, ChevronUp,
-  Paperclip, User, Calendar, RefreshCw, Archive, XCircle, Eye, Upload
+  Paperclip, User, Calendar, RefreshCw, Archive, XCircle, Eye, Upload, FileSearch
 } from 'lucide-react';
+import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 import { format, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -119,7 +120,7 @@ function fmtDate(ts) {
   try { return format(parseISO(ts), 'MMM d, yyyy'); } catch { return null; }
 }
 
-function SignatureDocumentSetup({ job, isAdmin }) {
+function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -312,16 +313,15 @@ function SignatureDocumentSetup({ job, isAdmin }) {
           </div>
 
           {sourceUrl && (
-            <a
-              href={sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => onPreview?.({ url: sourceUrl, title: sourceName || 'Work Order', docType: 'Work Order (Original)' })}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Paperclip className="w-3 h-3" />
               View uploaded work order
-              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-            </a>
+              <FileSearch className="w-2.5 h-2.5 opacity-60" />
+            </button>
           )}
 
           <div className="space-y-1.5">
@@ -554,7 +554,7 @@ function SignatureRecordForm({ jobId, jobAddress, initial, onDone, onCancel }) {
 }
 
 // ── Single record card ────────────────────────────────────────────────────────
-function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobId }) {
+function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobId, onPreview }) {
   const [expanded, setExpanded] = useState(false);
   const statusCfg = getStatusConfig(record.status);
   const StatusIcon = statusCfg.icon;
@@ -642,16 +642,14 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
             <p className="text-xs text-muted-foreground leading-relaxed">{record.description}</p>
           )}
           {record.output_file_url && (
-            <a
-              href={record.output_file_url}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => onPreview?.({ url: record.output_file_url, title: record.output_file_name || record.title || 'Signed document', docType: 'Approval Document' })}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Paperclip className="w-3 h-3" />
               {record.output_file_name || 'Signed document'}
-              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-            </a>
+              <FileSearch className="w-2.5 h-2.5 opacity-60" />
+            </button>
           )}
           {record.notes && (
             <p className="text-[10px] text-muted-foreground italic border-l-2 border-border pl-2">{record.notes}</p>
@@ -663,9 +661,24 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
 }
 
 // ── Job-level approval summary (from job.status) ──────────────────────────────
-function JobApprovalSummary({ job, navigate }) {
+function JobApprovalSummary({ job, navigate, onPreview }) {
   const isSigned = job.status === 'approved';
   const isPending = job.status === 'pending';
+
+  // Prefer stamped output PDF, then fall back to navigate
+  const signedDocUrl = job.signed_output_file_url || null;
+  const signedDocType = job.signed_output_file_url ? 'Signed Work Order (Stamped)' : 'Approval Document';
+  const signedDocTitle = job.signed_output_file_url
+    ? (job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order')
+    : 'Approval Document';
+
+  const handleViewSigned = () => {
+    if (signedDocUrl) {
+      onPreview({ url: signedDocUrl, title: signedDocTitle, docType: signedDocType });
+    } else {
+      navigate(`/approve?jobId=${job.id}`);
+    }
+  };
 
   return (
     <div className={`rounded-xl px-4 py-3 border flex items-start gap-3 ${
@@ -707,13 +720,34 @@ function JobApprovalSummary({ job, navigate }) {
             <img src={job.signature_url} alt="Customer signature" className="max-h-10 rounded border border-green-200 bg-white" />
           </div>
         )}
+        {/* Document links — clearly labelled */}
+        {isSigned && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {job.signed_output_file_url && (
+              <button
+                onClick={() => onPreview({ url: job.signed_output_file_url, title: signedDocTitle, docType: 'Signed Work Order (Stamped)' })}
+                className="inline-flex items-center gap-1 text-[11px] text-green-700 bg-green-100 border border-green-200 rounded-full px-2.5 py-1 hover:bg-green-200 transition-colors"
+              >
+                <FileSearch className="w-3 h-3" /> Signed Work Order (Stamped)
+              </button>
+            )}
+            {job.source_work_order_file_url && (
+              <button
+                onClick={() => onPreview({ url: job.source_work_order_file_url, title: job.source_work_order_file_name || 'Work Order', docType: 'Work Order (Original)' })}
+                className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-100 border border-blue-200 rounded-full px-2.5 py-1 hover:bg-blue-200 transition-colors"
+              >
+                <FileSearch className="w-3 h-3" /> Work Order (Original)
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <button
-        onClick={() => navigate(`/approve?jobId=${job.id}`)}
+        onClick={isSigned ? handleViewSigned : () => navigate(`/approve?jobId=${job.id}`)}
         className="flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 mt-0.5"
       >
         <Pen className="w-3 h-3" />
-        {isSigned ? 'View' : 'Open'}
+        {isSigned ? 'Approval Page' : 'Open'}
         <ExternalLink className="w-2.5 h-2.5 opacity-60" />
       </button>
     </div>
@@ -727,6 +761,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null); // { url, title, docType }
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ['hub-sig-records', job.id],
@@ -753,10 +788,18 @@ export default function JobSignatureTab({ job, isAdmin }) {
   return (
     <div className="space-y-3">
 
-      {/* ── Job-level approval summary (existing flow) ── */}
-      <JobApprovalSummary job={job} navigate={navigate} />
+      <DocumentPreviewModal
+        open={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        url={previewDoc?.url}
+        title={previewDoc?.title}
+        docType={previewDoc?.docType}
+      />
 
-      <SignatureDocumentSetup job={job} isAdmin={isAdmin} />
+      {/* ── Job-level approval summary (existing flow) ── */}
+      <JobApprovalSummary job={job} navigate={navigate} onPreview={setPreviewDoc} />
+
+      <SignatureDocumentSetup job={job} isAdmin={isAdmin} onPreview={setPreviewDoc} />
 
       {/* ── Structured records section ── */}
       <div className="space-y-2">
@@ -828,6 +871,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
               onDelete={(id) => deleteMut.mutate(id)}
               navigate={navigate}
               jobId={job.id}
+              onPreview={setPreviewDoc}
             />
           )
         )}
@@ -861,6 +905,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
                   onDelete={(id) => deleteMut.mutate(id)}
                   navigate={navigate}
                   jobId={job.id}
+                  onPreview={setPreviewDoc}
                 />
               )
             ))}

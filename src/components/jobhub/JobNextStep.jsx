@@ -17,6 +17,7 @@ import {
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { SIGNATURE_DOCUMENT_MODES } from '@/lib/signatureDocumentModes';
+import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 
 // ── Determine the current step ────────────────────────────────────────────────
 function getStep(job) {
@@ -79,6 +80,7 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null); // { url, title, docType }
 
   const step = getStep(job);
   const cfg = STEP_CONFIG[step];
@@ -87,8 +89,17 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
 
   const handleAction = async () => {
     if (step === 'signed') {
-      if (job.signature_url) window.open(job.signature_url, '_blank');
-      else navigate(`/approve?jobId=${job.id}`);
+      // Prefer stamped output, then signature_url
+      const docUrl = job.signed_output_file_url || job.signature_url;
+      if (docUrl) {
+        setPreviewDoc({
+          url: docUrl,
+          title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Document',
+          docType: job.signed_output_file_url ? 'Signed Work Order (Stamped)' : 'Approval Document',
+        });
+      } else {
+        navigate(`/approve?jobId=${job.id}`);
+      }
       return;
     }
     if (step === 'waiting') {
@@ -141,6 +152,14 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
   }
 
   return (
+    <>
+    <DocumentPreviewModal
+      open={!!previewDoc}
+      onClose={() => setPreviewDoc(null)}
+      url={previewDoc?.url}
+      title={previewDoc?.title}
+      docType={previewDoc?.docType}
+    />
     <div className={`rounded-2xl border px-4 py-3.5 flex items-start gap-3 ${cfg.bg}`}>
       {/* Icon */}
       <div className="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -177,5 +196,6 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
         onChange={handleFileChange}
       />
     </div>
+    </>
   );
 }

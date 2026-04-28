@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -47,12 +47,12 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, { label }]) =>
 const DOCUMENT_MODE_OPTIONS = [
   {
     value: SIGNATURE_DOCUMENT_MODES.GENERATED_TEMPLATE,
-    label: 'Generated template',
+    label: 'Generated Template',
     description: 'Creates a signed approval document from the app template.',
   },
   {
     value: SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF,
-    label: 'Stamp uploaded PDF',
+    label: 'Stamp Uploaded PDF',
     description: "Stamps the customer's signature and timestamp onto the uploaded work order PDF.",
   },
 ];
@@ -61,6 +61,21 @@ const PLACEMENT_OPTIONS = [
   { value: SIGNATURE_PLACEMENTS.BOTTOM_LEFT, label: 'Bottom-left' },
   { value: SIGNATURE_PLACEMENTS.BOTTOM_RIGHT, label: 'Bottom-right' },
 ];
+
+function getDocumentModeLabel(mode) {
+  return DOCUMENT_MODE_OPTIONS.find(option => option.value === normalizeSignatureDocumentMode(mode))?.label || 'Generated template';
+}
+
+function getPlacementLabel(placement) {
+  return PLACEMENT_OPTIONS.find(option => option.value === normalizeSignaturePlacement(placement))?.label || 'Bottom-right';
+}
+
+function getErrorMessage(error, fallback) {
+  return error?.response?.data?.detail ||
+    error?.response?.data?.message ||
+    error?.message ||
+    fallback;
+}
 
 function getStatusConfig(status) {
   return STATUS_CONFIG[status] || STATUS_CONFIG.draft;
@@ -82,11 +97,20 @@ function SignatureDocumentSetup({ job, isAdmin }) {
 
   const isPdfMode = mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF;
   const selectedMode = DOCUMENT_MODE_OPTIONS.find(option => option.value === mode) || DOCUMENT_MODE_OPTIONS[0];
+  const currentMode = normalizeSignatureDocumentMode(job.signature_document_mode);
+  const currentPlacement = normalizeSignaturePlacement(job.signature_placement);
+
+  useEffect(() => {
+    setMode(normalizeSignatureDocumentMode(job.signature_document_mode));
+    setPlacement(normalizeSignaturePlacement(job.signature_placement));
+    setSourceUrl(job.source_work_order_file_url || '');
+    setSourceName(job.source_work_order_file_name || '');
+  }, [job.id, job.signature_document_mode, job.signature_placement, job.source_work_order_file_url, job.source_work_order_file_name]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
       if (isPdfMode && !sourceUrl) {
-        throw new Error('Upload a source work order PDF before saving PDF stamping mode.');
+        throw new Error('Please upload a work order PDF');
       }
 
       await base44.entities.Job.update(job.id, {
@@ -96,12 +120,12 @@ function SignatureDocumentSetup({ job, isAdmin }) {
         signature_placement: placement,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
-      toast.success('Signature document setup saved');
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['job-hub', job.id] });
+      toast.success(`Signature setup saved: ${getDocumentModeLabel(mode)}`);
     },
     onError: (error) => {
-      toast.error(error?.message || 'Could not save signature document setup');
+      toast.error(getErrorMessage(error, 'Could not save signature document setup'));
     },
   });
 
@@ -119,11 +143,19 @@ function SignatureDocumentSetup({ job, isAdmin }) {
       setSourceUrl(file_url);
       setSourceName(file.name);
       toast.success('Work order PDF uploaded');
-    } catch {
-      toast.error('Work order upload failed');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Work order upload failed'));
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleSave = () => {
+    if (isPdfMode && !sourceUrl) {
+      toast.error('Please upload a work order PDF');
+      return;
+    }
+    saveMut.mutate();
   };
 
   if (!isAdmin) {
@@ -131,6 +163,11 @@ function SignatureDocumentSetup({ job, isAdmin }) {
       <div className="bg-muted/40 rounded-xl px-4 py-3">
         <p className="text-xs font-semibold text-muted-foreground mb-1">Signature Document Setup</p>
         <p className="text-xs text-muted-foreground">{selectedMode.description}</p>
+        <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+          <p>Current mode: <span className="font-medium text-foreground">{getDocumentModeLabel(currentMode)}</span></p>
+          {job.source_work_order_file_name && <p>Work order: <span className="font-medium text-foreground">{job.source_work_order_file_name}</span></p>}
+          <p>Placement: <span className="font-medium text-foreground">{getPlacementLabel(currentPlacement)}</span></p>
+        </div>
       </div>
     );
   }
@@ -140,6 +177,11 @@ function SignatureDocumentSetup({ job, isAdmin }) {
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Signature Document Setup</p>
         <p className="text-xs text-muted-foreground mt-1">{selectedMode.description}</p>
+        <div className="mt-3 grid gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground sm:grid-cols-3">
+          <p>Current mode: <span className="block font-medium text-foreground">{getDocumentModeLabel(currentMode)}</span></p>
+          <p>Work order: <span className="block truncate font-medium text-foreground">{job.source_work_order_file_name || 'None uploaded'}</span></p>
+          <p>Placement: <span className="block font-medium text-foreground">{getPlacementLabel(currentPlacement)}</span></p>
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -217,12 +259,12 @@ function SignatureDocumentSetup({ job, isAdmin }) {
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={() => saveMut.mutate()}
-          disabled={saveMut.isPending || uploading || (isPdfMode && !sourceUrl)}
+          onClick={handleSave}
+          disabled={saveMut.isPending || uploading}
           className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors"
         >
           {saveMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          Save setup
+          {saveMut.isPending ? 'Saving...' : 'Save setup'}
         </button>
       </div>
     </div>

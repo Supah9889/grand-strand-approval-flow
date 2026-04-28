@@ -26,5 +26,3 @@ export function normalizeSignaturePlacement(placement) {
 export function isStampUploadedPdfMode(mode) {
   return normalizeSignatureDocumentMode(mode) === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF;
 }
-
-// TODO: Add PDF stamping execution for stamp_uploaded_pdf after source PDF upload UI exists.

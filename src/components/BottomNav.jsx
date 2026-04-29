@@ -47,7 +47,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around items-center h-16 safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around items-center h-16 safe-area-bottom lg:hidden">
       {NAV_ITEMS.map(({ label, tabName, primaryPath, icon: Icon }) => (
         <button
           key={tabName}

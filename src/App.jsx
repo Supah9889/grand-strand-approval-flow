@@ -126,7 +126,7 @@ const AuthenticatedApp = () => {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -100 }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="flex-1 overflow-y-auto pb-16"
+          className="flex-1 overflow-y-auto pb-16 lg:pb-0"
         >
           <Suspense fallback={<RouteLoader />}>
             <UnlockGuard>

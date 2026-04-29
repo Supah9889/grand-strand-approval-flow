@@ -143,7 +143,7 @@ export default function CalendarPage() {
               <div
                 key={day.toISOString()}
                 onClick={() => handleDayClick(day)}
-                className={`bg-card min-h-[60px] p-1 cursor-pointer hover:bg-secondary/30 transition-colors ${!inMonth ? 'opacity-40' : ''}`}
+                className={`bg-card min-h-[92px] p-2 cursor-pointer hover:bg-secondary/30 transition-colors ${!inMonth ? 'opacity-40' : ''}`}
               >
                 <p className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-0.5 ${
                   isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
@@ -154,7 +154,7 @@ export default function CalendarPage() {
                     <div
                       key={e.id}
                       onClick={(ev) => handleEventClick(ev, e)}
-                      className="text-xs px-1 py-0.5 rounded mb-0.5 text-white truncate cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-0.5"
+                      className="text-xs px-1.5 py-1 rounded-md mb-1 text-white truncate cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-0.5 shadow-sm"
                       style={{ backgroundColor: color }}
                     >
                       <span className="text-[10px] shrink-0">{EVENT_TYPE_CONFIG[e.event_type]?.icon || ''}</span>
@@ -182,7 +182,7 @@ export default function CalendarPage() {
             <div
               key={day.toISOString()}
               onClick={() => handleDayClick(day)}
-              className={`border border-border rounded-xl p-1.5 min-h-[110px] cursor-pointer hover:bg-secondary/20 transition-colors ${isToday(day) ? 'border-primary/60' : ''}`}
+              className={`border border-border rounded-xl p-2 min-h-[150px] cursor-pointer hover:bg-secondary/20 transition-colors ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
             >
               <p className={`text-xs font-medium mb-1.5 text-center ${isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                 {format(day, 'EEE')}<br />{format(day, 'd')}
@@ -195,7 +195,7 @@ export default function CalendarPage() {
                     <div
                       key={e.id}
                       onClick={(ev) => handleEventClick(ev, e)}
-                      className="text-[10px] px-1 py-0.5 rounded text-white leading-tight cursor-pointer hover:opacity-80"
+                      className="text-[10px] px-1.5 py-1 rounded-md text-white leading-tight cursor-pointer hover:opacity-80 shadow-sm"
                       style={{ backgroundColor: color }}
                     >
                       {timeStr && <span className="opacity-80">{timeStr}<br /></span>}
@@ -322,29 +322,34 @@ export default function CalendarPage() {
     : null;
 
   const todayCount = filteredEvents.filter(e => e.start_date && isToday(parseISO(e.start_date.split('T')[0]))).length;
+  const scheduledCount = filteredEvents.filter(e => (e.status || 'scheduled') === 'scheduled').length;
+  const jobCount = new Set(filteredEvents.filter(e => e.job_id).map(e => e.job_id)).size;
 
   return (
     <AppLayout title="Calendar">
-      <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-4">
+      <div className="app-page space-y-4">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1">
-            {navTitle && (
-              <>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={nav.prev}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <p className="text-sm font-semibold text-foreground min-w-[150px] text-center">{navTitle}</p>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={nav.next}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </>
-            )}
-            {!navTitle && <p className="text-sm font-semibold text-foreground">{view === 'agenda' ? 'All Events' : 'Timeline'}</p>}
-            {todayCount > 0 && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium ml-1">{todayCount} today</span>}
+        <div className="app-page-header">
+          <div>
+            <h1 className="app-page-title">Schedule</h1>
+            <p className="app-page-subtitle">Calendar, job visits, crew assignments, and upcoming work.</p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="app-page-actions flex-wrap">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+              {navTitle && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md" onClick={nav.prev}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <p className="min-w-[150px] text-center text-sm font-semibold text-foreground">{navTitle}</p>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md" onClick={nav.next}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
+              {!navTitle && <p className="px-3 text-sm font-semibold text-foreground">{view === 'agenda' ? 'All Events' : 'Timeline'}</p>}
+            </div>
             {VIEWS.map(v => {
               const Icon = v.icon;
               return (
@@ -361,17 +366,39 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="app-card p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today</p>
+            <p className="mt-2 text-2xl font-bold text-primary">{todayCount}</p>
+            <p className="text-xs text-muted-foreground">scheduled items</p>
+          </div>
+          <div className="app-card p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scheduled</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">{scheduledCount}</p>
+            <p className="text-xs text-muted-foreground">visible events</p>
+          </div>
+          <div className="app-card p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Jobs</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">{jobCount}</p>
+            <p className="text-xs text-muted-foreground">with schedule activity</p>
+          </div>
+        </div>
+
         {/* Filters */}
-        <FiltersBar />
+        <div className="app-card p-3">
+          <FiltersBar />
+        </div>
 
         {/* Content */}
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
         ) : (
-          view === 'month' ? renderMonth() :
-          view === 'week' ? renderWeek() :
-          view === 'agenda' ? renderAgenda() :
-          renderTimeline()
+          <div className="app-card p-4">
+            {view === 'month' ? renderMonth() :
+            view === 'week' ? renderWeek() :
+            view === 'agenda' ? renderAgenda() :
+            renderTimeline()}
+          </div>
         )}
       </div>
 

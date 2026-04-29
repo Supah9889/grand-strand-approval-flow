@@ -1,6 +1,6 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
-import { Camera, AlertCircle, Sun, Cloud, CloudRain, Wind, Thermometer } from 'lucide-react';
+import { Camera, AlertCircle, Sun, Cloud, CloudRain, Wind, Thermometer, FileText, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const WEATHER_ICON = {
@@ -21,32 +21,39 @@ export default function LogCard({ log, onClick }) {
 
   return (
     <button onClick={onClick}
-      className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+      className="w-full text-left bg-card border border-border rounded-lg p-4 shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <p className="text-xs font-mono text-muted-foreground">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {log.log_date ? format(parseISO(log.log_date), 'EEE, MMM d, yyyy') : ''}
             </p>
             {WeatherIcon && <WeatherIcon className={`w-3.5 h-3.5 ${WEATHER_COLOR[log.weather]}`} />}
+            {log.follow_up_needed && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+                <AlertCircle className="w-3 h-3" /> Follow-up
+              </span>
+            )}
           </div>
-          <p className="text-sm font-semibold text-foreground truncate">{log.job_address || log.job_title || 'Unknown Job'}</p>
+          <p className="text-sm font-semibold text-foreground">{log.job_address || log.job_title || 'Unknown Job'}</p>
           {log.crew_present && (
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">Crew: {log.crew_present}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <UserRound className="w-3.5 h-3.5" /> Crew: {log.crew_present}
+            </p>
           )}
           {log.work_completed && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{log.work_completed}</p>
+            <p className="text-sm text-foreground/80 mt-3 line-clamp-3">{log.work_completed}</p>
+          )}
+          {log.general_notes && (
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground line-clamp-2">
+              <FileText className="mt-0.5 w-3.5 h-3.5 shrink-0" /> {log.general_notes}
+            </p>
           )}
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {photos.length > 0 && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Camera className="w-3.5 h-3.5" /> {photos.length}
-            </span>
-          )}
-          {log.follow_up_needed && (
-            <span className="flex items-center gap-1 text-xs text-orange-600 font-medium">
-              <AlertCircle className="w-3 h-3" /> Follow-up
             </span>
           )}
         </div>

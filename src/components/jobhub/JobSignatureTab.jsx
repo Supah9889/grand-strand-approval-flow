@@ -49,12 +49,12 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, { label }]) =>
 const DOCUMENT_MODE_OPTIONS = [
   {
     value: SIGNATURE_DOCUMENT_MODES.GENERATED_TEMPLATE,
-    label: 'Generated Template',
+    label: 'App Approval Document',
     description: 'Creates a signed approval document from the app template.',
   },
   {
     value: SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF,
-    label: 'Stamp Uploaded PDF',
+    label: 'Uploaded Work Order PDF',
     description: "Stamps the customer's signature and timestamp onto the uploaded work order PDF.",
   },
 ];
@@ -65,7 +65,7 @@ const PLACEMENT_OPTIONS = [
 ];
 
 function getDocumentModeLabel(mode) {
-  return DOCUMENT_MODE_OPTIONS.find(option => option.value === normalizeSignatureDocumentMode(mode))?.label || 'Generated template';
+  return DOCUMENT_MODE_OPTIONS.find(option => option.value === normalizeSignatureDocumentMode(mode))?.label || 'App approval document';
 }
 
 function getPlacementLabel(placement) {
@@ -92,14 +92,14 @@ function verifySignatureSetup(savedJob, expected) {
   if (!savedJob) return { ok: false, reason: 'Job record not found after save' };
 
   const checks = [
-    ['signature_document_mode', expected.signature_document_mode, savedJob.signature_document_mode],
-    ['signature_placement', expected.signature_placement || '', savedJob.signature_placement || ''],
+    ['Signing document', getDocumentModeLabel(expected.signature_document_mode), getDocumentModeLabel(savedJob.signature_document_mode)],
+    ['Signature placement', getPlacementLabel(expected.signature_placement), getPlacementLabel(savedJob.signature_placement)],
   ];
 
   if (expected.signature_document_mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF) {
     checks.push(
-      ['source_work_order_file_url', expected.source_work_order_file_url, savedJob.source_work_order_file_url],
-      ['source_work_order_file_name', expected.source_work_order_file_name, savedJob.source_work_order_file_name],
+      ['Work order PDF', expected.source_work_order_file_url ? 'uploaded' : 'missing', savedJob.source_work_order_file_url ? 'uploaded' : 'missing'],
+      ['Work order file name', expected.source_work_order_file_name || '', savedJob.source_work_order_file_name || ''],
     );
   }
 
@@ -252,13 +252,13 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
       >
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Advanced: Signature Document Setup</span>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Advanced: Signing Document Setup</span>
         {open ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
       </button>
 
       {!open && (
         <div className="px-4 py-2.5 bg-card border-t border-border/50 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-          <p>Mode: <span className="font-medium text-foreground">{getDocumentModeLabel(currentMode)}</span></p>
+          <p>Document: <span className="font-medium text-foreground">{getDocumentModeLabel(currentMode)}</span></p>
           <p className="truncate">File: <span className="font-medium text-foreground">{job.source_work_order_file_name || 'None'}</span></p>
           <p>Placement: <span className="font-medium text-foreground">{getPlacementLabel(currentPlacement)}</span></p>
         </div>
@@ -271,7 +271,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Document mode</label>
+            <label className="text-xs font-medium text-muted-foreground">Signing document</label>
         <Select value={mode} onValueChange={markDirty(value => setMode(normalizeSignatureDocumentMode(value)))}>
           <SelectTrigger className="h-9 rounded-xl text-sm">
             <SelectValue />
@@ -355,7 +355,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
           </div>
           {saveStatus.state === 'success' && saveStatus.details && (
             <div className="mt-2 grid gap-1 text-green-900 sm:grid-cols-3">
-              <p>Mode: <span className="font-medium">{saveStatus.details.mode}</span></p>
+              <p>Document: <span className="font-medium">{saveStatus.details.mode}</span></p>
               <p className="truncate">File: <span className="font-medium">{saveStatus.details.fileName}</span></p>
               <p>Placement: <span className="font-medium">{saveStatus.details.placement}</span></p>
             </div>

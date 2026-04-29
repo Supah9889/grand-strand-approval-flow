@@ -237,7 +237,7 @@ export default function WarrantyDetail() {
         {/* Photos */}
         <div className="bg-card border border-border rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Photos & Files</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Photos & Documents</p>
             <label className={`flex items-center gap-1.5 text-xs text-primary cursor-pointer hover:underline ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
               <Paperclip className="w-3.5 h-3.5" />{uploading ? 'Uploading...' : 'Add'}
               <input type="file" multiple accept="image/*,.pdf" className="hidden" onChange={handlePhotoUpload} />

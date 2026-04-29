@@ -250,7 +250,7 @@ export default function Dashboard() {
               count={todayEvents.length}
               defaultOpen={true}
               onViewAll={() => navigate('/calendar')}
-              viewAllLabel="Calendar"
+              viewAllLabel="Schedule"
             >
               <DashTodaySchedule events={todayEvents} jobs={jobs} />
             </SectionCard>

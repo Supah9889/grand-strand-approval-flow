@@ -24,7 +24,7 @@ const RECORD_TYPES = [
   { key: 'changeOrders', label: 'Change Orders', icon: DollarSign, color: RELATED_RECORD_COLORS.changeOrder },
   { key: 'tasks', label: 'Tasks', icon: Zap, color: RELATED_RECORD_COLORS.task },
   { key: 'dailyLogs', label: 'Daily Logs', icon: Folder, color: RELATED_RECORD_COLORS.dailyLog },
-  { key: 'files', label: 'Files', icon: Folder, color: RELATED_RECORD_COLORS.file },
+  { key: 'files', label: 'Documents', icon: Folder, color: RELATED_RECORD_COLORS.file },
 ];
 
 function RelatedRecordRow({ type, record, onClick }) {
@@ -73,7 +73,7 @@ function RelatedRecordRow({ type, record, onClick }) {
     detail = `${record.log_date ? format(parseISO(record.log_date), 'MMM d, yyyy') : 'No date'}`;
     amount = null;
   } else if (type === 'files') {
-    label = `File`;
+    label = `Document`;
     detail = `${record.file_name} • ${record.category}`;
     amount = null;
   }

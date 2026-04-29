@@ -225,7 +225,7 @@ export default function JobScheduleTab({ job, isAdmin, defaultShowAdd = false })
         <div className="text-center py-10">
           <Calendar className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">No schedule items yet</p>
-          {isAdmin && <p className="text-xs text-muted-foreground mt-1">Add one above or from the Calendar page</p>}
+          {isAdmin && <p className="text-xs text-muted-foreground mt-1">Add one above or from the Schedule page</p>}
         </div>
       ) : (
         <div className="space-y-2">

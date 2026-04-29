@@ -7,7 +7,7 @@ import { Home, Search, Clock, DollarSign, Settings } from 'lucide-react';
 const ALL_NAV_ITEMS = [
   { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
   { label: 'Search', tabName: 'search', primaryPath: '/global-search', icon: Search },
-  { label: 'Time', tabName: 'time', primaryPath: '/time-entries', icon: Clock },
+  { label: 'Time', tabName: 'time', primaryPath: '/time-clock', icon: Clock },
   { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign, adminOnly: true },
   { label: 'Admin', tabName: 'admin', primaryPath: '/admin', icon: Settings },
 ];

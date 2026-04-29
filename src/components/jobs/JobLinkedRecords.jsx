@@ -24,7 +24,7 @@ const TYPE_META = {
   tasks:         { label: 'Tasks',          icon: CheckSquare, route: (r) => `/tasks/${r.id}`,             adminOnly: false },
   warranty:      { label: 'Warranty',       icon: ShieldCheck, route: (r) => `/warranty/${r.id}`,         adminOnly: false },
   logs:          { label: 'Daily Logs',     icon: BookOpen,    route: (r) => `/daily-logs/${r.id}`,        adminOnly: false },
-  files:         { label: 'Files',          icon: FolderOpen,  route: (r) => r.file_url,                  adminOnly: false },
+  files:         { label: 'Documents',      icon: FolderOpen,  route: (r) => r.file_url,                  adminOnly: false },
 };
 
 function fmt$(n) { return `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`; }
@@ -43,7 +43,7 @@ function RecordRow({ item, type, onClick }) {
     if (type === 'tasks') return item.title || 'Task';
     if (type === 'warranty') return item.title || 'Warranty Item';
     if (type === 'logs') return item.log_date ? fmtDate(item.log_date) : 'Daily Log';
-    if (type === 'files') return item.file_name || 'File';
+    if (type === 'files') return item.file_name || 'Document';
     return item.title || item.id;
   })();
 

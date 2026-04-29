@@ -30,11 +30,11 @@ function getPageContext(pathname) {
   if (/^\/daily-logs/.test(pathname)) return { module: 'Daily Logs', desc: 'The user is reviewing or creating field daily log entries.' };
   if (/^\/tasks/.test(pathname)) return { module: 'Tasks', desc: 'The user is managing tasks and punch list items.' };
   if (/^\/warranty/.test(pathname)) return { module: 'Warranty', desc: 'The user is managing warranty service items.' };
-  if (/^\/job-comms/.test(pathname)) return { module: 'Job Files & Comms', desc: 'The user is managing files, photos, and internal comments attached to a job.' };
+  if (/^\/job-comms/.test(pathname)) return { module: 'Documents & Communication', desc: 'The user is managing documents, photos, and internal comments attached to a job.' };
   if (/^\/portal-manager/.test(pathname)) return { module: 'Client Portal Manager', desc: 'The user is managing client portal access, permissions, and links.' };
   if (/^\/portal\/client/.test(pathname)) return { module: 'Client Portal', desc: 'The user is viewing the client-facing portal.' };
   if (/^\/portal\/vendor/.test(pathname)) return { module: 'Vendor Portal', desc: 'The user is viewing the vendor/subcontractor portal.' };
-  if (/^\/calendar/.test(pathname)) return { module: 'Calendar', desc: 'The user is viewing the job scheduling calendar.' };
+  if (/^\/calendar/.test(pathname)) return { module: 'Schedule', desc: 'The user is viewing the job schedule.' };
   if (/^\/audit-log/.test(pathname)) return { module: 'Audit Log', desc: 'The user is reviewing the system audit trail.' };
   if (/^\/notes/.test(pathname)) return { module: 'Notes', desc: 'The user is reviewing internal job notes.' };
   if (/^\/custom-fields/.test(pathname)) return { module: 'Custom Fields', desc: 'The user is configuring custom fields for job records.' };
@@ -68,8 +68,8 @@ This is a construction/painting company management platform. It covers:
 - Daily Logs: field notes per job per day with photos, crew info, weather, follow-ups
 - Tasks and Punch Lists linked to jobs
 - Warranty items linked to completed jobs
-- Job Files & Comms: files (with category + visibility), comments, internal notes per job
-- Calendar: CalendarEvent records for scheduling
+- Documents & Communication: documents and photos (with category + visibility), comments, internal notes per job
+- Schedule: CalendarEvent records for scheduling
 - Audit Log: all significant actions are logged with actor, timestamp, detail
 
 ROLES:

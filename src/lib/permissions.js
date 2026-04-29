@@ -58,17 +58,17 @@ export const PERMISSIONS = {
   view_documents:          { label: 'View Documents',           category: 'Documents',           adminDefault: true,  staffDefault: true  },
 
   // File Sharing
-  share_files_externally:  { label: 'Share Files with Clients/Vendors', category: 'File Sharing', adminDefault: true,  staffDefault: false },
-  delete_job_files:        { label: 'Delete Job Files',                  category: 'File Sharing', adminDefault: true,  staffDefault: false },
+  share_files_externally:  { label: 'Share Documents with Clients/Vendors', category: 'Document Sharing', adminDefault: true,  staffDefault: false },
+  delete_job_files:        { label: 'Delete Job Documents',                  category: 'Document Sharing', adminDefault: true,  staffDefault: false },
 
   // Tasks / Coordination
   view_tasks:              { label: 'View Tasks',               category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
   manage_tasks:            { label: 'Manage Tasks',             category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  view_calendar:           { label: 'View Calendar',            category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
+  view_calendar:           { label: 'View Schedule',            category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
   view_daily_logs:         { label: 'View Daily Logs',          category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
   manage_daily_logs:       { label: 'Manage Daily Logs',        category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
   manage_warranty:         { label: 'Manage Warranty',          category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  view_job_files:          { label: 'View Job Files',           category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
+  view_job_files:          { label: 'View Job Documents',       category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
 };
 
 /** All unique category names in display order */
@@ -79,7 +79,7 @@ export const PERMISSION_CATEGORIES = [
   'Time / Payroll',
   'Accounting / Costs',
   'Documents',
-  'File Sharing',
+  'Document Sharing',
   'Tasks / Coordination',
 ];
 

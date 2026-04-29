@@ -22,7 +22,7 @@ const CATEGORY_LABEL = {
 };
 
 const STAT_GROUPS = [
-  { key: 'total_files',    label: 'Total Files',    color: 'text-slate-700',  bg: 'bg-slate-50',  border: 'border-slate-200' },
+  { key: 'total_files',    label: 'Documents',      color: 'text-slate-700',  bg: 'bg-slate-50',  border: 'border-slate-200' },
   { key: 'today_files',    label: 'Uploaded Today', color: 'text-primary',    bg: 'bg-secondary', border: 'border-primary/20' },
   { key: 'total_comments', label: 'Comments',       color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200' },
   { key: 'shared_files',   label: 'Shared Items',   color: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
@@ -91,12 +91,12 @@ export default function JobComms() {
   const selectedJobObj = jobs.find(j => j.id === selectedJob);
 
   return (
-    <AppLayout title="Job Files & Comms">
+    <AppLayout title="Documents & Communication">
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-foreground">Files & Communication</h1>
+            <h1 className="text-base font-semibold text-foreground">Documents & Communication</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Job documents, photos, comments & notes</p>
           </div>
           <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowUpload(v => !v)}>
@@ -142,7 +142,7 @@ export default function JobComms() {
 
         {/* Tab bar */}
         <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
-          {[['files', <Paperclip className="w-3.5 h-3.5" />, 'Files'], ['comments', <MessageSquare className="w-3.5 h-3.5" />, 'Comments']].map(([tab, icon, label]) => (
+          {[['files', <Paperclip className="w-3.5 h-3.5" />, 'Documents'], ['comments', <MessageSquare className="w-3.5 h-3.5" />, 'Comments']].map(([tab, icon, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {icon}{label}
@@ -154,7 +154,7 @@ export default function JobComms() {
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder={activeTab === 'files' ? 'Search files...' : 'Search comments...'} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
+            <Input placeholder={activeTab === 'files' ? 'Search documents...' : 'Search comments...'} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl text-sm" />
           </div>
           <div className="flex gap-2 flex-wrap">
             <Select value={selectedJob} onValueChange={setSelectedJob}>

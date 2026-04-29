@@ -18,7 +18,7 @@ const TYPE_CONFIG = {
   note:     { label: 'Note',     color: 'bg-amber-50 text-amber-700',  dot: 'bg-amber-400' },
   invoice:  { label: 'Invoice',  color: 'bg-green-50 text-green-700',  dot: 'bg-green-500' },
   bill:     { label: 'Bill',     color: 'bg-orange-50 text-orange-700',dot: 'bg-orange-500' },
-  file:     { label: 'File',     color: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400' },
+  file:     { label: 'Document', color: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400' },
   schedule: { label: 'Schedule', color: 'bg-cyan-50 text-cyan-700',    dot: 'bg-cyan-500' },
   contact:  { label: 'Contact',  color: 'bg-violet-50 text-violet-700',dot: 'bg-violet-400' },
   vendor:   { label: 'Vendor',   color: 'bg-teal-50 text-teal-700',    dot: 'bg-teal-500' },
@@ -35,7 +35,7 @@ const FILTER_TABS = [
   { key: 'schedule', label: 'Schedule' },
   { key: 'invoice',  label: 'Invoices' },
   { key: 'bill',     label: 'Bills' },
-  { key: 'file',     label: 'Files' },
+  { key: 'file',     label: 'Documents' },
   { key: 'contact',  label: 'Contacts' },
   { key: 'vendor',   label: 'Vendors' },
 ];
@@ -378,7 +378,7 @@ export default function GlobalSearch() {
         <div>
           <h1 className="text-base font-semibold text-foreground">Search</h1>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Jobs · Notes · Invoices · Bills · Files · Contacts · Vendors
+            Jobs · Notes · Invoices · Bills · Documents · Contacts · Vendors
           </p>
         </div>
 
@@ -387,7 +387,7 @@ export default function GlobalSearch() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             ref={inputRef}
-            placeholder="Address, name, phone, invoice #, note text, file name..."
+            placeholder="Address, name, phone, invoice #, note text, document name..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="pl-9 pr-9 h-11 rounded-xl text-sm"
@@ -476,7 +476,7 @@ export default function GlobalSearch() {
             <div className="text-center py-8">
               <Search className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground font-medium">Search for anything</p>
-              <p className="text-xs text-muted-foreground mt-1">Address · Name · Phone · Email · Invoice # · Note text · File name</p>
+              <p className="text-xs text-muted-foreground mt-1">Address · Name · Phone · Email · Invoice # · Note text · Document name</p>
             </div>
 
             {/* Search tips */}
@@ -491,7 +491,7 @@ export default function GlobalSearch() {
                   ['📝', 'Note content'],
                   ['🧾', 'Invoice number'],
                   ['🏢', 'Vendor / sub'],
-                  ['📎', 'File name'],
+                  ['📎', 'Document name'],
                   ['📅', 'Date range'],
                   ['🗓️', 'Schedule items'],
                 ].map(([icon, label]) => (

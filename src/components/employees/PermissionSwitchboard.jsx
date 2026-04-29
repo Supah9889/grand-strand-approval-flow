@@ -148,15 +148,15 @@ export default function PermissionSwitchboard({ employee }) {
               <div className="flex items-center gap-2.5 min-w-0">
                 <Share2 className="w-4 h-4 text-muted-foreground shrink-0" />
                 <div>
-                  <p className="text-xs font-medium text-foreground">Share Files with Clients/Vendors</p>
-                  <p className="text-[10px] text-muted-foreground">Can set file visibility to client, vendor, or both when uploading</p>
+                  <p className="text-xs font-medium text-foreground">Share Documents with Clients/Vendors</p>
+                  <p className="text-[10px] text-muted-foreground">Can set document visibility to client, vendor, or both when uploading</p>
                 </div>
               </div>
               <button
                 disabled={!canEditOverrides || overrideMutation.isPending}
                 onClick={() => canEditOverrides && toggleOverride('share_files_externally')}
                 className={`relative shrink-0 ml-3 w-9 h-5 rounded-full transition-colors ${getEffective('share_files_externally') ? 'bg-primary' : 'bg-muted'} ${!canEditOverrides ? 'cursor-default' : 'cursor-pointer'}`}
-                aria-label="Toggle file sharing permission"
+                aria-label="Toggle document sharing permission"
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${getEffective('share_files_externally') ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>

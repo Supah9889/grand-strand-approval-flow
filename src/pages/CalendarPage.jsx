@@ -326,14 +326,14 @@ export default function CalendarPage() {
   const jobCount = new Set(filteredEvents.filter(e => e.job_id).map(e => e.job_id)).size;
 
   return (
-    <AppLayout title="Calendar">
+    <AppLayout title="Schedule">
       <div className="app-page space-y-4">
 
         {/* Header */}
         <div className="app-page-header">
           <div>
             <h1 className="app-page-title">Schedule</h1>
-            <p className="app-page-subtitle">Calendar, job visits, crew assignments, and upcoming work.</p>
+            <p className="app-page-subtitle">Schedule, job visits, crew assignments, and upcoming work.</p>
           </div>
           <div className="app-page-actions flex-wrap">
             <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">

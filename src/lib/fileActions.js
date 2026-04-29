@@ -32,7 +32,7 @@ export async function logFileDeletion({ file, user }) {
     file.job_id,
     'record_deleted',
     user?.email || user?.id || 'unknown',
-    `File permanently deleted from Job Files & Comms: "${file.file_name}"`,
+    `Document permanently deleted from Documents & Communication: "${file.file_name}"`,
     {
       module: 'job',
       record_id: file.id,

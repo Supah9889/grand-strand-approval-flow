@@ -38,7 +38,7 @@ import ClientPortalManager from '../components/portal/ClientPortalManager';
 // Tab definitions — ordered for operational flow
 const TABS = [
   { key: 'timeline',  label: 'Overview',  icon: Activity,    adminOnly: false },
-  { key: 'files',     label: 'Files',     icon: FolderOpen,  adminOnly: false },
+  { key: 'files',     label: 'Documents', icon: FolderOpen,  adminOnly: false },
   { key: 'signature', label: 'Signature', icon: ShieldCheck, adminOnly: false },
   { key: 'notes',     label: 'Notes',     icon: StickyNote,  adminOnly: false },
   { key: 'tasks',     label: 'Tasks',     icon: CheckSquare, adminOnly: false },

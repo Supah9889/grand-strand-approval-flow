@@ -39,7 +39,7 @@ const FILTER_OPTIONS = [
   { value: 'change_order', label: 'Change Orders' },
   { value: 'expense',      label: 'Costs' },
   { value: 'task',         label: 'Tasks' },
-  { value: 'file',         label: 'Files' },
+  { value: 'file',         label: 'Documents' },
   { value: 'time_entry',   label: 'Time' },
   { value: 'schedule',     label: 'Schedule' },
   { value: 'warranty',     label: 'Warranty' },

@@ -101,7 +101,7 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
         action: 'record_edited',
         actor: role || 'admin',
         actor_role: role || 'admin',
-        detail: `Calendar event edited: "${data.title}"${changes.length ? ` — ${changes.join(', ')}` : ''}`,
+        detail: `Schedule item edited: "${data.title}"${changes.length ? ` — ${changes.join(', ')}` : ''}`,
         old_value: JSON.stringify({ title: event.title, status: event.status, start_date: event.start_date }),
         new_value: JSON.stringify({ title: data.title, status: data.status, start_date: startDate }),
       });
@@ -124,7 +124,7 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
         action: 'record_deleted',
         actor: role || 'admin',
         actor_role: role || 'admin',
-        detail: `Calendar event deleted: "${event.title}" (${event.start_date ? extractDate(event.start_date) : 'no date'})`,
+        detail: `Schedule item deleted: "${event.title}" (${event.start_date ? extractDate(event.start_date) : 'no date'})`,
         old_value: JSON.stringify({ title: event.title, start_date: event.start_date, job_address: event.job_address }),
         is_sensitive: false,
       });

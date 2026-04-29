@@ -171,10 +171,10 @@ export default function WarrantyForm({ jobs = [], onSave, onCancel, prefillJobId
 
       {/* Photos */}
       <div className="border-t border-border pt-3">
-        <label className="block text-xs font-medium text-muted-foreground mb-2">Photos / Files</label>
+        <label className="block text-xs font-medium text-muted-foreground mb-2">Photos / Documents</label>
         <label className={`flex items-center gap-2 cursor-pointer border border-dashed border-border rounded-lg px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
           <Paperclip className="w-3.5 h-3.5" />
-          {uploading ? 'Uploading...' : 'Upload photos or files'}
+          {uploading ? 'Uploading...' : 'Upload photos or documents'}
           <input type="file" multiple accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={handlePhotoUpload} />
         </label>
         {photos.length > 0 && (

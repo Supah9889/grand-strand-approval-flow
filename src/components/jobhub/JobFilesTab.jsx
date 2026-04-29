@@ -209,7 +209,7 @@ function UploadForm({ job, onUploaded }) {
       });
       queryClient.invalidateQueries({ queryKey: ['hub-files-tab', job.id] });
       queryClient.invalidateQueries({ queryKey: ['hub-tl-files', job.id] });
-      toast.success('File uploaded');
+      toast.success('Document uploaded');
       reset();
       onUploaded?.();
     } catch {
@@ -234,7 +234,7 @@ function UploadForm({ job, onUploaded }) {
   return (
     <div className="bg-secondary/30 border border-border rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-foreground">Upload file</p>
+        <p className="text-xs font-semibold text-foreground">Upload document</p>
         <button onClick={reset} className="text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
         </button>
@@ -249,7 +249,7 @@ function UploadForm({ job, onUploaded }) {
         {selectedFile ? (
           <><Paperclip className="w-4 h-4" />{selectedFile.name}</>
         ) : (
-          <><Upload className="w-4 h-4" />Tap to choose file</>
+          <><Upload className="w-4 h-4" />Tap to choose document</>
         )}
       </button>
       <input
@@ -460,7 +460,7 @@ export default function JobFilesTab({ job, isAdmin }) {
         <div className="text-center py-14">
           <FolderOpen className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
-            {catFilter === 'all' ? 'No files yet' : `No ${FILTER_OPTIONS.find(o => o.value === catFilter)?.label?.toLowerCase() || 'files'} yet`}
+            {catFilter === 'all' ? 'No documents yet' : `No ${FILTER_OPTIONS.find(o => o.value === catFilter)?.label?.toLowerCase() || 'documents'} yet`}
           </p>
           {isAdmin && catFilter === 'all' && (
             <p className="text-xs text-muted-foreground mt-1">Use the upload form above to add photos or documents</p>
@@ -469,7 +469,7 @@ export default function JobFilesTab({ job, isAdmin }) {
       ) : viewMode === 'grid' && photosInView.length > 0 ? (
         // Photo grid
         <div className="space-y-3">
-          <p className="text-[10px] text-muted-foreground px-1">{filtered.length} file{filtered.length !== 1 ? 's' : ''}</p>
+          <p className="text-[10px] text-muted-foreground px-1">{filtered.length} document{filtered.length !== 1 ? 's' : ''}</p>
           <div className="grid grid-cols-3 gap-2">
             {photosInView.map(f => (
               <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-border hover:border-primary/30 transition-colors">
@@ -485,7 +485,7 @@ export default function JobFilesTab({ job, isAdmin }) {
       ) : (
         // List view
         <div className="space-y-2">
-          <p className="text-[10px] text-muted-foreground px-1">{filtered.length} file{filtered.length !== 1 ? 's' : ''} · newest first</p>
+          <p className="text-[10px] text-muted-foreground px-1">{filtered.length} document{filtered.length !== 1 ? 's' : ''} · newest first</p>
           {filtered.map(f => (
             <FileCard key={f.id} file={f} onSourceClick={getSourceNavHandler(f)} />
           ))}

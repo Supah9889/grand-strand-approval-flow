@@ -64,7 +64,7 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
   return (
     <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Upload Files</p>
+        <p className="text-sm font-semibold text-foreground">Upload Documents</p>
         {onClose && <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>}
       </div>
 

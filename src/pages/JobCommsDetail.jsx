@@ -51,10 +51,10 @@ export default function JobCommsDetail() {
     .filter(f => filterVisibility === 'all' || f.visibility === filterVisibility)
     .sort((a, b) => (b.created_date || '').localeCompare(a.created_date || ''));
 
-  if (!jobId) return <AppLayout title="Job Files"><div className="flex-1 flex items-center justify-center"><p className="text-sm text-muted-foreground">No job selected.</p></div></AppLayout>;
+  if (!jobId) return <AppLayout title="Job Documents"><div className="flex-1 flex items-center justify-center"><p className="text-sm text-muted-foreground">No job selected.</p></div></AppLayout>;
 
   return (
-    <AppLayout title="Job Files & Comms">
+    <AppLayout title="Documents & Communication">
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
 
         <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -64,7 +64,7 @@ export default function JobCommsDetail() {
         {/* Header */}
         {loadingJob ? <div className="h-16 bg-muted rounded-2xl animate-pulse" /> : (
           <div className="bg-card border border-border rounded-2xl p-4">
-            <p className="text-xs text-muted-foreground mb-0.5">Job Files & Communication</p>
+            <p className="text-xs text-muted-foreground mb-0.5">Job Documents & Communication</p>
             <p className="text-base font-bold text-foreground">{job?.address || job?.title || jobId}</p>
             {job?.customer_name && <p className="text-sm text-muted-foreground">{job.customer_name}</p>}
             <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -77,7 +77,7 @@ export default function JobCommsDetail() {
         {/* Upload */}
         <div className="flex items-center justify-between">
           <div className="flex gap-1 bg-muted/60 rounded-xl p-1 flex-1 mr-2">
-            {[['files', <Paperclip className="w-3.5 h-3.5" />, 'Files'], ['comments', <MessageSquare className="w-3.5 h-3.5" />, 'Comments']].map(([tab, icon, label]) => (
+            {[['files', <Paperclip className="w-3.5 h-3.5" />, 'Documents'], ['comments', <MessageSquare className="w-3.5 h-3.5" />, 'Comments']].map(([tab, icon, label]) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}>
                 {icon}{label}

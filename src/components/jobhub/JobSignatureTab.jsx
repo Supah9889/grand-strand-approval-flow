@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Pen, CheckCircle2, Clock, AlertCircle, ExternalLink,
+import { Pen, CheckCircle2, Clock, AlertCircle,
   Lock, Plus, X, Save, Loader2, FileText, ChevronDown, ChevronUp,
   Paperclip, User, Calendar, RefreshCw, Archive, XCircle, Eye, Upload, FileSearch
 } from 'lucide-react';
@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { getSession } from '@/lib/adminAuth';
 import { normalizeSignatureRecordPayload, validateSignatureRecordPayload } from '@/lib/signatureRecords';
-import { isJobSigned, getBestSignedDocUrl } from '@/lib/signedDocHelpers';
+import { JOB_PRIMARY_ACTIONS, isJobSigned, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 import {
   SIGNATURE_DOCUMENT_MODES,
   SIGNATURE_PLACEMENTS,
@@ -245,7 +245,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
   if (!isAdmin) return null;
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden">
+    <div id="signature-document-setup" className="border border-border rounded-xl overflow-hidden">
       {/* Collapsed header — always visible */}
       <button
         type="button"
@@ -667,6 +667,7 @@ function JobApprovalSummary({ job, records, navigate, onPreview }) {
   const isPending = job.status === 'pending';
 
   const signedDocUrl = getBestSignedDocUrl(job, records);
+  const primaryAction = getJobPrimaryAction(job, records);
   const hasOriginal = !!job.source_work_order_file_url;
 
   const handleViewSigned = () => {
@@ -677,8 +678,20 @@ function JobApprovalSummary({ job, records, navigate, onPreview }) {
         docType: 'Signed Work Order (Final)',
       });
     } else {
-      navigate(`/approve?jobId=${job.id}`);
+      toast.error('Signed document is not available yet.');
     }
+  };
+
+  const handlePrimaryAction = () => {
+    if (primaryAction.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT || primaryAction.type === JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING) {
+      handleViewSigned();
+      return;
+    }
+    if (primaryAction.type === JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER) {
+      document.getElementById('signature-document-setup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate(`/approve?jobId=${job.id}`);
   };
 
   return (
@@ -725,16 +738,6 @@ function JobApprovalSummary({ job, records, navigate, onPreview }) {
               <img src={job.signature_url} alt="Customer signature" className="max-h-10 rounded border border-green-200 bg-white" />
             )}
             <div className="flex flex-wrap gap-2">
-              {/* Primary: view signed document */}
-              {signedDocUrl && (
-                <button
-                  onClick={handleViewSigned}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-800 bg-green-100 border border-green-300 rounded-full px-2.5 py-1 hover:bg-green-200 transition-colors"
-                >
-                  <FileSearch className="w-3 h-3" /> View Signed Document
-                </button>
-              )}
-              {/* Secondary: original work order */}
               {hasOriginal && (
                 <button
                   onClick={() => onPreview({
@@ -752,36 +755,18 @@ function JobApprovalSummary({ job, records, navigate, onPreview }) {
         )}
       </div>
 
-      {/* Right action: signed → "View Signed Document" button; unsigned → "Open" */}
-      {isSigned ? (
-        signedDocUrl ? (
-          <button
-            onClick={handleViewSigned}
-            className="flex items-center gap-1 text-[11px] font-semibold text-green-700 hover:text-green-800 shrink-0 mt-0.5"
-          >
-            <FileSearch className="w-3.5 h-3.5" />
-            View Signed Doc
-          </button>
-        ) : (
-          <button
-            onClick={() => navigate(`/approve?jobId=${job.id}`)}
-            className="flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 mt-0.5"
-          >
-            <Pen className="w-3 h-3" />
-            Approval Page
-            <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-          </button>
-        )
-      ) : (
-        <button
-          onClick={() => navigate(`/approve?jobId=${job.id}`)}
-          className="flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 mt-0.5"
-        >
-          <Pen className="w-3 h-3" />
-          Open
-          <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-        </button>
-      )}
+      {/* Single primary action based on job signature/document state */}
+      <button
+        onClick={handlePrimaryAction}
+        disabled={primaryAction.disabled}
+        className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 shrink-0 mt-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {primaryAction.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT || primaryAction.type === JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING
+          ? <FileSearch className="w-3.5 h-3.5" />
+          : <Pen className="w-3 h-3" />
+        }
+        {primaryAction.label}
+      </button>
     </div>
   );
 }

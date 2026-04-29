@@ -15,7 +15,7 @@ import JobStatusBadge from '../components/jobs/JobStatusBadge';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
-import { isJobSigned, buildSignedDocPreview } from '@/lib/signedDocHelpers';
+import { JOB_PRIMARY_ACTIONS, buildSignedDocPreview, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 
 const STATUS_BADGE = {
   pending:  { label: 'Pending', class: 'bg-amber-50 text-amber-600' },
@@ -65,10 +65,19 @@ export default function JobSearch() {
     );
   });
 
-  const handleSignView = (job) => {
-    if (isJobSigned(job)) {
+  const handlePrimaryAction = (job) => {
+    const action = getJobPrimaryAction(job);
+    if (action.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT) {
       const doc = buildSignedDocPreview(job);
       if (doc) { setPreviewDoc(doc); return; }
+    }
+    if (action.type === JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER) {
+      navigate(`/job-hub?jobId=${job.id}`);
+      return;
+    }
+    if (action.type === JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING) {
+      navigate(`/job-hub?jobId=${job.id}`);
+      return;
     }
     navigate(`/approve?jobId=${job.id}`);
   };
@@ -136,6 +145,7 @@ export default function JobSearch() {
           >
             {filtered.map((job) => {
               const badge = STATUS_BADGE[job.status] || STATUS_BADGE.pending;
+              const primaryAction = getJobPrimaryAction(job);
               return (
                 <div
                   key={job.id}
@@ -163,11 +173,12 @@ export default function JobSearch() {
                   )}
                   <div className="flex gap-2 mt-2">
                     <button 
-                      onClick={() => handleSignView(job)}
-                      aria-label={`Sign or view job at ${job.address}`}
+                      onClick={() => handlePrimaryAction(job)}
+                      disabled={primaryAction.disabled}
+                      aria-label={`${primaryAction.label} for job at ${job.address}`}
                       className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
                     >
-                      {isJobSigned(job) ? 'View Signed Document' : 'Sign Document'}
+                      {primaryAction.label}
                     </button>
                     <button 
                       onClick={() => navigate(`/job-hub?jobId=${job.id}`)} 

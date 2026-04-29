@@ -2,6 +2,14 @@
  * Shared helpers for determining signed state and the best document URL.
  * Used across JobSearch, JobNextStep, JobSignatureTab, etc.
  */
+import { isStampUploadedPdfMode } from '@/lib/signatureDocumentModes';
+
+export const JOB_PRIMARY_ACTIONS = Object.freeze({
+  UPLOAD_WORK_ORDER: 'upload_work_order',
+  SEND_FOR_SIGNATURE: 'send_for_signature',
+  VIEW_SIGNED_DOCUMENT: 'view_signed_document',
+  SIGNED_DOCUMENT_MISSING: 'signed_document_missing',
+});
 
 /**
  * Returns true if the job is considered fully signed/approved.
@@ -45,5 +53,39 @@ export function buildSignedDocPreview(job) {
       ? `Signed: ${job.source_work_order_file_name}`
       : 'Signed Work Order (Final)',
     docType: 'Signed Work Order (Final)',
+  };
+}
+
+/**
+ * Returns the single primary action a non-technical user should see for a job.
+ */
+export function getJobPrimaryAction(job, records = []) {
+  const signedDocUrl = getBestSignedDocUrl(job, records);
+
+  if (isJobSigned(job)) {
+    if (signedDocUrl) {
+      return {
+        type: JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT,
+        label: 'View Signed Document',
+        url: signedDocUrl,
+      };
+    }
+    return {
+      type: JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING,
+      label: 'View Signed Document',
+      disabled: true,
+    };
+  }
+
+  if (isStampUploadedPdfMode(job.signature_document_mode) && !job.source_work_order_file_url) {
+    return {
+      type: JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER,
+      label: 'Upload Work Order',
+    };
+  }
+
+  return {
+    type: JOB_PRIMARY_ACTIONS.SEND_FOR_SIGNATURE,
+    label: 'Send for Signature',
   };
 }

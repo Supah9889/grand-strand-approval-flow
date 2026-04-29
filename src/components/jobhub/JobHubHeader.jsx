@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Lock, StickyNote, Calendar,
-  FileUp, FileText, DollarSign, ShieldCheck
+  FileUp, DollarSign, ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import JobGroupBadge from '../jobs/JobGroupBadge';
@@ -15,7 +15,6 @@ export default function JobHubHeader({ job, isAdmin, onAddNote, onAddSchedule, o
     { icon: StickyNote, label: 'Add Note', color: 'text-amber-600', action: onAddNote },
     { icon: Calendar, label: 'Schedule', color: 'text-blue-600', action: onAddSchedule },
     { icon: FileUp, label: 'Upload', color: 'text-violet-600', action: onUploadFile },
-    { icon: FileText, label: 'Sign', color: 'text-primary', action: () => navigate(`/approve?jobId=${job.id}`) },
     ...(isAdmin ? [
       { icon: DollarSign, label: 'Invoices', color: 'text-green-600', action: () => navigate('/invoices') },
       { icon: ShieldCheck, label: 'Warranty', color: 'text-indigo-600', action: () => navigate('/warranty') },

@@ -12,26 +12,23 @@ import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  CheckCircle2, Clock, FileUp, Send, ExternalLink, Loader2, ChevronRight, FileSearch,
+  CheckCircle2, FileUp, Send, Loader2, ChevronRight, FileSearch,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { SIGNATURE_DOCUMENT_MODES } from '@/lib/signatureDocumentModes';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
-import { isJobSigned, getBestSignedDocUrl } from '@/lib/signedDocHelpers';
+import { JOB_PRIMARY_ACTIONS, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 
 // ── Determine the current step ────────────────────────────────────────────────
 function getStep(job) {
-  if (isJobSigned(job)) {
-    return 'signed';
-  }
-  if (job.status === 'pending' && job.approval_timestamp) {
-    return 'waiting';
-  }
-  if (job.source_work_order_file_url || job.signature_url) {
-    return 'ready_to_send';
-  }
-  return 'needs_pdf';
+  const primaryAction = getJobPrimaryAction(job);
+  if (
+    primaryAction.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT ||
+    primaryAction.type === JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING
+  ) return 'signed';
+  if (primaryAction.type === JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER) return 'needs_pdf';
+  return 'ready_to_send';
 }
 
 // ── Step config ───────────────────────────────────────────────────────────────
@@ -45,21 +42,12 @@ const STEP_CONFIG = {
     actionLabel: 'View Signed Document',
     actionIcon: FileSearch,
   },
-  waiting: {
-    icon: Clock,
-    iconColor: 'text-amber-600',
-    bg: 'bg-amber-50 border-amber-200',
-    title: 'Waiting on Signature',
-    subtitle: 'The signature request has been sent to the customer.',
-    actionLabel: 'Open Signature Page',
-    actionIcon: ExternalLink,
-  },
   ready_to_send: {
     icon: Send,
     iconColor: 'text-primary',
     bg: 'bg-primary/5 border-primary/20',
     title: 'Ready to Send for Signature',
-    subtitle: 'Work order PDF is uploaded. Send the job for customer signature.',
+    subtitle: 'Send the job to the customer for review and signature.',
     actionLabel: 'Send for Signature',
     actionIcon: ChevronRight,
   },
@@ -68,7 +56,7 @@ const STEP_CONFIG = {
     iconColor: 'text-slate-500',
     bg: 'bg-muted/60 border-border',
     title: 'Upload Work Order PDF',
-    subtitle: 'Upload a work order PDF to enable PDF signature stamping, or skip to send a generated approval.',
+    subtitle: 'This job is set to stamp an uploaded work order before it can be sent for signature.',
     actionLabel: 'Upload Work Order',
     actionIcon: ChevronRight,
   },
@@ -83,6 +71,7 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
   const [previewDoc, setPreviewDoc] = useState(null); // { url, title, docType }
 
   const step = getStep(job);
+  const primaryAction = getJobPrimaryAction(job);
   const cfg = STEP_CONFIG[step];
   const Icon = cfg.icon;
   const ActionIcon = cfg.actionIcon;
@@ -97,10 +86,12 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
           docType: 'Signed Work Order (Final)',
         });
       }
-      // If no doc URL at all, do nothing (don't route to /approve for signed jobs)
+      if (!docUrl) {
+        toast.error('Signed document is not available yet.');
+      }
       return;
     }
-    if (step === 'waiting' || step === 'ready_to_send') {
+    if (step === 'ready_to_send') {
       navigate(`/approve?jobId=${job.id}`);
       return;
     }
@@ -170,7 +161,7 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
       {isAdmin && (
         <button
           onClick={handleAction}
-          disabled={uploading}
+          disabled={uploading || primaryAction.disabled}
           className="flex items-center gap-1.5 shrink-0 text-xs font-semibold text-primary hover:text-primary/80 transition-colors mt-0.5 disabled:opacity-50"
         >
           {uploading

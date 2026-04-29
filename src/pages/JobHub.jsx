@@ -4,11 +4,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
   Loader2, Activity, Calendar, DollarSign, FolderOpen, Clock,
-  ShieldCheck, Info, Users, User, CheckSquare, BookOpen, StickyNote, FileDiff
+  ShieldCheck, Info, Users, User, CheckSquare, BookOpen, StickyNote, FileDiff, MoreHorizontal
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import PullToRefresh from '@/components/PullToRefresh';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // New focused sub-components
 import JobHubHeader from '../components/jobhub/JobHubHeader';
@@ -30,24 +37,42 @@ import ClientPortalManager from '../components/portal/ClientPortalManager';
 
 // Tab definitions — ordered for operational flow
 const TABS = [
-  { key: 'timeline',  label: 'Timeline',  icon: Activity,    adminOnly: false },
-  { key: 'schedule',  label: 'Schedule',  icon: Calendar,    adminOnly: false },
-  { key: 'details',   label: 'Details',   icon: Info,        adminOnly: false },
-  { key: 'financials',label: 'Financials',icon: DollarSign,  adminOnly: true  },
+  { key: 'timeline',  label: 'Overview',  icon: Activity,    adminOnly: false },
   { key: 'files',     label: 'Files',     icon: FolderOpen,  adminOnly: false },
-  { key: 'time',      label: 'Time',      icon: Clock,       adminOnly: true  },
-  { key: 'team',      label: 'Team',      icon: Users,       adminOnly: true  },
-  { key: 'clients',   label: 'Clients',   icon: User,        adminOnly: true  },
-  { key: 'tasks',     label: 'Tasks',     icon: CheckSquare, adminOnly: false },
-  { key: 'logs',      label: 'Daily Logs',icon: BookOpen,    adminOnly: false },
   { key: 'signature', label: 'Signature', icon: ShieldCheck, adminOnly: false },
   { key: 'notes',     label: 'Notes',     icon: StickyNote,  adminOnly: false },
+  { key: 'tasks',     label: 'Tasks',     icon: CheckSquare, adminOnly: false },
+  { key: 'logs',      label: 'Daily Logs',icon: BookOpen,    adminOnly: false },
+  { key: 'schedule',  label: 'Schedule',  icon: Calendar,    adminOnly: false },
+  { key: 'details',   label: 'Job Details', icon: Info,      adminOnly: false },
+  { key: 'time',      label: 'Time',      icon: Clock,       adminOnly: true  },
+  { key: 'team',      label: 'Team',      icon: Users,       adminOnly: true  },
+  { key: 'clients',   label: 'Client Access', icon: User,    adminOnly: true  },
+  { key: 'financials',label: 'Financials',icon: DollarSign,  adminOnly: true  },
   { key: 'cos',       label: 'Change Orders', icon: FileDiff, adminOnly: true },
 ];
+
+const PRIMARY_TAB_KEYS = new Set(['timeline', 'files', 'signature', 'notes', 'tasks', 'logs']);
 
 function SimpleList({ items, emptyMsg, renderItem }) {
   if (!items.length) return <p className="text-sm text-muted-foreground text-center py-10">{emptyMsg}</p>;
   return <div className="space-y-2">{items.map(renderItem)}</div>;
+}
+
+function JobHubTabButton({ tab, isActive, onClick }) {
+  const Icon = tab.icon;
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium shrink-0 transition-all
+        ${isActive
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {tab.label}
+    </button>
+  );
 }
 
 export default function JobHub() {
@@ -108,6 +133,9 @@ export default function JobHub() {
   });
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || isAdmin);
+  const primaryTabs = visibleTabs.filter(t => PRIMARY_TAB_KEYS.has(t.key));
+  const advancedTabs = visibleTabs.filter(t => !PRIMARY_TAB_KEYS.has(t.key));
+  const activeAdvancedTab = advancedTabs.find(t => t.key === activeTab);
 
   // ── Guard states ─────────────────────────────────────────────────────────
   if (!jobId) return (
@@ -175,23 +203,46 @@ export default function JobHub() {
 
           {/* ── Tab bar ──────────────────────────────────────────────── */}
           <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
-            {visibleTabs.map(t => {
-              const Icon = t.icon;
-              const isActive = activeTab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => setActiveTab(t.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium shrink-0 transition-all
-                    ${isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {t.label}
-                </button>
-              );
-            })}
+            {primaryTabs.map(t => (
+              <JobHubTabButton
+                key={t.key}
+                tab={t}
+                isActive={activeTab === t.key}
+                onClick={() => setActiveTab(t.key)}
+              />
+            ))}
+            {advancedTabs.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium shrink-0 transition-all
+                      ${activeAdvancedTab
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                    {activeAdvancedTab ? activeAdvancedTab.label : 'More'}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">More job tools</DropdownMenuLabel>
+                  {advancedTabs.map(t => {
+                    const Icon = t.icon;
+                    const isActive = activeTab === t.key;
+                    return (
+                      <DropdownMenuItem
+                        key={t.key}
+                        onSelect={() => setActiveTab(t.key)}
+                        className={`cursor-pointer text-sm ${isActive ? 'bg-secondary text-primary font-medium' : ''}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {t.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* ── Tab content ──────────────────────────────────────────── */}

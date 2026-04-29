@@ -5,7 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Plus, Search, Loader2, BookOpen, X } from 'lucide-react';
+import { Plus, Search, Loader2, BookOpen, X, ClipboardList } from 'lucide-react';
 import PullToRefresh from '../components/PullToRefresh';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, startOfWeek, isAfter } from 'date-fns';
@@ -109,12 +109,12 @@ export default function DailyLogs() {
   return (
     <AppLayout title="Daily Logs">
     <PullToRefresh onRefresh={handleRefresh} isRefreshing={isRefreshing}>
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+      <div className="app-page space-y-5">
 
-        <div className="flex items-center justify-between">
+        <div className="app-page-header">
           <div>
-            <h1 className="text-base font-semibold text-foreground">Daily Logs</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Field activity, jobsite photos & progress records</p>
+            <h1 className="app-page-title">Daily Logs</h1>
+            <p className="app-page-subtitle">Field activity, jobsite photos, crew notes, and progress records.</p>
           </div>
           <Button 
             className="h-9 rounded-xl text-sm gap-1.5" 
@@ -126,13 +126,13 @@ export default function DailyLogs() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid gap-3 sm:grid-cols-4">
           {STAT_GROUPS.map(g => (
             <button key={g.key}
               onClick={() => setActiveStat(activeStat === g.key ? null : g.key)}
-              className={`text-left p-3 rounded-xl border-2 transition-all ${activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20'}`}>
-              <p className={`text-lg font-bold leading-none ${g.color}`}>{stats[g.key] || 0}</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-tight">{g.label}</p>
+              className={`text-left p-4 rounded-lg border transition-all shadow-sm ${activeStat === g.key ? `${g.bg} ${g.border}` : 'bg-card border-border hover:border-primary/20 hover:shadow-md'}`}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
+              <p className={`mt-2 text-2xl font-bold leading-none ${g.color}`}>{stats[g.key] || 0}</p>
             </button>
           ))}
         </div>
@@ -155,7 +155,7 @@ export default function DailyLogs() {
         </AnimatePresence>
 
         {/* Filters */}
-        <div className="space-y-2">
+        <div className="app-card p-3 space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search by address, crew, notes..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search daily logs by address, crew, or notes" className="pl-9 h-9 rounded-xl text-sm" />
@@ -210,7 +210,11 @@ export default function DailyLogs() {
             <p className="text-sm text-muted-foreground">No daily logs found.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <ClipboardList className="w-3.5 h-3.5" />
+              Log Feed
+            </div>
             {filtered.map(log => (
               <LogCard key={log.id} log={log} onClick={() => navigate(`/daily-logs/${log.id}`)} />
             ))}

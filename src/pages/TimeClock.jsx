@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, LogIn, LogOut, User, MapPin, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Loader2, Clock, LogIn, LogOut, User, MapPin, CheckCircle2, AlertTriangle, Timer, ClipboardCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import AppLayout from '../components/AppLayout';
@@ -19,6 +19,14 @@ const COST_CODES = [
   'Paint Expenses',
   'Painting Labor/Sub',
 ];
+
+function formatMinutes(minutes) {
+  const safeMinutes = Math.max(0, Number(minutes || 0));
+  const hours = Math.floor(safeMinutes / 60);
+  const mins = safeMinutes % 60;
+  if (hours <= 0) return `${mins}m`;
+  return `${hours}h ${mins}m`;
+}
 
 /** Fetch (or create) GeoSettings — returns { alert_radius_miles, alert_email, geo_tracking_enabled } */
 async function fetchGeoSettings() {
@@ -50,6 +58,28 @@ export default function TimeClock() {
     queryKey: ['clock-all-jobs'],
     queryFn: () => base44.entities.Job.list('-created_date', 100),
   });
+
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ['time-clock-entries'],
+    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 50),
+  });
+
+  const timeSummary = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayEntries = timeEntries.filter(entry => (entry.entry_date || entry.clock_in?.split('T')?.[0]) === today);
+    const todayMinutes = todayEntries.reduce((sum, entry) => {
+      if (entry.duration_minutes != null) return sum + Number(entry.duration_minutes || 0);
+      if (entry.hours != null) return sum + Math.round(Number(entry.hours || 0) * 60);
+      if (entry.clock_in && entry.clock_out) return sum + Math.max(0, Math.round((new Date(entry.clock_out) - new Date(entry.clock_in)) / 60000));
+      return sum;
+    }, 0);
+    return {
+      clockedIn: timeEntries.filter(entry => entry.status === 'clocked_in').length,
+      todayMinutes,
+      pendingApprovals: timeEntries.filter(entry => (entry.approval_status || 'pending') === 'pending' && entry.status === 'clocked_out').length,
+      recent: timeEntries.slice(0, 8),
+    };
+  }, [timeEntries]);
 
   const lookupMutation = useMutation({
     mutationFn: async (empCode) => {
@@ -122,6 +152,7 @@ export default function TimeClock() {
       setStep('clocked');
       toast.success(`Clocked in — ${format(new Date(), 'h:mm a')}`);
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['time-clock-entries'] });
     },
   });
 
@@ -174,6 +205,7 @@ export default function TimeClock() {
       setNote('');
       setGeoStatus(null);
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['time-clock-entries'] });
     },
   });
 
@@ -191,7 +223,42 @@ export default function TimeClock() {
 
   return (
     <AppLayout title="Time Clock">
-      <div className="max-w-sm mx-auto w-full px-4 py-8 space-y-5">
+      <div className="app-page space-y-5">
+        <div className="app-page-header">
+          <div>
+            <h1 className="app-page-title">Time Clock</h1>
+            <p className="app-page-subtitle">{format(new Date(), 'EEEE, MMMM d - h:mm a')}</p>
+          </div>
+          <div className="hidden rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground sm:block">
+            Employee punch station
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="app-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Clocked In Now</p>
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-foreground">{timeSummary.clockedIn}</p>
+          </div>
+          <div className="app-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today Total</p>
+              <Timer className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-foreground">{formatMinutes(timeSummary.todayMinutes)}</p>
+          </div>
+          <div className="app-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pending Approvals</p>
+              <ClipboardCheck className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-foreground">{timeSummary.pendingApprovals}</p>
+          </div>
+        </div>
+
+        <div className="mx-auto w-full max-w-sm space-y-5">
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-3">
             <Clock className="w-7 h-7 text-primary" />
@@ -350,6 +417,52 @@ export default function TimeClock() {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
+
+        <div className="app-card overflow-hidden">
+          <div className="app-card-header">
+            <div>
+              <p className="app-card-title">Recent Time Entries</p>
+              <p className="app-card-description">Latest punches for office review.</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="app-table">
+              <thead className="app-table-head">
+                <tr>
+                  <th className="px-4 py-3 text-left">Employee</th>
+                  <th className="px-4 py-3 text-left">Job</th>
+                  <th className="px-4 py-3 text-left">Clock In</th>
+                  <th className="px-4 py-3 text-left">Duration</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {timeSummary.recent.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No time entries yet.</td>
+                  </tr>
+                ) : timeSummary.recent.map(entry => (
+                  <tr key={entry.id} className="app-table-row">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">{entry.employee_name || entry.employee_code || 'Employee'}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{entry.job_address || entry.job_title || 'No job'}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), 'MMM d, h:mm a') : '-'}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{formatMinutes(entry.duration_minutes || Math.round(Number(entry.hours || 0) * 60))}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                        entry.status === 'clocked_in' ? 'bg-green-50 text-green-700' :
+                        (entry.approval_status || 'pending') === 'approved' ? 'bg-primary/10 text-primary' :
+                        'bg-amber-50 text-amber-700'
+                      }`}>
+                        {entry.status === 'clocked_in' ? 'Clocked In' : (entry.approval_status || 'Pending')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

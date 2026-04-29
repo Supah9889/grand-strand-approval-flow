@@ -70,8 +70,8 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
   const [uploading, setUploading] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null); // { url, title, docType }
 
+  const primaryAction = getJobPrimaryAction(job, [], { canUploadWorkOrder: isAdmin });
   const step = getStep(job);
-  const primaryAction = getJobPrimaryAction(job);
   const cfg = STEP_CONFIG[step];
   const Icon = cfg.icon;
   const ActionIcon = cfg.actionIcon;
@@ -131,8 +131,8 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
     }
   };
 
-  // Skip showing the banner for non-admins on steps that require admin action
-  if (!isAdmin && (step === 'needs_pdf' || step === 'ready_to_send')) {
+  // Skip send actions for non-admins, but still show a clear blocked work-order state.
+  if (!isAdmin && step === 'ready_to_send') {
     return null;
   }
 
@@ -170,6 +170,11 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
           }
           {uploading ? 'Uploading...' : cfg.actionLabel}
         </button>
+      )}
+      {!isAdmin && step === 'needs_pdf' && (
+        <p className="mt-0.5 shrink-0 text-xs font-medium text-muted-foreground">
+          Ask an admin to upload the work order.
+        </p>
       )}
 
       {/* Hidden file input for PDF upload */}

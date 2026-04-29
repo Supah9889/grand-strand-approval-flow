@@ -662,12 +662,12 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
 }
 
 // ── Job-level approval summary (from job.status) ──────────────────────────────
-function JobApprovalSummary({ job, records, navigate, onPreview }) {
+function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
   const isSigned = isJobSigned(job);
   const isPending = job.status === 'pending';
 
   const signedDocUrl = getBestSignedDocUrl(job, records);
-  const primaryAction = getJobPrimaryAction(job, records);
+  const primaryAction = getJobPrimaryAction(job, records, { canUploadWorkOrder: isAdmin });
   const hasOriginal = !!job.source_work_order_file_url;
 
   const handleViewSigned = () => {
@@ -691,7 +691,9 @@ function JobApprovalSummary({ job, records, navigate, onPreview }) {
       document.getElementById('signature-document-setup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    navigate(`/approve?jobId=${job.id}`);
+    if (!primaryAction.disabled) {
+      navigate(`/approve?jobId=${job.id}`);
+    }
   };
 
   return (
@@ -767,6 +769,11 @@ function JobApprovalSummary({ job, records, navigate, onPreview }) {
         }
         {primaryAction.label}
       </button>
+      {primaryAction.helperText && (
+        <p className="max-w-40 shrink-0 text-right text-[11px] text-muted-foreground">
+          {primaryAction.helperText}
+        </p>
+      )}
     </div>
   );
 }
@@ -814,7 +821,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
       />
 
       {/* ── Job-level approval summary (existing flow) ── */}
-      <JobApprovalSummary job={job} records={records} navigate={navigate} onPreview={setPreviewDoc} />
+      <JobApprovalSummary job={job} records={records} navigate={navigate} onPreview={setPreviewDoc} isAdmin={isAdmin} />
 
       <SignatureDocumentSetup job={job} isAdmin={isAdmin} onPreview={setPreviewDoc} />
 

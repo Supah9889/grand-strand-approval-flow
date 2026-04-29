@@ -15,6 +15,7 @@ import JobStatusBadge from '../components/jobs/JobStatusBadge';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
+import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { JOB_PRIMARY_ACTIONS, buildSignedDocPreview, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 
 const STATUS_BADGE = {
@@ -32,6 +33,7 @@ export default function JobSearch() {
   const [previewDoc, setPreviewDoc] = useState(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const canUploadWorkOrder = getIsAdmin();
 
   const { data: liveJobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
@@ -66,7 +68,7 @@ export default function JobSearch() {
   });
 
   const handlePrimaryAction = (job) => {
-    const action = getJobPrimaryAction(job);
+    const action = getJobPrimaryAction(job, [], { canUploadWorkOrder });
     if (action.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT) {
       const doc = buildSignedDocPreview(job);
       if (doc) { setPreviewDoc(doc); return; }
@@ -79,7 +81,9 @@ export default function JobSearch() {
       navigate(`/job-hub?jobId=${job.id}`);
       return;
     }
-    navigate(`/approve?jobId=${job.id}`);
+    if (!action.disabled) {
+      navigate(`/approve?jobId=${job.id}`);
+    }
   };
 
   return (
@@ -145,7 +149,7 @@ export default function JobSearch() {
           >
             {filtered.map((job) => {
               const badge = STATUS_BADGE[job.status] || STATUS_BADGE.pending;
-              const primaryAction = getJobPrimaryAction(job);
+              const primaryAction = getJobPrimaryAction(job, [], { canUploadWorkOrder });
               return (
                 <div
                   key={job.id}
@@ -176,7 +180,7 @@ export default function JobSearch() {
                       onClick={() => handlePrimaryAction(job)}
                       disabled={primaryAction.disabled}
                       aria-label={`${primaryAction.label} for job at ${job.address}`}
-                      className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+                      className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {primaryAction.label}
                     </button>
@@ -188,6 +192,9 @@ export default function JobSearch() {
                       Job Hub
                     </button>
                   </div>
+                  {primaryAction.helperText && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">{primaryAction.helperText}</p>
+                  )}
                 </div>
               );
             })}

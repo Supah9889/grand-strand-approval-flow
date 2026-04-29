@@ -6,10 +6,15 @@ import { isStampUploadedPdfMode } from '@/lib/signatureDocumentModes';
 
 export const JOB_PRIMARY_ACTIONS = Object.freeze({
   UPLOAD_WORK_ORDER: 'upload_work_order',
+  WAITING_ON_WORK_ORDER: 'waiting_on_work_order',
   SEND_FOR_SIGNATURE: 'send_for_signature',
   VIEW_SIGNED_DOCUMENT: 'view_signed_document',
   SIGNED_DOCUMENT_MISSING: 'signed_document_missing',
 });
+
+export function canUploadWorkOrder(role) {
+  return role === 'admin' || role === 'owner';
+}
 
 /**
  * Returns true if the job is considered fully signed/approved.
@@ -59,8 +64,9 @@ export function buildSignedDocPreview(job) {
 /**
  * Returns the single primary action a non-technical user should see for a job.
  */
-export function getJobPrimaryAction(job, records = []) {
+export function getJobPrimaryAction(job, records = [], options = {}) {
   const signedDocUrl = getBestSignedDocUrl(job, records);
+  const canUpload = options.canUploadWorkOrder ?? true;
 
   if (isJobSigned(job)) {
     if (signedDocUrl) {
@@ -78,6 +84,14 @@ export function getJobPrimaryAction(job, records = []) {
   }
 
   if (isStampUploadedPdfMode(job.signature_document_mode) && !job.source_work_order_file_url) {
+    if (!canUpload) {
+      return {
+        type: JOB_PRIMARY_ACTIONS.WAITING_ON_WORK_ORDER,
+        label: 'Waiting on office to upload work order',
+        helperText: 'Ask an admin to upload the work order.',
+        disabled: true,
+      };
+    }
     return {
       type: JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER,
       label: 'Upload Work Order',

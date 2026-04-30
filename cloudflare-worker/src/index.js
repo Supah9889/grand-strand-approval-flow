@@ -1,12 +1,8 @@
 /**
  * Grand Strand Approval Flow - Cloudflare Worker
- *
- * Purpose: Secure file access API for private Cloudflare R2 storage.
- * The app (React/Vite/Base44) will call this Worker to get short-lived
- * signed URLs for uploads and reads. R2 credentials are NEVER exposed
- * to the frontend or stored in source code.
- *
- * Current state: Skeleton only. Not connected to R2 yet.
+ * Handles secure signed URL generation for private R2 file storage.
+ * AUTH_SECRET must be set via: npx wrangler secret put AUTH_SECRET
+ * Never hardcode secrets here or in frontend code.
  */
 
 export default {
@@ -24,25 +20,63 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // Health check - no auth required
     if (request.method === "GET" && pathname === "/health") {
       return json({ status: "ok" }, corsHeaders);
     }
 
-    if (request.method === "POST" && pathname === "/files/upload-url") {
-      // TODO: Parse request body for { fileName, fileType, jobId, uploadedBy }
-      // TODO: Verify caller is authenticated and has upload permission for the job
-      // TODO: Generate a private R2 key, e.g. jobs/{jobId}/documents/{uuid}-{fileName}
-      // TODO: Call env.PRIVATE_FILES.createMultipartUpload() or use presigned URL pattern
-      // TODO: Return { uploadUrl, fileKey } so the app can PUT directly to R2
-      return json({ status: "not_implemented", message: "Upload URL generation not yet wired to R2." }, corsHeaders, 501);
+    // Auth check for all other routes
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token || token !== env.AUTH_SECRET) {
+      return json({ error: "Unauthorized" }, corsHeaders, 401);
     }
 
+    // POST /files/upload-url
+    if (request.method === "POST" && pathname === "/files/upload-url") {
+      try {
+        const body = await request.json();
+        const { fileName, fileType, jobId, uploadedBy } = body;
+
+        if (!fileName || !fileType || !jobId || !uploadedBy) {
+          return json({ error: "Missing required fields: fileName, fileType, jobId, uploadedBy" }, corsHeaders, 400);
+        }
+
+        const uuid = crypto.randomUUID();
+        const fileKey = `jobs/${jobId}/${uuid}-${fileName}`;
+
+        const uploadUrl = await env.PRIVATE_FILES.createPresignedUrl(fileKey, {
+          method: "PUT",
+          expiresIn: 300,
+        });
+
+        return json({ uploadUrl, fileKey }, corsHeaders);
+      } catch (err) {
+        console.error("upload-url error:", err);
+        return json({ error: "Internal server error" }, corsHeaders, 500);
+      }
+    }
+
+    // POST /files/read-url
     if (request.method === "POST" && pathname === "/files/read-url") {
-      // TODO: Parse request body for { fileKey, jobId }
-      // TODO: Verify caller is authenticated and has read permission for the job
-      // TODO: Call env.PRIVATE_FILES.createSignedUrl(fileKey, { expiresIn: 300 })
-      // TODO: Return { signedUrl } so the app can render the file temporarily
-      return json({ status: "not_implemented", message: "Read URL generation not yet wired to R2." }, corsHeaders, 501);
+      try {
+        const body = await request.json();
+        const { fileKey } = body;
+
+        if (!fileKey) {
+          return json({ error: "Missing required field: fileKey" }, corsHeaders, 400);
+        }
+
+        const signedUrl = await env.PRIVATE_FILES.createPresignedUrl(fileKey, {
+          method: "GET",
+          expiresIn: 300,
+        });
+
+        return json({ signedUrl }, corsHeaders);
+      } catch (err) {
+        console.error("read-url error:", err);
+        return json({ error: "Internal server error" }, corsHeaders, 500);
+      }
     }
 
     return json({ error: "Not found" }, corsHeaders, 404);

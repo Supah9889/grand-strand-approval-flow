@@ -1,6 +1,7 @@
 name = "grand-strand-worker"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
+account_id = "3a1b8524c72f6dbc9de05a3fc4e20014"
 
 [[r2_buckets]]
 binding = "PRIVATE_FILES"

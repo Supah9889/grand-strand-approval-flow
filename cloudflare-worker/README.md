@@ -17,9 +17,17 @@ This Worker is the secure file API layer between the Grand Strand Approval Flow 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /health | Health check |
-| POST | /files/upload-url | Get a signed URL for a private upload (not yet implemented) |
-| POST | /files/read-url | Get a signed URL to read a private file (not yet implemented) |
+| GET | /health | Health check - no auth required |
+| POST | /files/upload-url | Get a signed URL for a private upload |
+| POST | /files/read-url | Get a signed URL to read a private file |
+
+## Auth
+
+All routes except /health require an Authorization header:
+Authorization: Bearer <AUTH_SECRET>
+
+AUTH_SECRET is set via: npx wrangler secret put AUTH_SECRET
+Never hardcode it anywhere.
 
 ## Deployment
 
@@ -29,8 +37,7 @@ npx wrangler deploy
 
 ## Next Steps
 
-- Implement auth and permission checks in the Worker
-- Wire /files/upload-url to R2 signed upload logic
-- Wire /files/read-url to R2 signed read logic
-- Update the app to use this Worker instead of Base44 UploadFile
+- Set AUTH_SECRET via wrangler secret put
+- Deploy the Worker
+- Update the app to request signed URLs from this Worker instead of using Base44 UploadFile
 - Migrate file fields from public URLs to private R2 keys

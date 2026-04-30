@@ -11,7 +11,7 @@ import { Loader2, Clock, Search, User, MapPin, Plus, X, AlertTriangle } from 'lu
 import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getInternalRole, getSessionEmployee, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import AdminManualEntryForm from '../components/timeclock/AdminManualEntryForm';
 import { toast } from 'sonner';
 
@@ -28,6 +28,7 @@ export default function TimeEntries() {
   const navigate = useNavigate();
   const role = getInternalRole();
   const isAdmin = getIsAdmin(); // true for admin + owner
+  const sessionEmployee = getSessionEmployee();
 
   const [search, setSearch] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('all');
@@ -40,8 +41,15 @@ export default function TimeEntries() {
   const [empCodeFilter, setEmpCodeFilter] = useState('');
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['time-entries'],
-    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 500),
+    queryKey: ['time-entries', isAdmin ? 'all' : sessionEmployee?.id || 'unmatched'],
+    queryFn: async () => {
+      if (isAdmin) return base44.entities.TimeEntry.list('-clock_in', 500);
+      if (!sessionEmployee?.id) return [];
+
+      const employeeEntries = await base44.entities.TimeEntry.filter({ employee_id: sessionEmployee.id }, '-clock_in', 500);
+      if (employeeEntries.length || !sessionEmployee.employee_code) return employeeEntries;
+      return base44.entities.TimeEntry.filter({ employee_code: sessionEmployee.employee_code }, '-clock_in', 500);
+    },
   });
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
@@ -82,18 +90,7 @@ export default function TimeEntries() {
     onError: () => toast.error('Failed to create entry'),
   });
 
-  // Employee self-service: prompt for code
-  const [selfCode, setSelfCode] = useState('');
-  const [selfEmployee, setSelfEmployee] = useState(null);
-  const [codeError, setCodeError] = useState('');
-
-  const lookupSelf = async () => {
-    if (!selfCode) return;
-    setCodeError('');
-    const res = await base44.entities.Employee.filter({ employee_code: selfCode.toUpperCase() });
-    if (!res.length) { setCodeError('Employee code not found.'); return; }
-    setSelfEmployee(res[0]);
-  };
+  const selfEmployee = isAdmin ? null : sessionEmployee;
 
   const todayStr = new Date().toDateString();
   const todayEntries = entries.filter(e => e.clock_in && new Date(e.clock_in).toDateString() === todayStr);
@@ -151,10 +148,25 @@ export default function TimeEntries() {
       updated: (a, b) => (b.updated_date || '').localeCompare(a.updated_date || ''),
     };
     return [...l].sort(sortFns[sort] || sortFns.newest);
-  }, [entries, selfEntries, isAdmin, selfEmployee, filterEmployee, filterCode, filterStatus, filterDate, search, sort]);
+  }, [entries, selfEntries, isAdmin, selfEmployee, filterEmployee, filterCode, filterStatus, filterApproval, filterDate, search, sort]);
 
   // Non-admin: show self-service view
   if (!isAdmin) {
+    if (!sessionEmployee?.id) {
+      return (
+        <AppLayout title="My Hours">
+          <div className="max-w-lg mx-auto w-full px-4 py-6">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+              <p className="text-sm font-semibold">Employee profile needed</p>
+              <p className="mt-1 text-sm">
+                We could not confirm your employee profile. Please contact the office or an admin to review your hours.
+              </p>
+            </div>
+          </div>
+        </AppLayout>
+      );
+    }
+
     return (
       <AppLayout title="My Hours">
         <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-5">
@@ -163,25 +175,11 @@ export default function TimeEntries() {
             <p className="text-xs text-muted-foreground mt-0.5">View your own hours and entries</p>
           </div>
 
-          {!selfEmployee ? (
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
-              <p className="text-sm font-medium text-foreground">Enter your employee code</p>
-              <Input
-                value={selfCode}
-                onChange={e => setSelfCode(e.target.value)}
-                placeholder="Employee code"
-                className="h-10 rounded-xl text-center tracking-widest uppercase text-sm"
-                onKeyDown={e => e.key === 'Enter' && lookupSelf()}
-              />
-              {codeError && <p className="text-xs text-destructive">{codeError}</p>}
-              <Button className="w-full h-10 rounded-xl" onClick={lookupSelf} disabled={!selfCode}>View My Hours</Button>
-            </div>
-          ) : (
-            <>
+          <>
               <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-foreground">{selfEmployee.name}</p>
-                  <button onClick={() => setSelfEmployee(null)} className="text-xs text-muted-foreground underline">Switch</button>
+                  <span className="text-xs text-muted-foreground">Your entries only</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-secondary/50 rounded-xl p-3 text-center">
@@ -222,8 +220,7 @@ export default function TimeEntries() {
                   ))}
                 </div>
               )}
-            </>
-          )}
+          </>
         </div>
       </AppLayout>
     );

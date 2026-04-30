@@ -10,7 +10,7 @@ import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import { isUnlocked } from '@/lib/adminAuth';
+import { isAdmin, isUnlocked } from '@/lib/adminAuth';
 
 // Core pages (loaded immediately)
 import Splash from './pages/Splash';
@@ -93,6 +93,46 @@ function UnlockGuard({ children }) {
   return children;
 }
 
+function AccessDenied() {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex min-h-[70vh] items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+        <p className="text-base font-semibold text-foreground">Access restricted</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          You do not have access to this area. Please contact an admin.
+        </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Back to Dashboard
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/search')}
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-input bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            Back to Jobs
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminRoute({ children }) {
+  if (!isAdmin()) return <AccessDenied />;
+  return children;
+}
+
+function adminOnly(element) {
+  return <AdminRoute>{element}</AdminRoute>;
+}
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const location = useLocation();
@@ -146,7 +186,7 @@ const AuthenticatedApp = () => {
               {/* Dashboard Routes */}
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/job-hub" element={<JobHub />} />
-              <Route path="/admin-overview" element={<AdminOverview />} />
+              <Route path="/admin-overview" element={adminOnly(<AdminOverview />)} />
               <Route path="/search" element={<JobSearch />} />
               <Route path="/global-search" element={<GlobalSearch />} />
               {/* /search-jobs is the old scoped job-only search, kept for back-compat */}
@@ -159,11 +199,11 @@ const AuthenticatedApp = () => {
 
               {/* Financial Routes */}
               <Route path="/invoices" element={<Invoices />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/payments" element={<PaymentsPage />} />
-              <Route path="/bills" element={<Bills />} />
-              <Route path="/purchase-orders" element={<PurchaseOrders />} />
-              <Route path="/financials" element={<Financials />} />
+              <Route path="/expenses" element={adminOnly(<Expenses />)} />
+              <Route path="/payments" element={adminOnly(<PaymentsPage />)} />
+              <Route path="/bills" element={adminOnly(<Bills />)} />
+              <Route path="/purchase-orders" element={adminOnly(<PurchaseOrders />)} />
+              <Route path="/financials" element={adminOnly(<Financials />)} />
 
               {/* Operations Routes */}
               <Route path="/tasks" element={<Tasks />} />
@@ -174,31 +214,31 @@ const AuthenticatedApp = () => {
               <Route path="/warranty/:id" element={<WarrantyDetail />} />
 
               {/* Sales Routes */}
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/sales/:id" element={<LeadDetail />} />
-              <Route path="/estimates" element={<Estimates />} />
-              <Route path="/estimates/:id" element={<EstimateDetail />} />
-              <Route path="/change-orders" element={<ChangeOrders />} />
-              <Route path="/change-orders/:id" element={<ChangeOrderDetail />} />
+              <Route path="/sales" element={adminOnly(<Sales />)} />
+              <Route path="/sales/:id" element={adminOnly(<LeadDetail />)} />
+              <Route path="/estimates" element={adminOnly(<Estimates />)} />
+              <Route path="/estimates/:id" element={adminOnly(<EstimateDetail />)} />
+              <Route path="/change-orders" element={adminOnly(<ChangeOrders />)} />
+              <Route path="/change-orders/:id" element={adminOnly(<ChangeOrderDetail />)} />
 
               {/* Communication Routes */}
               <Route path="/job-comms" element={<JobComms />} />
               <Route path="/job-comms/detail" element={<JobCommsDetail />} />
 
               {/* Portal Routes */}
-              <Route path="/portal-manager" element={<PortalManager />} />
+              <Route path="/portal-manager" element={adminOnly(<PortalManager />)} />
               <Route path="/portal/client" element={<ClientPortal />} />
               <Route path="/portal/vendor" element={<VendorPortal />} />
 
               {/* Admin Routes */}
               <Route path="/admin" element={<Admin />} />
-              <Route path="/vendors" element={<VendorBank />} />
-              <Route path="/employees" element={<EmployeeManager />} />
-              <Route path="/employee-permissions" element={<EmployeePermissions />} />
+              <Route path="/vendors" element={adminOnly(<VendorBank />)} />
+              <Route path="/employees" element={adminOnly(<EmployeeManager />)} />
+              <Route path="/employee-permissions" element={adminOnly(<EmployeePermissions />)} />
               <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/templates" element={<DocumentTemplates />} />
-              <Route path="/custom-fields" element={<CustomFields />} />
-              <Route path="/audit-log" element={<AuditLogPage />} />
+              <Route path="/templates" element={adminOnly(<DocumentTemplates />)} />
+              <Route path="/custom-fields" element={adminOnly(<CustomFields />)} />
+              <Route path="/audit-log" element={adminOnly(<AuditLogPage />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

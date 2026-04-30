@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Save, Clock, MapPin, AlertTriangle, History, Naviga
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
-import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getInternalRole, getSessionEmployee, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { formatDuration } from './TimeEntries';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
@@ -33,6 +33,7 @@ export default function TimeEntryDetail() {
   const queryClient = useQueryClient();
   const role = getInternalRole();
   const isAdmin = getIsAdmin(); // true for admin + owner
+  const sessionEmployee = getSessionEmployee();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
@@ -40,8 +41,22 @@ export default function TimeEntryDetail() {
   const [validationTouched, setValidationTouched] = useState(false);
 
   const { data: entry, isLoading } = useQuery({
-    queryKey: ['time-entry', entryId],
-    queryFn: async () => { const r = await base44.entities.TimeEntry.filter({ id: entryId }); return r[0]; },
+    queryKey: ['time-entry', isAdmin ? 'admin' : sessionEmployee?.id || 'unmatched', entryId],
+    queryFn: async () => {
+      if (isAdmin) {
+        const r = await base44.entities.TimeEntry.filter({ id: entryId });
+        return r[0];
+      }
+
+      if (!sessionEmployee?.id) return null;
+
+      const ownEntries = await base44.entities.TimeEntry.filter({ employee_id: sessionEmployee.id }, '-clock_in', 500);
+      const ownEntry = ownEntries.find(e => e.id === entryId);
+      if (ownEntry || !sessionEmployee.employee_code) return ownEntry || null;
+
+      const ownCodeEntries = await base44.entities.TimeEntry.filter({ employee_code: sessionEmployee.employee_code }, '-clock_in', 500);
+      return ownCodeEntries.find(e => e.id === entryId) || null;
+    },
     enabled: !!entryId,
   });
 
@@ -101,8 +116,30 @@ export default function TimeEntryDetail() {
 
   const editHistory = (() => { try { return JSON.parse(entry?.edit_history || '[]'); } catch { return []; } })();
 
-  if (isLoading || !form) {
+  if (isLoading) {
     return <AppLayout title="Time Entry"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
+  }
+
+  if (!isAdmin && !sessionEmployee?.id) {
+    return (
+      <AppLayout title="Time Entry">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
+          <p className="text-sm text-muted-foreground text-center">We could not confirm your employee profile. Please contact the office or an admin to review time entries.</p>
+          <Button variant="outline" onClick={() => navigate('/time-entries')} className="rounded-xl"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!isAdmin && !entry) {
+    return (
+      <AppLayout title="Time Entry">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
+          <p className="text-sm text-muted-foreground text-center">You can only view your own time entries. Please contact the office if you need help.</p>
+          <Button variant="outline" onClick={() => navigate('/time-entries')} className="rounded-xl"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
+        </div>
+      </AppLayout>
+    );
   }
 
   if (!entry) {
@@ -114,6 +151,10 @@ export default function TimeEntryDetail() {
         </div>
       </AppLayout>
     );
+  }
+
+  if (!form) {
+    return <AppLayout title="Time Entry"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   }
 
   const mins = entry.clock_in && entry.clock_out

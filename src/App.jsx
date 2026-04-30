@@ -190,7 +190,7 @@ const AuthenticatedApp = () => {
               <Route path="/search" element={<JobSearch />} />
               <Route path="/global-search" element={<GlobalSearch />} />
               {/* /search-jobs is the old scoped job-only search, kept for back-compat */}
-              <Route path="/new-job" element={<NewJobPage />} />
+              <Route path="/new-job" element={adminOnly(<NewJobPage />)} />
 
               {/* Time Tracking Routes */}
               <Route path="/time-clock" element={<TimeClock />} />
@@ -198,7 +198,7 @@ const AuthenticatedApp = () => {
               <Route path="/time-entries/:id" element={<TimeEntryDetail />} />
 
               {/* Financial Routes */}
-              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/invoices" element={adminOnly(<Invoices />)} />
               <Route path="/expenses" element={adminOnly(<Expenses />)} />
               <Route path="/payments" element={adminOnly(<PaymentsPage />)} />
               <Route path="/bills" element={adminOnly(<Bills />)} />

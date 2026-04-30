@@ -12,6 +12,7 @@ import AppLayout from '../components/AppLayout';
 import FileUploadArea from '../components/jobcomms/FileUploadArea';
 import FileGrid from '../components/jobcomms/FileGrid';
 import { getInternalRole } from '@/lib/adminAuth';
+import { canManageJobFiles } from '@/lib/fileActions';
 
 const CATEGORY_LABEL = {
   before_photo: 'Before', progress_photo: 'Progress', after_photo: 'After',
@@ -32,6 +33,7 @@ export default function JobComms() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const role = getInternalRole();
+  const canManageDocuments = canManageJobFiles({ role });
   const [activeTab, setActiveTab] = useState('files');
   const [showUpload, setShowUpload] = useState(false);
   const [selectedJob, setSelectedJob] = useState('all');
@@ -99,9 +101,15 @@ export default function JobComms() {
             <h1 className="text-base font-semibold text-foreground">Documents & Communication</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Job documents, photos, comments & notes</p>
           </div>
-          <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowUpload(v => !v)}>
-            <Plus className="w-3.5 h-3.5" /> Upload
-          </Button>
+          {canManageDocuments ? (
+            <Button className="h-9 rounded-xl text-sm gap-1.5" onClick={() => setShowUpload(v => !v)}>
+              <Plus className="w-3.5 h-3.5" /> Upload
+            </Button>
+          ) : (
+            <div className="max-w-[180px] text-right text-xs text-muted-foreground">
+              Please ask the office to upload this document.
+            </div>
+          )}
         </div>
 
         {/* Stats */}
@@ -116,7 +124,7 @@ export default function JobComms() {
 
         {/* Upload panel */}
         <AnimatePresence>
-          {showUpload && (
+          {showUpload && canManageDocuments && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <FileUploadArea
                 jobId={selectedJob !== 'all' ? selectedJob : ''}

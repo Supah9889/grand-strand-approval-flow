@@ -6,6 +6,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Upload, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
+import { getInternalRole } from '@/lib/adminAuth';
+import { canManageJobFiles } from '@/lib/fileActions';
 
 const CATEGORIES = [
   ['before_photo','Before Photo'], ['progress_photo','Progress Photo'], ['after_photo','After Photo'],
@@ -18,6 +20,8 @@ const CATEGORIES = [
 
 export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose }) {
   const { hasPermission } = usePermissions();
+  const role = getInternalRole();
+  const canManageDocuments = canManageJobFiles({ role });
   const canShareExternally = hasPermission('share_files_externally');
   const [files, setFiles] = useState([]);
   const [category, setCategory] = useState('other');
@@ -38,6 +42,10 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
 
   const handleUpload = async () => {
     if (!files.length) return;
+    if (!canManageDocuments) {
+      toast.error('Please ask the office to upload this document.');
+      return;
+    }
     setUploading(true);
     for (const file of files) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -67,6 +75,13 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
         <p className="text-sm font-semibold text-foreground">Upload Documents</p>
         {onClose && <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>}
       </div>
+
+      {!canManageDocuments ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Please ask the office to upload this document.
+        </div>
+      ) : (
+        <>
 
       <label className="flex flex-col items-center gap-2 cursor-pointer border-2 border-dashed border-border rounded-xl px-4 py-6 hover:border-primary/40 transition-colors text-center">
         <Upload className="w-6 h-6 text-muted-foreground" />
@@ -114,6 +129,8 @@ export default function FileUploadArea({ jobId, jobAddress, onUploaded, onClose 
         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
         {uploading ? 'Uploading...' : `Upload ${files.length ? files.length + ' file' + (files.length > 1 ? 's' : '') : ''}`}
       </Button>
+        </>
+      )}
     </div>
   );
 }

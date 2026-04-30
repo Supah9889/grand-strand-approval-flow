@@ -273,7 +273,7 @@ export default function AttachmentManager({
         )}
       </div>
 
-      {showUpload && (
+      {showUpload && isAdmin && (
         <AttachmentUpload
           recordType={recordType}
           recordId={recordId}
@@ -283,6 +283,12 @@ export default function AttachmentManager({
           label="Attach File"
           onUploaded={() => queryClient.invalidateQueries({ queryKey: ['attachments', recordType, recordId] })}
         />
+      )}
+
+      {showUpload && !isAdmin && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Please ask the office to upload this document.
+        </div>
       )}
 
       {isLoading ? (

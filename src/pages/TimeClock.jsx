@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
 import { runPunchGeoCheck, sendGeoAlert } from '@/lib/geolocation';
+import { getSessionEmployee, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 
 const COST_CODES = [
   'Carpentry Labor/Sub',
@@ -48,6 +49,22 @@ export default function TimeClock() {
   const [activeEntry, setActiveEntry] = useState(null);
   const [geoStatus, setGeoStatus] = useState(null); // null | 'capturing' | 'captured' | 'denied' | 'unavailable'
   const queryClient = useQueryClient();
+  const isAdminUser = getIsAdmin();
+  const sessionEmployee = getSessionEmployee();
+  const sessionEmployeeId = sessionEmployee?.id;
+  const sessionEmployeeCode = sessionEmployee?.employee_code;
+  const sessionEmployeeName = sessionEmployee?.name;
+  const sessionEmployeeRole = sessionEmployee?.role;
+  const staffSessionEmployee = useMemo(() => {
+    if (!sessionEmployeeId) return null;
+    return {
+      id: sessionEmployeeId,
+      name: sessionEmployeeName,
+      employee_code: sessionEmployeeCode,
+      role: sessionEmployeeRole,
+    };
+  }, [sessionEmployeeId, sessionEmployeeName, sessionEmployeeCode, sessionEmployeeRole]);
+  const hasReliableStaffIdentity = isAdminUser || !!sessionEmployeeId;
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['clock-jobs'],
@@ -60,8 +77,15 @@ export default function TimeClock() {
   });
 
   const { data: timeEntries = [] } = useQuery({
-    queryKey: ['time-clock-entries'],
-    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 50),
+    queryKey: ['time-clock-entries', isAdminUser ? 'all' : sessionEmployeeId || 'unmatched'],
+    queryFn: async () => {
+      if (isAdminUser) return base44.entities.TimeEntry.list('-clock_in', 50);
+      if (!sessionEmployeeId) return [];
+
+      const employeeEntries = await base44.entities.TimeEntry.filter({ employee_id: sessionEmployeeId }, '-clock_in', 50);
+      if (employeeEntries.length || !sessionEmployeeCode) return employeeEntries;
+      return base44.entities.TimeEntry.filter({ employee_code: sessionEmployeeCode }, '-clock_in', 50);
+    },
   });
 
   const timeSummary = useMemo(() => {
@@ -81,8 +105,32 @@ export default function TimeClock() {
     };
   }, [timeEntries]);
 
+  useEffect(() => {
+    if (isAdminUser || !sessionEmployeeId) return;
+
+    setEmployee(staffSessionEmployee);
+    setCode(sessionEmployeeCode || '');
+
+    const openEntry = timeEntries.find(entry =>
+      entry.status === 'clocked_in' &&
+      (entry.employee_id === sessionEmployeeId || entry.employee_code === sessionEmployeeCode)
+    );
+
+    if (openEntry) {
+      setActiveEntry(openEntry);
+      setStep('clocked');
+      return;
+    }
+
+    setActiveEntry(null);
+    setStep(current => (current === 'code' || current === 'clocked' ? 'select' : current));
+  }, [isAdminUser, sessionEmployeeId, sessionEmployeeCode, staffSessionEmployee, timeEntries]);
+
   const lookupMutation = useMutation({
     mutationFn: async (empCode) => {
+      if (!isAdminUser && sessionEmployeeCode && empCode !== sessionEmployeeCode) {
+        throw new Error('Use your assigned employee profile to clock time.');
+      }
       const results = await base44.entities.Employee.filter({ employee_code: empCode, active: true });
       if (!results.length) throw new Error('Employee not found');
       return results[0];
@@ -198,9 +246,9 @@ export default function TimeClock() {
     },
     onSuccess: () => {
       toast.success('Clocked out successfully');
-      setStep('code');
-      setCode('');
-      setEmployee(null);
+      setStep(isAdminUser ? 'code' : 'select');
+      setCode(isAdminUser ? '' : sessionEmployeeCode || '');
+      setEmployee(isAdminUser ? null : staffSessionEmployee);
       setActiveEntry(null);
       setNote('');
       setGeoStatus(null);
@@ -210,9 +258,9 @@ export default function TimeClock() {
   });
 
   const reset = () => {
-    setStep('code');
-    setCode('');
-    setEmployee(null);
+    setStep(isAdminUser ? 'code' : 'select');
+    setCode(isAdminUser ? '' : sessionEmployeeCode || '');
+    setEmployee(isAdminUser ? null : staffSessionEmployee);
     setActiveEntry(null);
     setNote('');
     setSelectedJob(null);
@@ -220,6 +268,21 @@ export default function TimeClock() {
   };
 
   const isBusy = clockInMutation.isPending || clockOutMutation.isPending;
+
+  if (!hasReliableStaffIdentity) {
+    return (
+      <AppLayout title="Time Clock">
+        <div className="app-page">
+          <div className="mx-auto w-full max-w-lg rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+            <p className="text-sm font-semibold">Employee profile needed</p>
+            <p className="mt-1 text-sm">
+              We could not confirm your employee profile. Please contact the office or an admin before clocking time.
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Time Clock">
@@ -237,21 +300,29 @@ export default function TimeClock() {
         <div className="grid gap-3 md:grid-cols-3">
           <div className="app-card p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Clocked In Now</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {isAdminUser ? 'Clocked In Now' : 'Your Status'}
+              </p>
               <Clock className="h-4 w-4 text-primary" />
             </div>
-            <p className="mt-2 text-2xl font-bold text-foreground">{timeSummary.clockedIn}</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">
+              {isAdminUser ? timeSummary.clockedIn : activeEntry ? 'Clocked In' : 'Ready'}
+            </p>
           </div>
           <div className="app-card p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today Total</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {isAdminUser ? 'Today Total' : 'Your Time Today'}
+              </p>
               <Timer className="h-4 w-4 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-bold text-foreground">{formatMinutes(timeSummary.todayMinutes)}</p>
           </div>
           <div className="app-card p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pending Approvals</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {isAdminUser ? 'Pending Approvals' : 'Your Pending Entries'}
+              </p>
               <ClipboardCheck className="h-4 w-4 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-bold text-foreground">{timeSummary.pendingApprovals}</p>
@@ -291,7 +362,7 @@ export default function TimeClock() {
 
         <AnimatePresence mode="wait">
           {/* STEP 1: Enter Code */}
-          {step === 'code' && (
+          {step === 'code' && isAdminUser && (
             <motion.div key="code" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="bg-card border border-border rounded-2xl p-6 space-y-4">
               <p className="text-sm font-medium text-foreground">Enter your employee code</p>
@@ -362,7 +433,7 @@ export default function TimeClock() {
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <><LogIn className="w-4 h-4 mr-2" /> Clock In</>}
               </Button>
-              <button onClick={reset} className="w-full text-xs text-muted-foreground underline">Back</button>
+              {isAdminUser && <button onClick={reset} className="w-full text-xs text-muted-foreground underline">Back</button>}
             </motion.div>
           )}
 
@@ -413,7 +484,7 @@ export default function TimeClock() {
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <><LogOut className="w-4 h-4 mr-2" /> Clock Out</>}
               </Button>
-              <button onClick={reset} className="w-full text-xs text-muted-foreground underline">Switch Employee</button>
+              {isAdminUser && <button onClick={reset} className="w-full text-xs text-muted-foreground underline">Switch Employee</button>}
             </motion.div>
           )}
         </AnimatePresence>
@@ -423,14 +494,16 @@ export default function TimeClock() {
           <div className="app-card-header">
             <div>
               <p className="app-card-title">Recent Time Entries</p>
-              <p className="app-card-description">Latest punches for office review.</p>
+              <p className="app-card-description">
+                {isAdminUser ? 'Latest punches for office review.' : 'Only your punches are shown.'}
+              </p>
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="app-table">
               <thead className="app-table-head">
                 <tr>
-                  <th className="px-4 py-3 text-left">Employee</th>
+                  {isAdminUser && <th className="px-4 py-3 text-left">Employee</th>}
                   <th className="px-4 py-3 text-left">Job</th>
                   <th className="px-4 py-3 text-left">Clock In</th>
                   <th className="px-4 py-3 text-left">Duration</th>
@@ -440,11 +513,11 @@ export default function TimeClock() {
               <tbody>
                 {timeSummary.recent.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No time entries yet.</td>
+                    <td colSpan={isAdminUser ? 5 : 4} className="px-4 py-8 text-center text-sm text-muted-foreground">No time entries yet.</td>
                   </tr>
                 ) : timeSummary.recent.map(entry => (
                   <tr key={entry.id} className="app-table-row">
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">{entry.employee_name || entry.employee_code || 'Employee'}</td>
+                    {isAdminUser && <td className="px-4 py-3 text-sm font-medium text-foreground">{entry.employee_name || entry.employee_code || 'Employee'}</td>}
                     <td className="px-4 py-3 text-sm text-muted-foreground">{entry.job_address || entry.job_title || 'No job'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), 'MMM d, h:mm a') : '-'}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{formatMinutes(entry.duration_minutes || Math.round(Number(entry.hours || 0) * 60))}</td>

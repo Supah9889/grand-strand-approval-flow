@@ -9,7 +9,7 @@ import { X, Loader2, Search, ChevronDown, Clock, UserPlus, Send, User } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { BLOCK_PRESETS, EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG } from '@/lib/calendarHelpers';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
 
 const empty = {
@@ -80,7 +80,7 @@ function EmployeeSearch({ employees, selectedId, onSelect }) {
   );
 }
 
-export default function CalendarEventModal({ open, onClose, jobs = [], prefilledDate = '' }) {
+export default function CalendarEventModal({ open, onClose, jobs = [], prefilledDate = '', canManageSchedule = getIsAdmin() }) {
   const [step, setStep] = useState('job');
   const [jobSearch, setJobSearch] = useState('');
   const [form, setForm] = useState(empty);
@@ -123,6 +123,9 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
+      if (!canManageSchedule) {
+        throw new Error('Please contact the office to update the schedule.');
+      }
       let startDate = data.start_date;
       if (data.start_time) startDate = `${data.start_date}T${data.start_time}`;
       let endDate = data.start_date;
@@ -176,6 +179,9 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(assignedEmployee && sendNotification ? 'Event saved & employee notified' : 'Event saved');
       handleClose();
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Please contact the office to update the schedule.');
     },
   });
 
@@ -334,7 +340,7 @@ export default function CalendarEventModal({ open, onClose, jobs = [], prefilled
                   <div className="flex gap-2 pt-1">
                     <Button type="button" variant="outline" className="flex-1 h-10 rounded-xl" onClick={handleClose}>Cancel</Button>
                     <Button className="flex-1 h-10 rounded-xl" style={form.color ? { backgroundColor: form.color, borderColor: form.color } : {}}
-                      disabled={!form.title || !form.start_date || createMutation.isPending}
+                      disabled={!canManageSchedule || !form.title || !form.start_date || createMutation.isPending}
                       onClick={() => createMutation.mutate(form)}>
                       {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Event'}
                     </Button>

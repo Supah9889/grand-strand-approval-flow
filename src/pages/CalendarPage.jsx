@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import AppLayout from '../components/AppLayout';
 import CalendarEventModal from '../components/CalendarEventModal';
 import CalendarEventDetail from '../components/CalendarEventDetail';
 import { EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG, getEventColor, formatEventTime } from '@/lib/calendarHelpers';
+import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { toast } from 'sonner';
 
 const VIEWS = [
   { key: 'month',    label: 'Month',    icon: Calendar },
@@ -32,8 +34,7 @@ export default function CalendarPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterStaff, setFilterStaff] = useState('all');
   const [search, setSearch] = useState('');
-
-  const queryClient = useQueryClient();
+  const canManageSchedule = getIsAdmin();
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['calendar-events'],
@@ -47,11 +48,6 @@ export default function CalendarPage() {
     queryKey: ['employees-active'],
     queryFn: () => base44.entities.Employee.filter({ active: true }),
     staleTime: 60000,
-  });
-
-  const updateEvent = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.CalendarEvent.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar-events'] }),
   });
 
   // Curated staff options from the employee directory rather than raw event strings.
@@ -78,6 +74,10 @@ export default function CalendarPage() {
     filteredEvents.filter(e => e.start_date && isSameDay(parseISO(e.start_date.split('T')[0]), day));
 
   const handleDayClick = (day) => {
+    if (!canManageSchedule) {
+      toast.info('Please contact the office to update the schedule.');
+      return;
+    }
     setPrefilledDate(format(day, 'yyyy-MM-dd'));
     setShowModal(true);
   };
@@ -143,7 +143,7 @@ export default function CalendarPage() {
               <div
                 key={day.toISOString()}
                 onClick={() => handleDayClick(day)}
-                className={`bg-card min-h-[92px] p-2 cursor-pointer hover:bg-secondary/30 transition-colors ${!inMonth ? 'opacity-40' : ''}`}
+                className={`bg-card min-h-[92px] p-2 transition-colors ${canManageSchedule ? 'cursor-pointer hover:bg-secondary/30' : 'cursor-default'} ${!inMonth ? 'opacity-40' : ''}`}
               >
                 <p className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-0.5 ${
                   isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
@@ -182,7 +182,7 @@ export default function CalendarPage() {
             <div
               key={day.toISOString()}
               onClick={() => handleDayClick(day)}
-              className={`border border-border rounded-xl p-2 min-h-[150px] cursor-pointer hover:bg-secondary/20 transition-colors ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
+              className={`border border-border rounded-xl p-2 min-h-[150px] transition-colors ${canManageSchedule ? 'cursor-pointer hover:bg-secondary/20' : 'cursor-default'} ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
             >
               <p className={`text-xs font-medium mb-1.5 text-center ${isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                 {format(day, 'EEE')}<br />{format(day, 'd')}
@@ -360,9 +360,15 @@ export default function CalendarPage() {
                 </Button>
               );
             })}
-            <Button size="sm" className="h-8 rounded-lg text-xs ml-1" onClick={() => { setPrefilledDate(''); setShowModal(true); }}>
-              <Plus className="w-3.5 h-3.5 mr-1" />Add
-            </Button>
+            {canManageSchedule ? (
+              <Button size="sm" className="h-8 rounded-lg text-xs ml-1" onClick={() => { setPrefilledDate(''); setShowModal(true); }}>
+                <Plus className="w-3.5 h-3.5 mr-1" />Add
+              </Button>
+            ) : (
+              <div className="max-w-[180px] text-right text-xs text-muted-foreground">
+                Please contact the office to update the schedule.
+              </div>
+            )}
           </div>
         </div>
 
@@ -407,6 +413,7 @@ export default function CalendarPage() {
         onClose={() => { setShowModal(false); setPrefilledDate(''); }}
         jobs={jobs}
         prefilledDate={prefilledDate}
+        canManageSchedule={canManageSchedule}
       />
 
       <CalendarEventDetail
@@ -414,6 +421,7 @@ export default function CalendarPage() {
         event={selectedEvent}
         job={selectedJob}
         onClose={() => setSelectedEvent(null)}
+        canManageSchedule={canManageSchedule}
       />
     </AppLayout>
   );

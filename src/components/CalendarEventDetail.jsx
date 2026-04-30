@@ -8,7 +8,7 @@ import { X, MapPin, CalendarDays, Clock, User, Loader2, StickyNote, Pencil, Tras
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
-import { getInternalRole } from '@/lib/adminAuth';
+import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG, BLOCK_PRESETS, getEventColor, formatEventTime } from '@/lib/calendarHelpers';
 import { logAudit } from '@/lib/audit';
 
@@ -28,7 +28,7 @@ function extractTime(isoString) {
   return isoString.split('T')[1]?.slice(0, 5) || '';
 }
 
-export default function CalendarEventDetail({ event, job, open, onClose }) {
+export default function CalendarEventDetail({ event, job, open, onClose, canManageSchedule = getIsAdmin() }) {
   const [mode, setMode] = useState('view'); // 'view' | 'edit' | 'delete'
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -37,7 +37,6 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
   const [selectedPreset, setSelectedPreset] = useState(null);
   const queryClient = useQueryClient();
   const role = getInternalRole();
-  const isAdmin = role === 'admin';
 
   // Sync form when event changes
   useEffect(() => {
@@ -65,6 +64,9 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
+      if (!canManageSchedule) {
+        throw new Error('Please contact the office to update the schedule.');
+      }
       let startDate = data.start_date;
       if (data.start_time) startDate = `${data.start_date}T${data.start_time}`;
       let endDate = data.start_date;
@@ -111,10 +113,17 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
       toast.success('Event updated');
       setMode('view');
     },
+    onError: (error) => {
+      toast.error(error?.message || 'Please contact the office to update the schedule.');
+      setMode('view');
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      if (!canManageSchedule) {
+        throw new Error('Please contact the office to update the schedule.');
+      }
       await base44.entities.CalendarEvent.delete(event.id);
       await logAudit({
         module: 'job',
@@ -133,6 +142,10 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success('Event removed from calendar');
       onClose();
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Please contact the office to update the schedule.');
+      setMode('view');
     },
   });
 
@@ -192,7 +205,7 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
                   {(job?.title || job?.address) && <p className="text-xs font-medium mt-0.5" style={{ color }}>{job?.title || job?.address}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {isAdmin && mode === 'view' && (
+                  {canManageSchedule && mode === 'view' && (
                     <>
                       <button onClick={() => setMode('edit')} title="Edit event"
                         className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
@@ -250,7 +263,7 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
                       <p className="text-sm text-foreground">{event.notes}</p>
                     </div>
                   )}
-                  {isAdmin && event.internal_notes && (
+                  {canManageSchedule && event.internal_notes && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                       <p className="text-xs text-amber-700 font-medium mb-1">Internal Notes</p>
                       <p className="text-sm text-amber-800">{event.internal_notes}</p>
@@ -258,10 +271,14 @@ export default function CalendarEventDetail({ event, job, open, onClose }) {
                   )}
 
                   {/* Quick status update (admin) */}
-                  {isAdmin && (
+                  {canManageSchedule && (
                     <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1.5">Quick Status Update</p>
                       <Select value={event.status} onValueChange={v => {
+                        if (!canManageSchedule) {
+                          toast.info('Please contact the office to update the schedule.');
+                          return;
+                        }
                         base44.entities.CalendarEvent.update(event.id, { status: v })
                           .then(() => queryClient.invalidateQueries({ queryKey: ['calendar-events'] }));
                       }}>

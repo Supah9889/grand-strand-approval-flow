@@ -82,7 +82,7 @@ export default function JobScheduleTab({ job, isAdmin, defaultShowAdd = false })
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const actorName = getInternalRole();
-  const [showAdd, setShowAdd] = useState(defaultShowAdd);
+  const [showAdd, setShowAdd] = useState(defaultShowAdd && isAdmin);
   const [form, setForm] = useState({
     title: '',
     event_type: 'job_visit',
@@ -129,6 +129,10 @@ export default function JobScheduleTab({ job, isAdmin, defaultShowAdd = false })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = () => {
+    if (!isAdmin) {
+      toast.info('Please contact the office to update the schedule.');
+      return;
+    }
     if (!form.title || !form.start_date) { toast.error('Title and start date are required'); return; }
     const startISO = form.all_day ? form.start_date : `${form.start_date}T${form.start_time || '08:00'}`;
     const endISO = form.end_date
@@ -154,7 +158,7 @@ export default function JobScheduleTab({ job, isAdmin, defaultShowAdd = false })
       )}
 
       {/* Add form */}
-      {showAdd && (
+      {showAdd && isAdmin && (
         <div className="bg-secondary/30 border border-border rounded-2xl p-4 space-y-3">
           <p className="text-sm font-semibold text-foreground">New Schedule Item</p>
           <div className="space-y-1">

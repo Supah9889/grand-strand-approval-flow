@@ -2,23 +2,39 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigation } from '@/lib/NavigationContext';
 import { getInternalRole, isUnlocked } from '@/lib/adminAuth';
-import { Home, Search, Clock, DollarSign, Settings } from 'lucide-react';
+import { Home, Search, Clock, DollarSign, Settings, Briefcase, CalendarDays, FolderOpen, MoreHorizontal } from 'lucide-react';
 
-const ALL_NAV_ITEMS = [
+const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
   { label: 'Search', tabName: 'search', primaryPath: '/global-search', icon: Search },
   { label: 'Time', tabName: 'time', primaryPath: '/time-clock', icon: Clock },
-  { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign, adminOnly: true },
+  { label: 'Financials', tabName: 'finance', primaryPath: '/financials', icon: DollarSign },
   { label: 'Admin', tabName: 'admin', primaryPath: '/admin', icon: Settings },
 ];
 
-function getActiveTab(pathname) {
-  if (/^\/(dashboard|job-hub|admin-overview)/.test(pathname)) return 'dashboard';
-  if (/^\/(search|global-search)/.test(pathname)) return 'search';
+const STAFF_NAV_ITEMS = [
+  { label: 'Jobs', tabName: 'jobs', primaryPath: '/search', icon: Briefcase },
+  { label: 'Schedule', tabName: 'schedule', primaryPath: '/calendar', icon: CalendarDays },
+  { label: 'Time', tabName: 'time', primaryPath: '/time-clock', icon: Clock },
+  { label: 'Documents', tabName: 'documents', primaryPath: '/job-comms', icon: FolderOpen },
+  { label: 'More', tabName: 'more', primaryPath: '/dashboard', icon: MoreHorizontal },
+];
+
+function getActiveTab(pathname, isAdminOrOwner) {
+  if (isAdminOrOwner) {
+    if (/^\/(dashboard|job-hub|admin-overview)/.test(pathname)) return 'dashboard';
+    if (/^\/(search|global-search)/.test(pathname)) return 'search';
+    if (/^\/(time-entries|time-clock)/.test(pathname)) return 'time';
+    if (/^\/(financials|invoices|expenses|payments)/.test(pathname)) return 'finance';
+    if (/^\/admin/.test(pathname)) return 'admin';
+    return 'dashboard';
+  }
+
+  if (/^\/(search|job-hub|new-job|global-search)/.test(pathname)) return 'jobs';
+  if (/^\/calendar/.test(pathname)) return 'schedule';
   if (/^\/(time-entries|time-clock)/.test(pathname)) return 'time';
-  if (/^\/(financials|invoices|expenses|payments)/.test(pathname)) return 'finance';
-  if (/^\/admin/.test(pathname)) return 'admin';
-  return 'dashboard';
+  if (/^\/job-comms/.test(pathname)) return 'documents';
+  return 'more';
 }
 
 export default function BottomNav() {
@@ -28,8 +44,8 @@ export default function BottomNav() {
   const role = getInternalRole();
   const isAdminOrOwner = role === 'admin' || role === 'owner';
 
-  const NAV_ITEMS = ALL_NAV_ITEMS.filter(item => !item.adminOnly || isAdminOrOwner);
-  const activeTab = getActiveTab(location.pathname);
+  const NAV_ITEMS = isAdminOrOwner ? ADMIN_NAV_ITEMS : STAFF_NAV_ITEMS;
+  const activeTab = getActiveTab(location.pathname, isAdminOrOwner);
 
   const handleTabClick = (tabName, primaryPath) => {
     // Block navigation entirely if the app session is not unlocked

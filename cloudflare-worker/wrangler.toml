@@ -1,0 +1,7 @@
+name = "grand-strand-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "PRIVATE_FILES"
+bucket_name = "grand-strand-private-files"

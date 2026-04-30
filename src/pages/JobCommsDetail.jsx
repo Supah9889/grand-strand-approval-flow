@@ -10,6 +10,8 @@ import AppLayout from '../components/AppLayout';
 import FileUploadArea from '../components/jobcomms/FileUploadArea';
 import FileGrid from '../components/jobcomms/FileGrid';
 import CommentThread from '../components/jobcomms/CommentThread';
+import { getInternalRole } from '@/lib/adminAuth';
+import { canManageJobFiles } from '@/lib/fileActions';
 
 const CATEGORY_LABEL = {
   before_photo: 'Before', progress_photo: 'Progress', after_photo: 'After',
@@ -23,6 +25,8 @@ export default function JobCommsDetail() {
   const jobId = new URLSearchParams(window.location.search).get('jobId');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const role = getInternalRole();
+  const canManageDocuments = canManageJobFiles({ role });
   const [activeTab, setActiveTab] = useState('files');
   const [showUpload, setShowUpload] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
@@ -84,7 +88,7 @@ export default function JobCommsDetail() {
               </button>
             ))}
           </div>
-          {activeTab === 'files' && (
+          {activeTab === 'files' && canManageDocuments && (
             <Button size="sm" className="h-9 rounded-xl gap-1 text-xs shrink-0" onClick={() => setShowUpload(v => !v)}>
               <Plus className="w-3.5 h-3.5" /> Upload
             </Button>
@@ -92,7 +96,7 @@ export default function JobCommsDetail() {
         </div>
 
         <AnimatePresence>
-          {showUpload && activeTab === 'files' && (
+          {showUpload && activeTab === 'files' && canManageDocuments && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <FileUploadArea
                 jobId={jobId}
@@ -103,6 +107,12 @@ export default function JobCommsDetail() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {activeTab === 'files' && !canManageDocuments && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Please ask the office to upload this document.
+          </div>
+        )}
 
         {/* File filters */}
         {activeTab === 'files' && (

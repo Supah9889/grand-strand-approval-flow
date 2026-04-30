@@ -6,12 +6,22 @@ import { base44 } from '@/api/base44Client';
 import { logAudit } from '@/lib/audit';
 
 /**
+ * Staff can view documents, but document management is office/admin work.
+ * This keeps protected work orders, signed docs, and approval records from
+ * being added or removed by field users through client-side controls.
+ */
+export function canManageJobFiles({ role }) {
+  return role === 'admin' || role === 'owner';
+}
+
+/**
  * Returns true if the current user can delete job files.
  * @param {{ role: string, permissions: object }} param0
  */
 export function canDeleteFile({ role, permissions }) {
   if (role === 'owner') return true;
-  return !!permissions?.delete_job_files;
+  if (role !== 'admin') return false;
+  return permissions?.delete_job_files !== false;
 }
 
 /**

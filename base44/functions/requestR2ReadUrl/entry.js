@@ -1,0 +1,47 @@
+import {
+  callWorker,
+  createContext,
+  errorResponse,
+  json,
+  normalizeReadPayload,
+  readJson,
+  requireJobAccess,
+  requireReadPermission,
+  requireScopedFileKey,
+  requireUser,
+  resolveActor,
+} from "../_shared/r2Proxy.js";
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  try {
+    const base44 = createContext(req);
+    const user = await requireUser(base44);
+    const actor = await resolveActor(base44, user);
+    const payload = normalizeReadPayload(await readJson(req));
+
+    await requireJobAccess(base44, actor, payload.jobId);
+    requireReadPermission(actor);
+    requireScopedFileKey(payload.jobId, payload.fileKey);
+
+    const workerResult = await callWorker("/files/read-url", {
+      fileKey: payload.fileKey,
+      jobId: payload.jobId,
+      category: payload.category,
+      purpose: payload.purpose,
+    });
+
+    return json({
+      readUrl: workerResult.signedUrl,
+      signedUrl: workerResult.signedUrl,
+      fileKey: payload.fileKey,
+      r2Key: payload.fileKey,
+      expiresIn: workerResult.expiresIn || 300,
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+});

@@ -13,6 +13,7 @@ import TermsOfService from '../components/TermsOfService';
 export default function JobApproval() {
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
+  const signingToken = urlParams.get('token') || urlParams.get('signatureToken') || urlParams.get('signature_token') || urlParams.get('approvalToken') || urlParams.get('approval_token') || '';
   const navigate = useNavigate();
   const [agreed, setAgreed] = useState(false);
 
@@ -76,7 +77,7 @@ export default function JobApproval() {
               <p className="text-xs text-muted-foreground mt-1">Address</p>
               <p className="text-sm text-foreground">{job.address}</p>
             </div>
-            {job.signature_url && (
+            {/^https?:\/\//i.test(job.signature_url || '') && (
               <div className="border border-border rounded-xl p-3">
                 <p className="text-xs text-muted-foreground mb-2">Signature on file</p>
                 <img src={job.signature_url} alt="Signature" className="max-h-20 mx-auto" />
@@ -167,7 +168,7 @@ export default function JobApproval() {
           <Button
             className="w-full h-12 rounded-xl text-base font-medium"
             disabled={!agreed}
-            onClick={() => navigate(`/signature?jobId=${jobId}`)}
+            onClick={() => navigate(`/signature?jobId=${jobId}${signingToken ? `&token=${encodeURIComponent(signingToken)}` : ''}`)}
           >
             Continue to Sign
           </Button>

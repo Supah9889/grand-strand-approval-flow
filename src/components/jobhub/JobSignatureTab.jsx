@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { getSession } from '@/lib/adminAuth';
 import { normalizeSignatureRecordPayload, validateSignatureRecordPayload } from '@/lib/signatureRecords';
-import { JOB_PRIMARY_ACTIONS, isJobSigned, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
+import { JOB_PRIMARY_ACTIONS, isJobSigned, getBestSignedDocUrl, getJobPrimaryAction, hasSourceWorkOrder } from '@/lib/signedDocHelpers';
+import { buildApprovalPath, ensureSignaturePublicToken } from '@/lib/signingLinks';
 import {
   SIGNATURE_DOCUMENT_MODES,
   SIGNATURE_PLACEMENTS,
@@ -28,6 +29,19 @@ function toR2Ref(key) {
 
 function keyFromR2Ref(value) {
   return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+function isMissingR2Function(error) {
+  const status = error?.response?.status || error?.status;
+  const message = String(error?.message || error?.response?.data?.error || error?.response?.data?.message || '').toLowerCase();
+  return status === 404 || message.includes('not found') || message.includes('function');
+}
+
+function getR2UploadErrorMessage(error, fallback = 'Work order upload failed') {
+  if (isMissingR2Function(error)) {
+    return 'Secure file upload is not configured yet. Please contact admin.';
+  }
+  return getErrorMessage(error, fallback);
 }
 
 async function uploadFileToR2({ jobId, file, category, purpose }) {
@@ -170,7 +184,7 @@ function verifySignatureSetup(savedJob, expected) {
 
   if (expected.signature_document_mode === SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF) {
     checks.push(
-      ['Work order PDF', expected.source_work_order_file_url ? 'uploaded' : 'missing', savedJob.source_work_order_file_url ? 'uploaded' : 'missing'],
+      ['Work order PDF', hasSourceWorkOrder(expected) ? 'uploaded' : 'missing', hasSourceWorkOrder(savedJob) ? 'uploaded' : 'missing'],
       ['Work order file name', expected.source_work_order_file_name || '', savedJob.source_work_order_file_name || ''],
     );
   }
@@ -199,7 +213,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState(normalizeSignatureDocumentMode(job.signature_document_mode));
   const [placement, setPlacement] = useState(normalizeSignaturePlacement(job.signature_placement));
-  const [sourceUrl, setSourceUrl] = useState(job.source_work_order_file_url || '');
+  const [sourceUrl, setSourceUrl] = useState(job.source_work_order_file_url || toR2Ref(job.source_work_order_r2_key));
   const [sourceR2Key, setSourceR2Key] = useState(job.source_work_order_r2_key || keyFromR2Ref(job.source_work_order_file_url));
   const [sourceName, setSourceName] = useState(job.source_work_order_file_name || '');
   const [uploading, setUploading] = useState(false);
@@ -213,7 +227,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
   useEffect(() => {
     setMode(normalizeSignatureDocumentMode(job.signature_document_mode));
     setPlacement(normalizeSignaturePlacement(job.signature_placement));
-    setSourceUrl(job.source_work_order_file_url || '');
+    setSourceUrl(job.source_work_order_file_url || toR2Ref(job.source_work_order_r2_key));
     setSourceR2Key(job.source_work_order_r2_key || keyFromR2Ref(job.source_work_order_file_url));
     setSourceName(job.source_work_order_file_name || '');
   }, [job.id, job.signature_document_mode, job.signature_placement, job.source_work_order_file_url, job.source_work_order_r2_key, job.source_work_order_file_name]);
@@ -222,13 +236,13 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
     mutationFn: async () => {
       setSaveStatus({ state: 'saving', message: 'Saving signature setup...', details: null });
 
-      if (isPdfMode && !sourceUrl) {
+      if (isPdfMode && !sourceUrl && !sourceR2Key) {
         throw new Error('Please upload a work order PDF');
       }
 
       const payload = {
         signature_document_mode: mode,
-        source_work_order_file_url: sourceUrl,
+        source_work_order_file_url: sourceUrl || toR2Ref(sourceR2Key),
         source_work_order_r2_key: sourceR2Key || keyFromR2Ref(sourceUrl),
         source_work_order_file_name: sourceName,
         signature_placement: placement,
@@ -299,14 +313,14 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
       setSaveStatus({ state: 'idle', message: '', details: null });
       toast.success('Work order PDF uploaded');
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Work order upload failed'));
+      toast.error(getR2UploadErrorMessage(error));
     } finally {
       setUploading(false);
     }
   };
 
   const handleSave = () => {
-    if (isPdfMode && !sourceUrl) {
+    if (isPdfMode && !sourceUrl && !sourceR2Key) {
       setSaveStatus({ state: 'error', message: 'Please upload a work order PDF', details: null });
       toast.error('Please upload a work order PDF');
       return;
@@ -391,11 +405,11 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
             />
           </div>
 
-          {sourceUrl && (
+          {(sourceUrl || sourceR2Key) && (
             <button
               type="button"
               onClick={() => onPreview?.({
-                url: sourceUrl,
+                url: sourceUrl || toR2Ref(sourceR2Key),
                 r2Key: sourceR2Key || keyFromR2Ref(sourceUrl),
                 category: 'contract',
                 purpose: 'preview_source_work_order',
@@ -701,7 +715,7 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
 
         {/* Expand / admin actions */}
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
-          {(record.description || record.notes || record.output_file_url) && (
+          {(record.description || record.notes || record.output_file_url || record.signed_output_file_url || record.output_file_r2_key || record.signed_output_r2_key) && (
             <button
               onClick={() => setExpanded(v => !v)}
               className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
@@ -727,11 +741,11 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
           {record.description && (
             <p className="text-xs text-muted-foreground leading-relaxed">{record.description}</p>
           )}
-          {record.output_file_url && (
+          {(record.output_file_url || record.signed_output_file_url || record.output_file_r2_key || record.signed_output_r2_key) && (
             <button
               onClick={() => onPreview?.({
-                url: record.output_file_url,
-                r2Key: record.signed_output_r2_key || record.output_file_r2_key || keyFromR2Ref(record.output_file_url),
+                url: record.output_file_url || record.signed_output_file_url,
+                r2Key: record.signed_output_r2_key || record.output_file_r2_key || keyFromR2Ref(record.output_file_url) || keyFromR2Ref(record.signed_output_file_url),
                 category: 'signed_doc',
                 purpose: 'preview_signature_record_output',
                 title: record.output_file_name || record.title || 'Signed document',
@@ -761,10 +775,27 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
   const signedDocUrl = getBestSignedDocUrl(job, records);
   const signedDocR2Key = getBestSignedDocR2Key(job, records);
   const primaryAction = getJobPrimaryAction(job, records, { canUploadWorkOrder: isAdmin });
-  const hasOriginal = !!(job.source_work_order_file_url || job.source_work_order_r2_key);
+  const hasOriginal = hasSourceWorkOrder(job);
+  const sourceWorkOrderRef = job.source_work_order_file_url || toR2Ref(job.source_work_order_r2_key);
+  const needsSourceWorkOrder = primaryAction.type === JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER ||
+    primaryAction.type === JOB_PRIMARY_ACTIONS.WAITING_ON_WORK_ORDER;
+  const summaryTitle = isSigned
+    ? 'Job Signed & Approved'
+    : needsSourceWorkOrder
+      ? 'Upload Work Order'
+      : isPending
+        ? 'Awaiting Signature'
+        : 'Signature Not Yet Requested';
+  const summarySubtitle = isSigned
+    ? `Signed${job.approval_timestamp ? ` ${format(parseISO(job.approval_timestamp), 'MMM d, yyyy h:mm a')}` : ''}`
+    : needsSourceWorkOrder
+      ? 'Upload the work order PDF before sending this job for signature.'
+      : isPending
+        ? 'Signature request sent to customer'
+        : 'No signature collected yet';
 
   const handleViewSigned = () => {
-    if (signedDocUrl) {
+    if (signedDocUrl || signedDocR2Key) {
       onPreview({
         url: signedDocUrl,
         r2Key: signedDocR2Key,
@@ -778,7 +809,7 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
     }
   };
 
-  const handlePrimaryAction = () => {
+  const handlePrimaryAction = async () => {
     if (primaryAction.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT || primaryAction.type === JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING) {
       handleViewSigned();
       return;
@@ -788,7 +819,12 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
       return;
     }
     if (!primaryAction.disabled) {
-      navigate(`/approve?jobId=${job.id}`);
+      try {
+        const signingToken = await ensureSignaturePublicToken(job);
+        navigate(buildApprovalPath(job.id, signingToken));
+      } catch (error) {
+        toast.error(error?.message || 'Could not create a secure signing link.');
+      }
     }
   };
 
@@ -812,7 +848,7 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-foreground">
-            {isSigned ? 'Job Signed & Approved' : isPending ? 'Awaiting Signature' : 'Signature Not Yet Requested'}
+            {summaryTitle}
           </p>
           {job.locked && (
             <span className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
@@ -820,14 +856,7 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {isSigned
-            ? `Signed${job.approval_timestamp ? ` ${format(parseISO(job.approval_timestamp), 'MMM d, yyyy · h:mm a')}` : ''}`
-            : isPending
-              ? 'Signature request sent to customer'
-              : 'No signature collected yet'
-          }
-        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">{summarySubtitle}</p>
 
         {/* Signed: show signature thumbnail + doc action buttons */}
         {isSigned && (
@@ -847,7 +876,7 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
               {hasOriginal && (
                 <button
                   onClick={() => onPreview({
-                    url: job.source_work_order_file_url,
+                    url: sourceWorkOrderRef,
                     r2Key: job.source_work_order_r2_key || keyFromR2Ref(job.source_work_order_file_url),
                     category: 'contract',
                     purpose: 'preview_original_work_order',

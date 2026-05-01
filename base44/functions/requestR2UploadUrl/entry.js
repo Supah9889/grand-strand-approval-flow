@@ -1,14 +1,17 @@
 import {
   callWorker,
+  createPublicSignatureUpload,
   createContext,
   errorResponse,
   json,
   normalizeUploadPayload,
+  normalizeUploadVerificationPayload,
+  optionalUser,
   readJson,
   requireJobAccess,
   requireUploadPermission,
-  requireUser,
   resolveActor,
+  verifyPublicSignatureUploadedObject,
 } from "../_shared/r2Proxy.js";
 
 Deno.serve(async (req) => {
@@ -18,18 +21,57 @@ Deno.serve(async (req) => {
 
   try {
     const base44 = createContext(req);
-    const user = await requireUser(base44);
-    const actor = await resolveActor(base44, user);
-    const payload = normalizeUploadPayload(await readJson(req));
+    const body = await readJson(req);
+    if (body.action === "verify_public_signature_upload") {
+      const payload = normalizeUploadVerificationPayload(body);
+      const result = await verifyPublicSignatureUploadedObject(base44, payload);
+      return json({
+        ok: true,
+        fileKey: result.fileKey,
+        r2Key: result.fileKey,
+        size: result.size,
+        maxSize: result.maxSize,
+      });
+    }
 
-    await requireJobAccess(base44, actor, payload.jobId);
-    requireUploadPermission(actor, payload.category);
+    const payload = normalizeUploadPayload(body);
+    let uploadedBy = "Public signer";
+
+    if (payload.publicSigning) {
+      const publicUpload = await createPublicSignatureUpload(base44, payload);
+      return json({
+        uploadUrl: publicUpload.uploadUrl,
+        fileKey: publicUpload.fileKey,
+        r2Key: publicUpload.fileKey,
+        uploadSessionId: publicUpload.uploadSessionId,
+        expiresIn: publicUpload.expiresIn,
+        metadata: {
+          job_id: payload.jobId,
+          file_name: payload.fileName,
+          file_type: payload.fileType,
+          category: payload.category,
+          storage_provider: "r2",
+          r2_key: publicUpload.fileKey,
+          uploaded_by_name: uploadedBy,
+        },
+      });
+    } else {
+      const user = await optionalUser(base44);
+      if (!user) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const actor = await resolveActor(base44, user);
+
+      await requireJobAccess(base44, actor, payload.jobId);
+      requireUploadPermission(actor, payload.category);
+      uploadedBy = actor.name;
+    }
 
     const workerResult = await callWorker("/files/upload-url", {
       fileName: payload.fileName,
       fileType: payload.fileType,
       jobId: payload.jobId,
-      uploadedBy: actor.name,
+      uploadedBy,
       category: payload.category,
       purpose: payload.purpose,
       fileSize: payload.fileSize,
@@ -48,7 +90,7 @@ Deno.serve(async (req) => {
         category: payload.category,
         storage_provider: "r2",
         r2_key: workerResult.fileKey,
-        uploaded_by_name: actor.name,
+        uploaded_by_name: uploadedBy,
       },
     });
   } catch (error) {

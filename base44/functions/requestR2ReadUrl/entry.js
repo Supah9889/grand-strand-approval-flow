@@ -4,11 +4,12 @@ import {
   errorResponse,
   json,
   normalizeReadPayload,
+  optionalUser,
   readJson,
   requireJobAccess,
+  requirePublicSignatureReadAccess,
   requireReadPermission,
   requireScopedFileKey,
-  requireUser,
   resolveActor,
 } from "../_shared/r2Proxy.js";
 
@@ -19,13 +20,20 @@ Deno.serve(async (req) => {
 
   try {
     const base44 = createContext(req);
-    const user = await requireUser(base44);
-    const actor = await resolveActor(base44, user);
     const payload = normalizeReadPayload(await readJson(req));
 
-    await requireJobAccess(base44, actor, payload.jobId);
-    requireReadPermission(actor);
-    requireScopedFileKey(payload.jobId, payload.fileKey);
+    if (payload.publicSigning) {
+      await requirePublicSignatureReadAccess(base44, payload);
+    } else {
+      const user = await optionalUser(base44);
+      if (!user) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const actor = await resolveActor(base44, user);
+      await requireJobAccess(base44, actor, payload.jobId);
+      requireReadPermission(actor);
+      requireScopedFileKey(payload.jobId, payload.fileKey);
+    }
 
     const workerResult = await callWorker("/files/read-url", {
       fileKey: payload.fileKey,

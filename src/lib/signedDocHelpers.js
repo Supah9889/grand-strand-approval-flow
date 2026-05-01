@@ -23,6 +23,22 @@ export function isJobSigned(job) {
   return job.status === 'approved' || job.status === 'locked';
 }
 
+export function keyFromR2Ref(value) {
+  return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+export function isBrowserUrl(value) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+export function hasSourceWorkOrder(job) {
+  return Boolean(
+    job?.source_work_order_file_url ||
+    job?.source_work_order_r2_key ||
+    keyFromR2Ref(job?.source_work_order_file_url)
+  );
+}
+
 /**
  * Given a job and an optional array of its SignatureRecords,
  * returns the best URL for the signed document.
@@ -36,14 +52,30 @@ export function isJobSigned(job) {
  */
 export function getBestSignedDocUrl(job, records = []) {
   const primary = records.find(r => r.status === 'signed' && r.is_primary);
-  if (primary?.signed_output_file_url) return primary.signed_output_file_url;
-  if (primary?.output_file_url) return primary.output_file_url;
+  if (isBrowserUrl(primary?.signed_output_file_url)) return primary.signed_output_file_url;
+  if (isBrowserUrl(primary?.output_file_url)) return primary.output_file_url;
 
   const anySigned = records.find(r => r.status === 'signed');
-  if (anySigned?.signed_output_file_url) return anySigned.signed_output_file_url;
-  if (anySigned?.output_file_url) return anySigned.output_file_url;
+  if (isBrowserUrl(anySigned?.signed_output_file_url)) return anySigned.signed_output_file_url;
+  if (isBrowserUrl(anySigned?.output_file_url)) return anySigned.output_file_url;
 
-  return job.signed_output_file_url || null;
+  return isBrowserUrl(job.signed_output_file_url) ? job.signed_output_file_url : null;
+}
+
+export function getBestSignedDocR2Key(job, records = []) {
+  const primary = records.find(r => r.status === 'signed' && r.is_primary);
+  if (primary?.signed_output_r2_key) return primary.signed_output_r2_key;
+  if (primary?.output_file_r2_key) return primary.output_file_r2_key;
+  if (keyFromR2Ref(primary?.signed_output_file_url)) return keyFromR2Ref(primary.signed_output_file_url);
+  if (keyFromR2Ref(primary?.output_file_url)) return keyFromR2Ref(primary.output_file_url);
+
+  const anySigned = records.find(r => r.status === 'signed');
+  if (anySigned?.signed_output_r2_key) return anySigned.signed_output_r2_key;
+  if (anySigned?.output_file_r2_key) return anySigned.output_file_r2_key;
+  if (keyFromR2Ref(anySigned?.signed_output_file_url)) return keyFromR2Ref(anySigned.signed_output_file_url);
+  if (keyFromR2Ref(anySigned?.output_file_url)) return keyFromR2Ref(anySigned.output_file_url);
+
+  return job.signed_output_r2_key || keyFromR2Ref(job.signed_output_file_url) || null;
 }
 
 /**
@@ -51,13 +83,28 @@ export function getBestSignedDocUrl(job, records = []) {
  */
 export function buildSignedDocPreview(job) {
   const url = getBestSignedDocUrl(job);
-  if (!url) return null;
-  return {
-    url,
+  const r2Key = url ? null : getBestSignedDocR2Key(job);
+  if (!url && !r2Key) return null;
+
+  const preview = {
     title: job.source_work_order_file_name
       ? `Signed: ${job.source_work_order_file_name}`
       : 'Signed Work Order (Final)',
     docType: 'Signed Work Order (Final)',
+  };
+
+  if (url) {
+    return {
+      ...preview,
+      url,
+      isR2Backed: false,
+    };
+  }
+
+  return {
+    ...preview,
+    r2Key,
+    isR2Backed: true,
   };
 }
 
@@ -66,14 +113,16 @@ export function buildSignedDocPreview(job) {
  */
 export function getJobPrimaryAction(job, records = [], options = {}) {
   const signedDocUrl = getBestSignedDocUrl(job, records);
+  const signedDocR2Key = getBestSignedDocR2Key(job, records);
   const canUpload = options.canUploadWorkOrder ?? true;
 
   if (isJobSigned(job)) {
-    if (signedDocUrl) {
+    if (signedDocUrl || signedDocR2Key) {
       return {
         type: JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT,
         label: 'View Signed Document',
         url: signedDocUrl,
+        r2Key: signedDocR2Key,
       };
     }
     return {
@@ -83,7 +132,7 @@ export function getJobPrimaryAction(job, records = [], options = {}) {
     };
   }
 
-  if (isStampUploadedPdfMode(job.signature_document_mode) && !job.source_work_order_file_url) {
+  if (isStampUploadedPdfMode(job.signature_document_mode) && !hasSourceWorkOrder(job)) {
     if (!canUpload) {
       return {
         type: JOB_PRIMARY_ACTIONS.WAITING_ON_WORK_ORDER,

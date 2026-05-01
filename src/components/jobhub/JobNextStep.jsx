@@ -20,6 +20,51 @@ import { SIGNATURE_DOCUMENT_MODES } from '@/lib/signatureDocumentModes';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 import { JOB_PRIMARY_ACTIONS, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 
+function toR2Ref(key) {
+  return key ? `r2://${key}` : '';
+}
+
+function keyFromR2Ref(value) {
+  return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+async function uploadFileToR2({ jobId, file, category, purpose }) {
+  const response = await base44.functions.invoke('requestR2UploadUrl', {
+    jobId,
+    fileName: file.name,
+    fileType: file.type || 'application/octet-stream',
+    fileSize: file.size,
+    category,
+    purpose,
+  });
+  const data = response?.data || response;
+  if (!data?.uploadUrl || !data?.r2Key) throw new Error('R2 upload URL request failed.');
+
+  const uploadResponse = await fetch(data.uploadUrl, {
+    method: 'PUT',
+    headers: file.type ? { 'Content-Type': file.type } : {},
+    body: file,
+  });
+  if (!uploadResponse.ok) throw new Error('R2 upload failed.');
+
+  return { r2Key: data.r2Key, fileRef: toR2Ref(data.r2Key) };
+}
+
+async function resolveFileUrl({ jobId, value, r2Key, category, purpose }) {
+  const key = r2Key || keyFromR2Ref(value);
+  if (!key) return value || '';
+
+  const response = await base44.functions.invoke('requestR2ReadUrl', {
+    jobId,
+    fileKey: key,
+    category,
+    purpose,
+  });
+  const data = response?.data || response;
+  if (!data?.signedUrl) throw new Error('R2 read URL request failed.');
+  return data.signedUrl;
+}
+
 // ── Determine the current step ────────────────────────────────────────────────
 function getStep(job) {
   const primaryAction = getJobPrimaryAction(job);
@@ -80,8 +125,15 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
     if (step === 'signed') {
       const docUrl = getBestSignedDocUrl(job);
       if (docUrl) {
+        const resolvedUrl = await resolveFileUrl({
+          jobId: job.id,
+          value: docUrl,
+          r2Key: job.signed_output_r2_key || keyFromR2Ref(docUrl),
+          category: 'signed_doc',
+          purpose: 'preview_signed_document',
+        });
         setPreviewDoc({
-          url: docUrl,
+          url: resolvedUrl,
           title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order (Final)',
           docType: 'Signed Work Order (Final)',
         });
@@ -109,12 +161,17 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
 
     setUploading(true);
     try {
-      const result = await base44.integrations.Core.UploadFile({ file });
-      if (!result?.file_url) throw new Error('Upload failed: missing file URL');
+      const result = await uploadFileToR2({
+        jobId: job.id,
+        file,
+        category: 'contract',
+        purpose: 'source_work_order_pdf',
+      });
 
       // Save PDF to job AND auto-set mode to stamp
       await base44.entities.Job.update(job.id, {
-        source_work_order_file_url: result.file_url,
+        source_work_order_file_url: result.fileRef,
+        source_work_order_r2_key: result.r2Key,
         source_work_order_file_name: file.name,
         signature_document_mode: SIGNATURE_DOCUMENT_MODES.STAMP_UPLOADED_PDF,
         signature_placement: job.signature_placement || 'bottom_right',

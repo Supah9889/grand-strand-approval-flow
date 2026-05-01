@@ -16,6 +16,55 @@ import { renderDefaultApprovalDocument } from '@/lib/defaultApprovalTemplate';
 import { isStampUploadedPdfMode, normalizeSignatureDocumentMode } from '@/lib/signatureDocumentModes';
 import { stampWorkOrderPdf } from '@/lib/workOrderPdfStamping';
 
+function toR2Ref(key) {
+  return key ? `r2://${key}` : '';
+}
+
+function keyFromR2Ref(value) {
+  return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+async function uploadFileToR2({ jobId, file, category, purpose }) {
+  const response = await base44.functions.invoke('requestR2UploadUrl', {
+    jobId,
+    fileName: file.name,
+    fileType: file.type || 'application/octet-stream',
+    fileSize: file.size,
+    category,
+    purpose,
+  });
+  const data = response?.data || response;
+  if (!data?.uploadUrl || !data?.r2Key) throw new Error('R2 upload URL request failed.');
+
+  const uploadResponse = await fetch(data.uploadUrl, {
+    method: 'PUT',
+    headers: file.type ? { 'Content-Type': file.type } : {},
+    body: file,
+  });
+  if (!uploadResponse.ok) throw new Error('R2 upload failed.');
+
+  return {
+    r2Key: data.r2Key,
+    fileRef: toR2Ref(data.r2Key),
+    metadata: data.metadata || {},
+  };
+}
+
+async function resolveFileUrl({ jobId, value, r2Key, category, purpose }) {
+  const key = r2Key || keyFromR2Ref(value);
+  if (!key) return value || '';
+
+  const response = await base44.functions.invoke('requestR2ReadUrl', {
+    jobId,
+    fileKey: key,
+    category,
+    purpose,
+  });
+  const data = response?.data || response;
+  if (!data?.signedUrl) throw new Error('R2 read URL request failed.');
+  return data.signedUrl;
+}
+
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
@@ -46,7 +95,18 @@ export default function Signature() {
 
       const blob = await (await fetch(signatureData)).blob();
       const file = new File([blob], 'signature.png', { type: 'image/png' });
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const signatureUpload = await uploadFileToR2({
+        jobId,
+        file,
+        category: 'signed_doc',
+        purpose: 'raw_signature_image',
+      });
+      const signatureReadUrl = await resolveFileUrl({
+        jobId,
+        r2Key: signatureUpload.r2Key,
+        category: 'signed_doc',
+        purpose: 'render_signature_image',
+      });
       const now = new Date().toISOString();
       const statement = buildApprovalStatement(latestJob.customer_name, latestJob.address, latestJob.price);
 
@@ -54,10 +114,21 @@ export default function Signature() {
       try {
         approvalRecord = await upsertPrimaryJobApprovalRecord({
           job: latestJob,
-          signatureUrl: file_url,
+          signatureUrl: signatureUpload.fileRef,
           signedAt: now,
           actorName: 'Customer',
         });
+        await base44.entities.SignatureRecord.update(approvalRecord.id, {
+          signature_url: signatureUpload.fileRef,
+          signature_r2_key: signatureUpload.r2Key,
+          source_work_order_r2_key: latestJob.source_work_order_r2_key || keyFromR2Ref(latestJob.source_work_order_file_url),
+        });
+        approvalRecord = {
+          ...approvalRecord,
+          signature_url: signatureUpload.fileRef,
+          signature_r2_key: signatureUpload.r2Key,
+          source_work_order_r2_key: latestJob.source_work_order_r2_key || keyFromR2Ref(latestJob.source_work_order_file_url),
+        };
       } catch (recordError) {
         throw new Error('Signature was captured, but the approval record could not be saved. Please try submitting again before leaving this page.', { cause: recordError });
       }
@@ -71,30 +142,47 @@ export default function Signature() {
         const signatureDocumentMode = normalizeSignatureDocumentMode(approvalRecord.signature_document_mode || latestJob.signature_document_mode);
         const usesStampedPdf = isStampUploadedPdfMode(signatureDocumentMode);
 
-        if (usesStampedPdf && !approvalRecord.source_work_order_file_url) {
+        const sourceWorkOrderUrl = usesStampedPdf
+          ? await resolveFileUrl({
+              jobId,
+              value: approvalRecord.source_work_order_file_url,
+              r2Key: approvalRecord.source_work_order_r2_key,
+              category: 'contract',
+              purpose: 'stamp_source_work_order',
+            })
+          : '';
+
+        if (usesStampedPdf && !sourceWorkOrderUrl) {
           throw new Error('A source work order PDF is required before this job can be approved.');
         }
 
         const documentBlob = usesStampedPdf
           ? await stampWorkOrderPdf({
-              sourcePdfUrl: approvalRecord.source_work_order_file_url,
-              signatureUrl: file_url,
+              sourcePdfUrl: sourceWorkOrderUrl,
+              signatureUrl: signatureReadUrl,
               signerName: approvalRecord.signer_name || latestJob.customer_name,
               signedAt: approvalRecord.signed_date || now,
               placement: approvalRecord.signature_placement,
             })
-          : new Blob([renderDefaultApprovalDocument(latestJob, approvalRecord)], { type: 'text/html;charset=utf-8' });
+          : new Blob([renderDefaultApprovalDocument(latestJob, { ...approvalRecord, signature_url: signatureData })], { type: 'text/html;charset=utf-8' });
         const documentFileName = usesStampedPdf ? `work-authorization-${jobId}.pdf` : `work-authorization-${jobId}.html`;
         const documentFileType = usesStampedPdf ? 'application/pdf' : 'text/html';
         const documentDisplayName = usesStampedPdf ? 'Stamped Work Order PDF' : 'Customer Approval / Work Authorization';
         const documentFile = new File([documentBlob], documentFileName, { type: documentFileType });
-        const { file_url: outputFileUrl } = await base44.integrations.Core.UploadFile({ file: documentFile });
-        signedOutputFileUrl = outputFileUrl;
+        const outputUpload = await uploadFileToR2({
+          jobId,
+          file: documentFile,
+          category: 'signed_doc',
+          purpose: usesStampedPdf ? 'signed_stamped_document' : 'signed_approval_document',
+        });
+        signedOutputFileUrl = outputUpload.fileRef;
 
         await base44.entities.SignatureRecord.update(approvalRecord.id, {
           output_file_url: signedOutputFileUrl,
           output_file_name: documentDisplayName,
           signed_output_file_url: signedOutputFileUrl,
+          output_file_r2_key: outputUpload.r2Key,
+          signed_output_r2_key: outputUpload.r2Key,
           signature_document_mode: signatureDocumentMode,
         });
       } catch (documentError) {
@@ -102,12 +190,14 @@ export default function Signature() {
       }
 
       await base44.entities.Job.update(jobId, {
-        signature_url: file_url,
+        signature_url: signatureUpload.fileRef,
+        signature_r2_key: signatureUpload.r2Key,
         approval_timestamp: now,
         status: 'approved',
         locked: true,
         signature_document_mode: normalizeSignatureDocumentMode(approvalRecord.signature_document_mode || latestJob.signature_document_mode),
         signed_output_file_url: signedOutputFileUrl,
+        signed_output_r2_key: keyFromR2Ref(signedOutputFileUrl),
         terms_version: TERMS_VERSION,
         approval_statement: statement,
       });

@@ -22,6 +22,78 @@ import {
   normalizeSignaturePlacement,
 } from '@/lib/signatureDocumentModes';
 
+function toR2Ref(key) {
+  return key ? `r2://${key}` : '';
+}
+
+function keyFromR2Ref(value) {
+  return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+async function uploadFileToR2({ jobId, file, category, purpose }) {
+  const response = await base44.functions.invoke('requestR2UploadUrl', {
+    jobId,
+    fileName: file.name,
+    fileType: file.type || 'application/octet-stream',
+    fileSize: file.size,
+    category,
+    purpose,
+  });
+  const data = response?.data || response;
+  if (!data?.uploadUrl || !data?.r2Key) throw new Error('R2 upload URL request failed.');
+
+  const uploadResponse = await fetch(data.uploadUrl, {
+    method: 'PUT',
+    headers: file.type ? { 'Content-Type': file.type } : {},
+    body: file,
+  });
+  if (!uploadResponse.ok) throw new Error('R2 upload failed.');
+
+  return { r2Key: data.r2Key, fileRef: toR2Ref(data.r2Key) };
+}
+
+async function resolveFileUrl({ jobId, value, r2Key, category, purpose }) {
+  const key = r2Key || keyFromR2Ref(value);
+  if (!key) return value || '';
+
+  const response = await base44.functions.invoke('requestR2ReadUrl', {
+    jobId,
+    fileKey: key,
+    category,
+    purpose,
+  });
+  const data = response?.data || response;
+  if (!data?.signedUrl) throw new Error('R2 read URL request failed.');
+  return data.signedUrl;
+}
+
+function getBestSignedDocR2Key(job, records = []) {
+  const primary = records.find(r => r.status === 'signed' && r.is_primary);
+  if (primary?.signed_output_r2_key) return primary.signed_output_r2_key;
+  if (primary?.output_file_r2_key) return primary.output_file_r2_key;
+
+  const anySigned = records.find(r => r.status === 'signed');
+  if (anySigned?.signed_output_r2_key) return anySigned.signed_output_r2_key;
+  if (anySigned?.output_file_r2_key) return anySigned.output_file_r2_key;
+
+  return job.signed_output_r2_key || keyFromR2Ref(job.signed_output_file_url);
+}
+
+function ResolvedImage({ jobId, src, r2Key, category, purpose, alt, className }) {
+  const [resolvedSrc, setResolvedSrc] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveFileUrl({ jobId, value: src, r2Key, category, purpose })
+      .then(url => { if (!cancelled) setResolvedSrc(url); })
+      .catch(() => { if (!cancelled) setResolvedSrc(''); });
+    return () => { cancelled = true; };
+  }, [jobId, src, r2Key, category, purpose]);
+
+  if (!resolvedSrc) return null;
+  return <img src={resolvedSrc} alt={alt} className={className} />;
+}
+
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   draft:    { label: 'Draft',    color: 'bg-muted text-muted-foreground',         dot: 'bg-muted-foreground', icon: FileText },
@@ -128,6 +200,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
   const [mode, setMode] = useState(normalizeSignatureDocumentMode(job.signature_document_mode));
   const [placement, setPlacement] = useState(normalizeSignaturePlacement(job.signature_placement));
   const [sourceUrl, setSourceUrl] = useState(job.source_work_order_file_url || '');
+  const [sourceR2Key, setSourceR2Key] = useState(job.source_work_order_r2_key || keyFromR2Ref(job.source_work_order_file_url));
   const [sourceName, setSourceName] = useState(job.source_work_order_file_name || '');
   const [uploading, setUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState({ state: 'idle', message: '', details: null });
@@ -141,8 +214,9 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
     setMode(normalizeSignatureDocumentMode(job.signature_document_mode));
     setPlacement(normalizeSignaturePlacement(job.signature_placement));
     setSourceUrl(job.source_work_order_file_url || '');
+    setSourceR2Key(job.source_work_order_r2_key || keyFromR2Ref(job.source_work_order_file_url));
     setSourceName(job.source_work_order_file_name || '');
-  }, [job.id, job.signature_document_mode, job.signature_placement, job.source_work_order_file_url, job.source_work_order_file_name]);
+  }, [job.id, job.signature_document_mode, job.signature_placement, job.source_work_order_file_url, job.source_work_order_r2_key, job.source_work_order_file_name]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -155,6 +229,7 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
       const payload = {
         signature_document_mode: mode,
         source_work_order_file_url: sourceUrl,
+        source_work_order_r2_key: sourceR2Key || keyFromR2Ref(sourceUrl),
         source_work_order_file_name: sourceName,
         signature_placement: placement,
       };
@@ -209,14 +284,17 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
     setUploading(true);
     try {
       const uploadResult = await withTimeout(
-        base44.integrations.Core.UploadFile({ file }),
+        uploadFileToR2({
+          jobId: job.id,
+          file,
+          category: 'contract',
+          purpose: 'signature_source_work_order_pdf',
+        }),
         'Work order upload timed out. Please try again.'
       );
-      if (!uploadResult?.file_url) {
-        throw new Error('Work order upload failed: missing file URL');
-      }
 
-      setSourceUrl(uploadResult.file_url);
+      setSourceUrl(uploadResult.fileRef);
+      setSourceR2Key(uploadResult.r2Key);
       setSourceName(file.name);
       setSaveStatus({ state: 'idle', message: '', details: null });
       toast.success('Work order PDF uploaded');
@@ -316,7 +394,14 @@ function SignatureDocumentSetup({ job, isAdmin, onPreview }) {
           {sourceUrl && (
             <button
               type="button"
-              onClick={() => onPreview?.({ url: sourceUrl, title: sourceName || 'Work Order', docType: 'Work Order (Original)' })}
+              onClick={() => onPreview?.({
+                url: sourceUrl,
+                r2Key: sourceR2Key || keyFromR2Ref(sourceUrl),
+                category: 'contract',
+                purpose: 'preview_source_work_order',
+                title: sourceName || 'Work Order',
+                docType: 'Work Order (Original)',
+              })}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Paperclip className="w-3 h-3" />
@@ -644,7 +729,14 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
           )}
           {record.output_file_url && (
             <button
-              onClick={() => onPreview?.({ url: record.output_file_url, title: record.output_file_name || record.title || 'Signed document', docType: 'Approval Document' })}
+              onClick={() => onPreview?.({
+                url: record.output_file_url,
+                r2Key: record.signed_output_r2_key || record.output_file_r2_key || keyFromR2Ref(record.output_file_url),
+                category: 'signed_doc',
+                purpose: 'preview_signature_record_output',
+                title: record.output_file_name || record.title || 'Signed document',
+                docType: 'Approval Document',
+              })}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Paperclip className="w-3 h-3" />
@@ -667,13 +759,17 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
   const isPending = job.status === 'pending';
 
   const signedDocUrl = getBestSignedDocUrl(job, records);
+  const signedDocR2Key = getBestSignedDocR2Key(job, records);
   const primaryAction = getJobPrimaryAction(job, records, { canUploadWorkOrder: isAdmin });
-  const hasOriginal = !!job.source_work_order_file_url;
+  const hasOriginal = !!(job.source_work_order_file_url || job.source_work_order_r2_key);
 
   const handleViewSigned = () => {
     if (signedDocUrl) {
       onPreview({
         url: signedDocUrl,
+        r2Key: signedDocR2Key,
+        category: 'signed_doc',
+        purpose: 'preview_signed_document',
         title: job.source_work_order_file_name ? `Signed: ${job.source_work_order_file_name}` : 'Signed Work Order (Final)',
         docType: 'Signed Work Order (Final)',
       });
@@ -736,14 +832,25 @@ function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
         {/* Signed: show signature thumbnail + doc action buttons */}
         {isSigned && (
           <div className="mt-2 space-y-2">
-            {job.signature_url && (
-              <img src={job.signature_url} alt="Customer signature" className="max-h-10 rounded border border-green-200 bg-white" />
+            {(job.signature_url || job.signature_r2_key) && (
+              <ResolvedImage
+                jobId={job.id}
+                src={job.signature_url}
+                r2Key={job.signature_r2_key || keyFromR2Ref(job.signature_url)}
+                category="signed_doc"
+                purpose="preview_signature_thumbnail"
+                alt="Customer signature"
+                className="max-h-10 rounded border border-green-200 bg-white"
+              />
             )}
             <div className="flex flex-wrap gap-2">
               {hasOriginal && (
                 <button
                   onClick={() => onPreview({
                     url: job.source_work_order_file_url,
+                    r2Key: job.source_work_order_r2_key || keyFromR2Ref(job.source_work_order_file_url),
+                    category: 'contract',
+                    purpose: 'preview_original_work_order',
                     title: job.source_work_order_file_name || 'Original Work Order',
                     docType: 'Original Work Order',
                   })}
@@ -803,6 +910,20 @@ export default function JobSignatureTab({ job, isAdmin }) {
 
   const handleEdit = (rec) => { setEditingRecord(rec); setShowForm(false); };
   const closeForm = () => { setShowForm(false); setEditingRecord(null); };
+  const handlePreview = async (doc) => {
+    try {
+      const url = await resolveFileUrl({
+        jobId: job.id,
+        value: doc?.url,
+        r2Key: doc?.r2Key || keyFromR2Ref(doc?.url),
+        category: doc?.category || 'signed_doc',
+        purpose: doc?.purpose || 'preview_signature_document',
+      });
+      setPreviewDoc({ ...doc, url });
+    } catch (error) {
+      toast.error(error?.message || 'Could not open document preview.');
+    }
+  };
 
   // Separate active vs archived
   const activeRecords = records.filter(r => r.status !== 'archived' && r.status !== 'replaced');
@@ -821,9 +942,9 @@ export default function JobSignatureTab({ job, isAdmin }) {
       />
 
       {/* ── Job-level approval summary (existing flow) ── */}
-      <JobApprovalSummary job={job} records={records} navigate={navigate} onPreview={setPreviewDoc} isAdmin={isAdmin} />
+      <JobApprovalSummary job={job} records={records} navigate={navigate} onPreview={handlePreview} isAdmin={isAdmin} />
 
-      <SignatureDocumentSetup job={job} isAdmin={isAdmin} onPreview={setPreviewDoc} />
+      <SignatureDocumentSetup job={job} isAdmin={isAdmin} onPreview={handlePreview} />
 
       {/* ── Structured records section ── */}
       <div className="space-y-2">
@@ -895,7 +1016,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
               onDelete={(id) => deleteMut.mutate(id)}
               navigate={navigate}
               jobId={job.id}
-              onPreview={setPreviewDoc}
+              onPreview={handlePreview}
             />
           )
         )}
@@ -929,7 +1050,7 @@ export default function JobSignatureTab({ job, isAdmin }) {
                   onDelete={(id) => deleteMut.mutate(id)}
                   navigate={navigate}
                   jobId={job.id}
-                  onPreview={setPreviewDoc}
+                  onPreview={handlePreview}
                 />
               )
             ))}

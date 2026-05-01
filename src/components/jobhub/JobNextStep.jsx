@@ -18,7 +18,8 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { SIGNATURE_DOCUMENT_MODES } from '@/lib/signatureDocumentModes';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
-import { JOB_PRIMARY_ACTIONS, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
+import { JOB_PRIMARY_ACTIONS, getBestSignedDocR2Key, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
+import { buildApprovalPath, ensureSignaturePublicToken } from '@/lib/signingLinks';
 
 function toR2Ref(key) {
   return key ? `r2://${key}` : '';
@@ -26,6 +27,19 @@ function toR2Ref(key) {
 
 function keyFromR2Ref(value) {
   return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+function isMissingR2Function(error) {
+  const status = error?.response?.status || error?.status;
+  const message = String(error?.message || error?.response?.data?.error || error?.response?.data?.message || '').toLowerCase();
+  return status === 404 || message.includes('not found') || message.includes('function');
+}
+
+function getR2UploadErrorMessage(error) {
+  if (isMissingR2Function(error)) {
+    return 'Secure file upload is not configured yet. Please contact admin.';
+  }
+  return error?.message || 'Upload failed. Please try again.';
 }
 
 async function uploadFileToR2({ jobId, file, category, purpose }) {
@@ -73,6 +87,7 @@ function getStep(job) {
     primaryAction.type === JOB_PRIMARY_ACTIONS.SIGNED_DOCUMENT_MISSING
   ) return 'signed';
   if (primaryAction.type === JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER) return 'needs_pdf';
+  if (primaryAction.type === JOB_PRIMARY_ACTIONS.WAITING_ON_WORK_ORDER) return 'needs_pdf';
   return 'ready_to_send';
 }
 
@@ -124,11 +139,12 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
   const handleAction = async () => {
     if (step === 'signed') {
       const docUrl = getBestSignedDocUrl(job);
-      if (docUrl) {
+      const docR2Key = getBestSignedDocR2Key(job);
+      if (docUrl || docR2Key) {
         const resolvedUrl = await resolveFileUrl({
           jobId: job.id,
           value: docUrl,
-          r2Key: job.signed_output_r2_key || keyFromR2Ref(docUrl),
+          r2Key: docR2Key || keyFromR2Ref(docUrl),
           category: 'signed_doc',
           purpose: 'preview_signed_document',
         });
@@ -138,13 +154,19 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
           docType: 'Signed Work Order (Final)',
         });
       }
-      if (!docUrl) {
+      if (!docUrl && !docR2Key) {
         toast.error('Signed document is not available yet.');
       }
       return;
     }
     if (step === 'ready_to_send') {
-      navigate(`/approve?jobId=${job.id}`);
+      try {
+        const signingToken = await ensureSignaturePublicToken(job);
+        queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
+        navigate(buildApprovalPath(job.id, signingToken));
+      } catch (error) {
+        toast.error(error?.message || 'Could not create a secure signing link.');
+      }
       return;
     }
     // needs_pdf → open file picker
@@ -180,7 +202,7 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
       queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
       toast.success('Work order uploaded — ready to send for signature.');
     } catch (err) {
-      toast.error(err?.message || 'Upload failed. Please try again.');
+      toast.error(getR2UploadErrorMessage(err));
     } finally {
       setUploading(false);
       // Reset input so the same file can be re-selected if needed

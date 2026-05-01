@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 import {
   Activity, Loader2, Plus, StickyNote, ChevronDown, ChevronUp,
   Paperclip, ExternalLink, X
@@ -16,6 +17,27 @@ import {
   buildTimeEntryItem, buildScheduleItem, buildSignatureItem, sortFeed, getNoteVisibilityConfig,
 } from '@/lib/timelineHelpers';
 import { useNoteCreate } from '@/hooks/useNoteCreate';
+
+function keyFromR2Ref(value) {
+  return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
+}
+
+async function resolveTimelineFileUrl(item) {
+  const directUrl = item.fileUrl || item.signedFileUrl || '';
+  if (/^https?:\/\//i.test(directUrl)) return directUrl;
+
+  const r2Key = item.fileR2Key || keyFromR2Ref(directUrl);
+  if (!r2Key) return '';
+
+  const response = await base44.functions.invoke('requestR2ReadUrl', {
+    jobId: item.jobId,
+    fileKey: r2Key,
+    category: item.fileCategory || 'signed_doc',
+    purpose: item.filePurpose || 'preview_timeline_file',
+  });
+  const data = response?.data || response;
+  return data?.signedUrl || data?.readUrl || '';
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function safeRelative(ts) {
@@ -53,6 +75,21 @@ function TimelineCard({ item }) {
   const canExpand = item.canExpand;
   const isNote = item.type === 'note';
   const isClickable = !isNote || !!item.fileUrl;
+  const canOpenFile = item.hasFile && (item.fileUrl || item.signedFileUrl || item.fileR2Key);
+
+  const openFile = async (event) => {
+    event.stopPropagation();
+    try {
+      const url = await resolveTimelineFileUrl(item);
+      if (!url) {
+        toast.error('Signed document is not available yet.');
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      toast.error(error?.message || 'Could not open signed document.');
+    }
+  };
 
   const relative = safeRelative(item.ts);
   const absolute = safeDate(item.ts);
@@ -141,17 +178,15 @@ function TimelineCard({ item }) {
         )}
 
         {/* Attachment indicator */}
-        {item.hasFile && item.fileUrl && (
-          <a
-            href={item.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
+        {canOpenFile && (
+          <button
+            type="button"
+            onClick={openFile}
             className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-primary hover:underline"
           >
             <Paperclip className="w-3 h-3" />
             {item.fileName || 'Attachment'}
-          </a>
+          </button>
         )}
       </div>
     </div>

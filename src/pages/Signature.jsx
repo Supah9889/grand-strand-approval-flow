@@ -24,7 +24,28 @@ function keyFromR2Ref(value) {
   return typeof value === 'string' && value.startsWith('r2://') ? value.slice(5) : '';
 }
 
-async function uploadFileToR2({ jobId, file, category, purpose }) {
+function isMissingR2Function(error) {
+  const status = error?.response?.status || error?.status;
+  const message = String(error?.message || error?.response?.data?.error || error?.response?.data?.message || '').toLowerCase();
+  return status === 404 || message.includes('not found') || message.includes('function');
+}
+
+function getR2UploadErrorMessage(error, fallback = 'Submission failed. Please try again.') {
+  if (isMissingR2Function(error)) {
+    return 'Secure file upload is not configured yet. Please contact admin.';
+  }
+  return error?.message || fallback;
+}
+
+function getSigningToken(urlParams) {
+  return urlParams.get('token') || urlParams.get('signatureToken') || urlParams.get('signature_token') || urlParams.get('approvalToken') || urlParams.get('approval_token') || '';
+}
+
+function appendSigningToken(path, signingToken) {
+  return signingToken ? `${path}&token=${encodeURIComponent(signingToken)}` : path;
+}
+
+async function uploadFileToR2({ jobId, file, category, purpose, publicSigning = false, signingToken = '' }) {
   const response = await base44.functions.invoke('requestR2UploadUrl', {
     jobId,
     fileName: file.name,
@@ -32,6 +53,8 @@ async function uploadFileToR2({ jobId, file, category, purpose }) {
     fileSize: file.size,
     category,
     purpose,
+    publicSigning,
+    signingToken,
   });
   const data = response?.data || response;
   if (!data?.uploadUrl || !data?.r2Key) throw new Error('R2 upload URL request failed.');
@@ -43,14 +66,30 @@ async function uploadFileToR2({ jobId, file, category, purpose }) {
   });
   if (!uploadResponse.ok) throw new Error('R2 upload failed.');
 
+  if (publicSigning) {
+    const verifyResponse = await base44.functions.invoke('requestR2UploadUrl', {
+      action: 'verify_public_signature_upload',
+      jobId,
+      fileKey: data.r2Key,
+      uploadSessionId: data.uploadSessionId,
+      category,
+      purpose,
+      publicSigning: true,
+      signingToken,
+    });
+    const verifyData = verifyResponse?.data || verifyResponse;
+    if (!verifyData?.ok) throw new Error('Uploaded file could not be verified.');
+  }
+
   return {
     r2Key: data.r2Key,
     fileRef: toR2Ref(data.r2Key),
+    uploadSessionId: data.uploadSessionId,
     metadata: data.metadata || {},
   };
 }
 
-async function resolveFileUrl({ jobId, value, r2Key, category, purpose }) {
+async function resolveFileUrl({ jobId, value, r2Key, category, purpose, publicSigning = false, signingToken = '' }) {
   const key = r2Key || keyFromR2Ref(value);
   if (!key) return value || '';
 
@@ -59,6 +98,8 @@ async function resolveFileUrl({ jobId, value, r2Key, category, purpose }) {
     fileKey: key,
     category,
     purpose,
+    publicSigning,
+    signingToken,
   });
   const data = response?.data || response;
   if (!data?.signedUrl) throw new Error('R2 read URL request failed.');
@@ -68,6 +109,7 @@ async function resolveFileUrl({ jobId, value, r2Key, category, purpose }) {
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
+  const signingToken = getSigningToken(urlParams);
   const navigate = useNavigate();
   const [signatureData, setSignatureData] = useState(null);
 
@@ -79,11 +121,21 @@ export default function Signature() {
     },
     enabled: !!jobId,
   });
+  const { data: currentUser = null, isLoading: isAuthLoading } = useQuery({
+    queryKey: ['signature-auth'],
+    queryFn: () => base44.auth.me().catch(() => null),
+  });
+
+  const usePublicSigning = Boolean(signingToken);
+  const canSubmitSignature = usePublicSigning || Boolean(currentUser);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!jobId) throw new Error('Missing job id');
       if (!signatureData?.startsWith('data:image/png')) throw new Error('Missing signature');
+      if (!canSubmitSignature) {
+        throw new Error('This signing link is missing required security information. Please request a new signing link.');
+      }
 
       const latestJobs = await base44.entities.Job.filter({ id: jobId });
       const latestJob = latestJobs[0];
@@ -100,12 +152,16 @@ export default function Signature() {
         file,
         category: 'signed_doc',
         purpose: 'raw_signature_image',
+        publicSigning: usePublicSigning,
+        signingToken,
       });
       const signatureReadUrl = await resolveFileUrl({
         jobId,
         r2Key: signatureUpload.r2Key,
         category: 'signed_doc',
         purpose: 'render_signature_image',
+        publicSigning: usePublicSigning,
+        signingToken,
       });
       const now = new Date().toISOString();
       const statement = buildApprovalStatement(latestJob.customer_name, latestJob.address, latestJob.price);
@@ -114,18 +170,18 @@ export default function Signature() {
       try {
         approvalRecord = await upsertPrimaryJobApprovalRecord({
           job: latestJob,
-          signatureUrl: signatureUpload.fileRef,
+          signatureUrl: '',
           signedAt: now,
           actorName: 'Customer',
         });
         await base44.entities.SignatureRecord.update(approvalRecord.id, {
-          signature_url: signatureUpload.fileRef,
+          signature_url: '',
           signature_r2_key: signatureUpload.r2Key,
           source_work_order_r2_key: latestJob.source_work_order_r2_key || keyFromR2Ref(latestJob.source_work_order_file_url),
         });
         approvalRecord = {
           ...approvalRecord,
-          signature_url: signatureUpload.fileRef,
+          signature_url: '',
           signature_r2_key: signatureUpload.r2Key,
           source_work_order_r2_key: latestJob.source_work_order_r2_key || keyFromR2Ref(latestJob.source_work_order_file_url),
         };
@@ -137,7 +193,7 @@ export default function Signature() {
         throw new Error('Signature was captured, but the approval document could not be linked to the approval record. Please try submitting again before leaving this page.');
       }
 
-      let signedOutputFileUrl = '';
+      let signedOutputR2Key = '';
       try {
         const signatureDocumentMode = normalizeSignatureDocumentMode(approvalRecord.signature_document_mode || latestJob.signature_document_mode);
         const usesStampedPdf = isStampUploadedPdfMode(signatureDocumentMode);
@@ -149,6 +205,8 @@ export default function Signature() {
               r2Key: approvalRecord.source_work_order_r2_key,
               category: 'contract',
               purpose: 'stamp_source_work_order',
+              publicSigning: usePublicSigning,
+              signingToken,
             })
           : '';
 
@@ -174,13 +232,15 @@ export default function Signature() {
           file: documentFile,
           category: 'signed_doc',
           purpose: usesStampedPdf ? 'signed_stamped_document' : 'signed_approval_document',
+          publicSigning: usePublicSigning,
+          signingToken,
         });
-        signedOutputFileUrl = outputUpload.fileRef;
+        signedOutputR2Key = outputUpload.r2Key;
 
         await base44.entities.SignatureRecord.update(approvalRecord.id, {
-          output_file_url: signedOutputFileUrl,
+          output_file_url: '',
           output_file_name: documentDisplayName,
-          signed_output_file_url: signedOutputFileUrl,
+          signed_output_file_url: '',
           output_file_r2_key: outputUpload.r2Key,
           signed_output_r2_key: outputUpload.r2Key,
           signature_document_mode: signatureDocumentMode,
@@ -190,14 +250,14 @@ export default function Signature() {
       }
 
       await base44.entities.Job.update(jobId, {
-        signature_url: signatureUpload.fileRef,
+        signature_url: '',
         signature_r2_key: signatureUpload.r2Key,
         approval_timestamp: now,
         status: 'approved',
         locked: true,
         signature_document_mode: normalizeSignatureDocumentMode(approvalRecord.signature_document_mode || latestJob.signature_document_mode),
-        signed_output_file_url: signedOutputFileUrl,
-        signed_output_r2_key: keyFromR2Ref(signedOutputFileUrl),
+        signed_output_file_url: '',
+        signed_output_r2_key: signedOutputR2Key,
         terms_version: TERMS_VERSION,
         approval_statement: statement,
       });
@@ -207,15 +267,30 @@ export default function Signature() {
       navigate(`/confirmation?jobId=${jobId}`);
     },
     onError: (error) => {
-      toast.error(error?.message || 'Submission failed. Please try again.');
+      toast.error(getR2UploadErrorMessage(error));
     },
   });
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <AppLayout title="Sign to Approve">
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!canSubmitSignature) {
+    return (
+      <AppLayout title="Sign to Approve">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4 text-center">
+          <p className="text-sm text-muted-foreground max-w-sm">
+            This signing link is missing required security information. Please request a new signing link.
+          </p>
+          <Button variant="outline" onClick={() => navigate('/search')} className="rounded-xl">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Search
+          </Button>
         </div>
       </AppLayout>
     );
@@ -239,7 +314,7 @@ export default function Signature() {
       <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-4">
 
         <button
-          onClick={() => navigate(`/approve?jobId=${jobId}`)}
+          onClick={() => navigate(appendSigningToken(`/approve?jobId=${jobId}`, signingToken))}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

@@ -56,9 +56,17 @@
       "type": "string",
       "description": "URL to captured signature image"
     },
+    "signature_r2_key": {
+      "type": "string",
+      "description": "Private R2 key for the captured signature image"
+    },
     "output_file_url": {
       "type": "string",
       "description": "URL to signed/output document"
+    },
+    "output_file_r2_key": {
+      "type": "string",
+      "description": "Private R2 key for the signed/output document"
     },
     "output_file_name": {
       "type": "string"
@@ -76,6 +84,10 @@
       "type": "string",
       "description": "Original uploaded work order PDF used when signature_document_mode is stamp_uploaded_pdf"
     },
+    "source_work_order_r2_key": {
+      "type": "string",
+      "description": "Private R2 key for the original uploaded work order PDF"
+    },
     "source_work_order_file_name": {
       "type": "string"
     },
@@ -91,6 +103,10 @@
     "signed_output_file_url": {
       "type": "string",
       "description": "Canonical URL for the signed approval output document"
+    },
+    "signed_output_r2_key": {
+      "type": "string",
+      "description": "Canonical private R2 key for the signed approval output document"
     },
     "notes": {
       "type": "string"

@@ -17,6 +17,7 @@ import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { JOB_PRIMARY_ACTIONS, buildSignedDocPreview, getJobPrimaryAction } from '@/lib/signedDocHelpers';
+import { toast } from 'sonner';
 
 const STATUS_BADGE = {
   pending:  { label: 'Pending', class: 'bg-amber-50 text-amber-600' },
@@ -67,11 +68,32 @@ export default function JobSearch() {
     );
   });
 
-  const handlePrimaryAction = (job) => {
+  const resolveSignedDocPreview = async (job, doc) => {
+    if (!doc?.isR2Backed) return doc;
+
+    const response = await base44.functions.invoke('requestR2ReadUrl', {
+      jobId: job.id,
+      fileKey: doc.r2Key,
+      category: 'signed_doc',
+      purpose: 'preview_signed_document',
+    });
+    const data = response?.data || response;
+    if (!data?.signedUrl) throw new Error('R2 read URL request failed.');
+    return { ...doc, url: data.signedUrl };
+  };
+
+  const handlePrimaryAction = async (job) => {
     const action = getJobPrimaryAction(job, [], { canUploadWorkOrder });
     if (action.type === JOB_PRIMARY_ACTIONS.VIEW_SIGNED_DOCUMENT) {
       const doc = buildSignedDocPreview(job);
-      if (doc) { setPreviewDoc(doc); return; }
+      if (doc) {
+        try {
+          setPreviewDoc(await resolveSignedDocPreview(job, doc));
+        } catch (error) {
+          toast.error(error?.message || 'Could not open signed document.');
+        }
+        return;
+      }
     }
     if (action.type === JOB_PRIMARY_ACTIONS.UPLOAD_WORK_ORDER) {
       navigate(`/job-hub?jobId=${job.id}`);

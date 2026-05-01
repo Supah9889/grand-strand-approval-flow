@@ -12,8 +12,8 @@ export default {
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Content-Length, Authorization",
     };
 
     if (request.method === "OPTIONS") {
@@ -23,6 +23,56 @@ export default {
     // Health check - no auth required
     if (request.method === "GET" && pathname === "/health") {
       return json({ status: "ok" }, corsHeaders);
+    }
+
+    // Public signing uploads use a signed, short-lived Worker URL instead of direct R2 presigned PUTs.
+    if (request.method === "PUT" && pathname === "/files/public-signing-upload") {
+      try {
+        const uploadToken = url.searchParams.get("token");
+        const uploadGrant = await verifyUploadToken(uploadToken, env.AUTH_SECRET);
+        if (!uploadGrant) {
+          return json({ error: "Unauthorized" }, corsHeaders, 401);
+        }
+
+        const contentLengthHeader = request.headers.get("Content-Length");
+        if (!contentLengthHeader || !/^\d+$/.test(contentLengthHeader.trim())) {
+          return json({ error: "Content-Length is required" }, corsHeaders, 411);
+        }
+
+        const contentLength = Number(contentLengthHeader);
+        if (!Number.isFinite(contentLength) || contentLength < 0) {
+          return json({ error: "Invalid Content-Length" }, corsHeaders, 400);
+        }
+
+        if (contentLength > uploadGrant.maxSize) {
+          return json({ error: "Uploaded file exceeds the public signing size limit" }, corsHeaders, 413);
+        }
+
+        const contentType = request.headers.get("Content-Type") || "";
+        if (contentType !== uploadGrant.fileType) {
+          return json({ error: "Content-Type is not allowed for this upload" }, corsHeaders, 403);
+        }
+
+        const existing = await env.PRIVATE_FILES.head(uploadGrant.fileKey);
+        if (existing) {
+          return json({ error: "Upload URL has already been used" }, corsHeaders, 409);
+        }
+
+        await env.PRIVATE_FILES.put(uploadGrant.fileKey, request.body, {
+          httpMetadata: {
+            contentType,
+          },
+        });
+
+        return json({
+          ok: true,
+          fileKey: uploadGrant.fileKey,
+          size: contentLength,
+        }, corsHeaders);
+      } catch (err) {
+        console.error("public-signing-upload error:", err);
+        return json({ error: "Internal server error" }, corsHeaders, 500);
+      }
     }
 
     // Auth check for all other routes
@@ -79,9 +129,153 @@ export default {
       }
     }
 
+    // POST /files/public-signing-upload-url
+    if (request.method === "POST" && pathname === "/files/public-signing-upload-url") {
+      try {
+        const body = await request.json();
+        const { fileKey, fileType } = body;
+        const maxSize = Number(body.maxSize);
+        const expiresIn = Math.min(Number(body.expiresIn) || 300, 300);
+
+        if (!fileKey || !fileType || !Number.isFinite(maxSize) || maxSize <= 0) {
+          return json({ error: "Missing required fields: fileKey, fileType, maxSize" }, corsHeaders, 400);
+        }
+
+        if (!/^jobs\/[^/]+\/public-signing\/[^/]+\/[^/]+$/.test(fileKey)) {
+          return json({ error: "Invalid public signing upload key" }, corsHeaders, 400);
+        }
+
+        const tokenPayload = {
+          fileKey,
+          fileType,
+          maxSize,
+          exp: Math.floor(Date.now() / 1000) + expiresIn,
+        };
+        const token = await signUploadToken(tokenPayload, env.AUTH_SECRET);
+        const uploadUrl = new URL("/files/public-signing-upload", request.url);
+        uploadUrl.searchParams.set("token", token);
+
+        return json({ uploadUrl: uploadUrl.toString(), fileKey, expiresIn }, corsHeaders);
+      } catch (err) {
+        console.error("public-signing-upload-url error:", err);
+        return json({ error: "Internal server error" }, corsHeaders, 500);
+      }
+    }
+
+    // POST /files/head
+    if (request.method === "POST" && pathname === "/files/head") {
+      try {
+        const body = await request.json();
+        const { fileKey } = body;
+
+        if (!fileKey) {
+          return json({ error: "Missing required field: fileKey" }, corsHeaders, 400);
+        }
+
+        const object = await env.PRIVATE_FILES.head(fileKey);
+        if (!object) {
+          return json({ error: "File not found" }, corsHeaders, 404);
+        }
+
+        return json({
+          fileKey,
+          size: object.size,
+          uploaded: object.uploaded,
+          httpMetadata: object.httpMetadata || {},
+        }, corsHeaders);
+      } catch (err) {
+        console.error("head error:", err);
+        return json({ error: "Internal server error" }, corsHeaders, 500);
+      }
+    }
+
+    // POST /files/delete
+    if (request.method === "POST" && pathname === "/files/delete") {
+      try {
+        const body = await request.json();
+        const { fileKey } = body;
+
+        if (!fileKey) {
+          return json({ error: "Missing required field: fileKey" }, corsHeaders, 400);
+        }
+
+        await env.PRIVATE_FILES.delete(fileKey);
+        return json({ ok: true, fileKey }, corsHeaders);
+      } catch (err) {
+        console.error("delete error:", err);
+        return json({ error: "Internal server error" }, corsHeaders, 500);
+      }
+    }
+
     return json({ error: "Not found" }, corsHeaders, 404);
   },
 };
+
+async function signUploadToken(payload, secret) {
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = await hmac(encodedPayload, secret);
+  return `${encodedPayload}.${signature}`;
+}
+
+async function verifyUploadToken(token, secret) {
+  if (!token || !token.includes(".")) return null;
+  const [encodedPayload, signature] = token.split(".");
+  const expectedSignature = await hmac(encodedPayload, secret);
+  if (!timingSafeEqual(signature, expectedSignature)) return null;
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(encodedPayload));
+    if (!payload?.fileKey || !payload?.fileType || !Number.isFinite(Number(payload?.maxSize))) return null;
+    if (Number(payload.exp) < Math.floor(Date.now() / 1000)) return null;
+    return {
+      fileKey: payload.fileKey,
+      fileType: payload.fileType,
+      maxSize: Number(payload.maxSize),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function hmac(value, secret) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
+  return base64UrlEncode(signature);
+}
+
+function base64UrlEncode(value) {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function timingSafeEqual(left, right) {
+  if (left.length !== right.length) return false;
+  let result = 0;
+  for (let i = 0; i < left.length; i += 1) {
+    result |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  }
+  return result === 0;
+}
 
 function json(data, extraHeaders = {}, status = 200) {
   return new Response(JSON.stringify(data), {

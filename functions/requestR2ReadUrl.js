@@ -11,7 +11,7 @@ import {
   requireReadPermission,
   requireScopedFileKey,
   resolveActor,
-} from "../_shared/r2Proxy.js";
+} from "./_shared/r2Proxy.js";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {

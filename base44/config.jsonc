@@ -1,0 +1,5 @@
+{
+  "name": "grand-strand-approval-flow",
+  "entitiesDir": "./entities",
+  "functionsDir": "./functions"
+}

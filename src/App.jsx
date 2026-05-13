@@ -61,6 +61,7 @@ const EstimateDetail = lazy(() => import('./pages/EstimateDetail'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const JobHub = lazy(() => import('./pages/JobHub'));
 const AdminOverview = lazy(() => import('./pages/AdminOverview'));
+const AdminCleanup = lazy(() => import('./pages/AdminCleanup'));
 // VerifyInvite is loaded eagerly as a public route (no auth required)
 const GlobalSearch = lazy(() => import('./pages/GlobalSearch'));
 const NewJobPage = lazy(() => import('./pages/NewJobPage'));
@@ -187,6 +188,7 @@ const AuthenticatedApp = () => {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/job-hub" element={<JobHub />} />
               <Route path="/admin-overview" element={adminOnly(<AdminOverview />)} />
+              <Route path="/admin-cleanup" element={adminOnly(<AdminCleanup />)} />
               <Route path="/search" element={<JobSearch />} />
               <Route path="/global-search" element={<GlobalSearch />} />
               {/* /search-jobs is the old scoped job-only search, kept for back-compat */}

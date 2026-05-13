@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Loader2, MapPin, Plus, Search } from 'lucide-react';
+import { Briefcase, Loader2, MapPin, Plus, Search, Filter } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { getInternalRole } from '@/lib/adminAuth';
 import JobStatusBadge from '@/components/jobs/JobStatusBadge';
@@ -124,21 +124,28 @@ export default function JobContextSidebar() {
   const role = getInternalRole();
   const currentJobId = getCurrentJobId(location);
   const [searchText, setSearchText] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const { data: jobs = [], isLoading, isError } = useWorkspaceJobs();
+
+  const INACTIVE_STATUSES = new Set(['archived', 'canceled', 'closed']);
 
   const sortedJobs = useMemo(() => sortJobs(jobs), [jobs]);
   const filteredJobs = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    if (!query) return sortedJobs;
-    return sortedJobs.filter(job => [
-      job.title,
-      job.address,
-      job.customer_name,
-      job.job_number,
-      job.op_status,
-      job.lifecycle_status,
-    ].some(value => String(value || '').toLowerCase().includes(query)));
-  }, [searchText, sortedJobs]);
+    return sortedJobs.filter(job => {
+      const ls = job?.lifecycle_status || '';
+      if (!showInactive && INACTIVE_STATUSES.has(ls)) return false;
+      if (!query) return true;
+      return [
+        job.title,
+        job.address,
+        job.customer_name,
+        job.job_number,
+        job.op_status,
+        job.lifecycle_status,
+      ].some(value => String(value || '').toLowerCase().includes(query));
+    });
+  }, [searchText, sortedJobs, showInactive]);
 
   const currentJob = jobs.find(job => job.id === currentJobId);
   const canCreateJob = role === 'admin' || role === 'owner';
@@ -177,15 +184,30 @@ export default function JobContextSidebar() {
         </label>
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
+      <div className="flex items-center justify-between gap-2 px-4 py-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Jobs</p>
-        <button
-          type="button"
-          onClick={() => navigate('/search')}
-          className="min-h-0 text-xs font-semibold text-primary hover:text-primary/80"
-        >
-          Advanced search
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowInactive(v => !v)}
+            title={showInactive ? 'Hide archived/closed' : 'Show archived/closed'}
+            className={`flex items-center gap-1 min-h-0 text-xs rounded-lg px-2 py-1 transition-colors ${
+              showInactive
+                ? 'bg-primary/10 text-primary font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Filter className="h-3 w-3" />
+            {showInactive ? 'All' : 'Active'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/search')}
+            className="min-h-0 text-xs font-semibold text-primary hover:text-primary/80"
+          >
+            Search
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-4">

@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Lock, StickyNote, Calendar,
-  FileUp, DollarSign, ShieldCheck
+  FileUp, DollarSign, ShieldCheck, Archive, Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import JobGroupBadge from '../jobs/JobGroupBadge';
 import JobStatusPicker from '../jobs/JobStatusPicker';
+import JobRemovalModal from '../jobs/JobRemovalModal';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export default function JobHubHeader({ job, isAdmin, onAddNote, onAddSchedule, onUploadFile }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [removalModal, setRemovalModal] = useState(null);
 
   const quickActions = [
     { icon: StickyNote, label: 'Add Note', color: 'text-amber-600', action: onAddNote },
@@ -18,11 +23,29 @@ export default function JobHubHeader({ job, isAdmin, onAddNote, onAddSchedule, o
     ...(isAdmin ? [
       { icon: DollarSign, label: 'Invoices', color: 'text-green-600', action: () => navigate('/invoices') },
       { icon: ShieldCheck, label: 'Warranty', color: 'text-indigo-600', action: () => navigate('/warranty') },
+      { icon: Archive, label: 'Archive', color: 'text-amber-600', action: () => setRemovalModal({ jobs: [job], mode: 'archive' }) },
+      { icon: Trash2, label: 'Delete', color: 'text-destructive', action: () => setRemovalModal({ jobs: [job], mode: 'delete' }) },
     ] : []),
   ];
 
+  const handleRemovalSuccess = (report) => {
+    const archived = report?.archived?.length || 0;
+    const deleted  = report?.hardDeleted?.length || 0;
+    if (archived) { toast.success('Job archived'); queryClient.invalidateQueries({ queryKey: ['jobs'] }); navigate('/search'); }
+    if (deleted)  { toast.success('Job deleted');  queryClient.invalidateQueries({ queryKey: ['jobs'] }); navigate('/search'); }
+    setRemovalModal(null);
+  };
+
   return (
     <div className="space-y-2">
+      {removalModal && (
+        <JobRemovalModal
+          jobs={removalModal.jobs}
+          mode={removalModal.mode}
+          onClose={() => setRemovalModal(null)}
+          onSuccess={handleRemovalSuccess}
+        />
+      )}
       {/* Back nav */}
       <button
         onClick={() => navigate(-1)}

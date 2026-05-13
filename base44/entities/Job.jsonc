@@ -142,7 +142,7 @@
     },
     "op_status_note": {
       "type": "string",
-      "description": "Short optional note about the current status (e.g. reason for hold)"
+      "description": "Short optional note about the current status"
     },
     "status": {
       "type": "string",
@@ -160,10 +160,6 @@
     },
     "signature_url": {
       "type": "string"
-    },
-    "signature_r2_key": {
-      "type": "string",
-      "description": "Private R2 key for the captured signature image"
     },
     "approval_timestamp": {
       "type": "string"
@@ -252,7 +248,8 @@
       "enum": [
         "app",
         "imported",
-        "manual_entry"
+        "manual_entry",
+        "buildertrend"
       ],
       "default": "app"
     },
@@ -286,10 +283,6 @@
       "type": "string",
       "description": "URL of the uploaded work order PDF used for PDF stamp mode"
     },
-    "source_work_order_r2_key": {
-      "type": "string",
-      "description": "Private R2 key of the uploaded work order PDF used for PDF stamp mode"
-    },
     "source_work_order_file_name": {
       "type": "string",
       "description": "File name of the uploaded work order PDF"
@@ -302,9 +295,17 @@
       "type": "string",
       "description": "URL of the completed signed output document"
     },
-    "signed_output_r2_key": {
+    "archived_at": {
       "type": "string",
-      "description": "Private R2 key of the completed signed output document"
+      "description": "ISO timestamp when this job was archived"
+    },
+    "archived_by": {
+      "type": "string",
+      "description": "Name of admin who archived this job"
+    },
+    "archived_reason": {
+      "type": "string",
+      "description": "Optional reason for archiving"
     }
   },
   "required": [

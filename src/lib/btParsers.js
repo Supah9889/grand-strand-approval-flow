@@ -1,0 +1,368 @@
+/**
+ * Buildertrend Phase 1 — Pure Parsing Library
+ * All functions are side-effect free. They produce staged record objects
+ * that can be written to DB, but never write live Job/DailyLog/CalendarEvent.
+ */
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalize(str) {
+  return (str || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function safeJson(arr) {
+  try { return JSON.stringify(arr); } catch { return '[]'; }
+}
+
+/**
+ * BT job names often start with a date prefix like "2026 4/24 4008 Braid Ct"
+ * or "04/24/2026 Smith Residence". Strip leading date tokens.
+ */
+function stripDatePrefix(name) {
+  if (!name) return { clean: '', date: null };
+  // Pattern: YYYY M/D or MM/DD/YYYY or M/D/YYYY at the start
+  const patterns = [
+    /^(\d{4})\s+(\d{1,2})\/(\d{1,2})\s+/,   // 2026 4/24
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+/,    // 04/24/2026
+    /^(\d{1,2})-(\d{1,2})-(\d{4})\s+/,       // 04-24-2026
+  ];
+
+  for (const re of patterns) {
+    const m = name.match(re);
+    if (m) {
+      const clean = name.replace(re, '').trim();
+      // Best-effort date parse
+      let date = null;
+      try {
+        if (re.source.startsWith('^(\\d{4})')) {
+          // YYYY M/D
+          date = `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+        } else {
+          // M/D/YYYY or M-D-YYYY
+          const yr = m[3], mo = String(m[1]).padStart(2, '0'), dy = String(m[2]).padStart(2, '0');
+          date = `${yr}-${mo}-${dy}`;
+        }
+      } catch { date = null; }
+      return { clean, date };
+    }
+  }
+  return { clean: name.trim(), date: null };
+}
+
+// ─── Jobsite Rows (Excel) ──────────────────────────────────────────────────────
+
+/**
+ * Parse an array of raw Excel row objects into StagedJob records.
+ * @param {object[]} rows
+ * @param {string} batchId
+ * @param {string} fileName
+ * @returns {{ staged: object[], errors: string[] }}
+ */
+export function parseJobsiteRows(rows, batchId, fileName) {
+  const staged = [];
+  const errors = [];
+  const seenNames = new Map(); // normalized name → first index
+
+  rows.forEach((row, i) => {
+    const rawName = (row['Job Name'] || row['job_name'] || row['JobName'] || '').trim();
+    if (!rawName) {
+      errors.push(`Row ${i + 2}: missing Job Name — skipped`);
+      return;
+    }
+
+    const { clean: cleanName, date: receivedDate } = stripDatePrefix(rawName);
+    const normalizedName = normalize(cleanName || rawName);
+
+    const warnings = [];
+    const flags = [];
+
+    // Duplicate detection within this batch
+    if (seenNames.has(normalizedName)) {
+      warnings.push(`Possible duplicate of row ${seenNames.get(normalizedName) + 2}`);
+    } else {
+      seenNames.set(normalizedName, i);
+    }
+
+    const address = (row['Address'] || row['address'] || '').trim();
+    const city    = (row['City']    || row['city']    || '').trim();
+    const state   = (row['State']   || row['state']   || '').trim();
+    const zip     = (row['Zip']     || row['zip']     || row['Postal Code'] || '').trim();
+    const client  = (row['Client']  || row['client']  || row['Customer'] || '').trim();
+    const phone   = (row['Phone']   || row['phone']   || '').trim();
+    const email   = (row['Email']   || row['email']   || '').trim();
+    const sqft    = parseFloat(row['Square Footage'] || row['square_footage'] || '') || null;
+
+    if (!address && !city) flags.push('missing_address');
+    if (!client)            flags.push('missing_client');
+    if (zip && !/^\d{5}(-\d{4})?$/.test(zip)) flags.push('invalid_zip');
+
+    // Internal / test detection
+    const lowerName = normalizedName.toLowerCase();
+    if (/grand strand office|gs office|internal|test/i.test(lowerName)) flags.push('internal_record');
+
+    staged.push({
+      import_batch_id: batchId,
+      source_file_name: fileName,
+      source_row: i + 2,
+      raw_source_text: JSON.stringify(row),
+      raw_job_name: rawName,
+      clean_job_name: cleanName,
+      normalized_job_name: normalizedName,
+      received_date: receivedDate || null,
+      address,
+      city,
+      state,
+      zip,
+      customer_name: client,
+      customer_phone: phone,
+      customer_email: email,
+      schedule_status: (row['Schedule Status'] || '').trim() || null,
+      square_footage: sqft,
+      match_status: seenNames.get(normalizedName) !== i ? 'possible_duplicate' : 'new',
+      matched_job_id: null,
+      warnings: safeJson(warnings),
+      errors: safeJson([]),
+      flags: safeJson(flags),
+      review_status: 'pending',
+    });
+  });
+
+  return { staged, errors };
+}
+
+// ─── Daily Log Text ────────────────────────────────────────────────────────────
+
+/**
+ * Parse a plain-text Buildertrend Daily Log export.
+ * Logs are separated by blank lines; each block starts with "Date: " and "Job: ".
+ */
+export function parseDailyLogText(text, batchId, fileName) {
+  const staged = [];
+  const errors = [];
+
+  if (!text || !text.trim()) {
+    errors.push('Empty daily log file');
+    return { staged, errors };
+  }
+
+  // Split into blocks by double newlines
+  const blocks = text.split(/\n{2,}/);
+
+  blocks.forEach((block, i) => {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return;
+
+    const get = (prefix) => {
+      const line = lines.find(l => l.toLowerCase().startsWith(prefix.toLowerCase()));
+      return line ? line.slice(prefix.length).trim() : '';
+    };
+
+    const rawDate     = get('Date:') || get('date:');
+    const jobName     = get('Job:')  || get('job:') || get('Project:');
+    const addedBy     = get('Added By:') || get('added by:') || get('Author:');
+    const title       = get('Title:') || get('title:') || '';
+    const weatherSum  = get('Weather:') || get('weather:') || '';
+
+    // Notes: everything after known headers
+    const headerPrefixes = ['date:', 'job:', 'added by:', 'author:', 'title:', 'weather:', 'temperature:', 'wind:', 'humidity:', 'precipitation:'];
+    const noteLines = lines.filter(l => !headerPrefixes.some(p => l.toLowerCase().startsWith(p)));
+    const logNotes = noteLines.join('\n').trim();
+
+    if (!rawDate && !jobName) return; // skip completely empty blocks
+
+    // Parse date
+    let logDate = null;
+    if (rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        logDate = d.toISOString().split('T')[0];
+      } else {
+        errors.push(`Block ${i + 1}: could not parse date "${rawDate}"`);
+      }
+    }
+
+    if (!logDate) {
+      errors.push(`Block ${i + 1}: missing date — skipped`);
+      return;
+    }
+
+    // Weather temp parse
+    const tempLine = get('Temperature:') || get('temperature:') || '';
+    let tempHigh = null, tempLow = null;
+    if (tempLine) {
+      const nums = tempLine.match(/\d+/g);
+      if (nums && nums.length >= 2) { tempHigh = Number(nums[0]); tempLow = Number(nums[1]); }
+      else if (nums && nums.length === 1) { tempHigh = Number(nums[0]); }
+    }
+
+    const attachmentCount = (block.match(/\[attachment\]|\[photo\]|\.jpg|\.png|\.pdf/gi) || []).length;
+
+    staged.push({
+      import_batch_id: batchId,
+      source_file_name: fileName,
+      source_row: i + 1,
+      raw_source_text: block.slice(0, 2000),
+      log_date: logDate,
+      source_job_name: jobName || '',
+      normalized_job_name: normalize(jobName || ''),
+      title: title || null,
+      added_by: addedBy || null,
+      log_notes: logNotes || null,
+      weather_summary: weatherSum || null,
+      temp_high: tempHigh,
+      temp_low: tempLow,
+      wind: get('Wind:') || null,
+      humidity: get('Humidity:') || null,
+      precipitation: get('Precipitation:') || null,
+      attachment_count: attachmentCount,
+      needs_attachment_review: attachmentCount > 0,
+      match_status: 'unmatched',
+      matched_job_id: null,
+      matched_staged_job_id: null,
+      warnings: safeJson([]),
+      errors: safeJson([]),
+      review_status: 'pending',
+    });
+  });
+
+  return { staged, errors };
+}
+
+// ─── Calendar/Schedule Text ────────────────────────────────────────────────────
+
+const NON_PRODUCTION_KEYWORDS = /\b(estimate|tour|birthday|reminder|meeting|office|holiday|closed|vacation|training)\b/i;
+const OFFICE_KEYWORDS = /grand strand office|gs office|office only/i;
+
+/**
+ * Parse a plain-text Buildertrend schedule/calendar export.
+ * Each line is: "DATE   EVENT TITLE (Job Name)"  or  "DATE TIME-TIME EVENT TITLE"
+ */
+export function parseCalendarText(text, batchId, fileName) {
+  const staged = [];
+  const errors = [];
+
+  if (!text || !text.trim()) {
+    errors.push('Empty calendar file');
+    return { staged, errors };
+  }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  lines.forEach((line, i) => {
+    // Try to extract a date from start of line
+    const dateMatch = line.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/);
+    if (!dateMatch) return; // header or blank
+
+    let eventDate = null;
+    try {
+      const d = new Date(dateMatch[1]);
+      if (!isNaN(d.getTime())) eventDate = d.toISOString().split('T')[0];
+    } catch { /* skip */ }
+
+    if (!eventDate) {
+      errors.push(`Line ${i + 1}: could not parse date from "${line}"`);
+      return;
+    }
+
+    const rest = line.slice(dateMatch[0].length).trim();
+
+    // Time range: "9:00 AM - 11:00 AM"
+    const timeMatch = rest.match(/^(\d{1,2}:\d{2}\s*[AP]M)\s*[-–]\s*(\d{1,2}:\d{2}\s*[AP]M)\s*/i);
+    let startTime = null, endTime = null, titleRest = rest;
+    if (timeMatch) {
+      startTime = timeMatch[1];
+      endTime   = timeMatch[2];
+      titleRest = rest.slice(timeMatch[0].length).trim();
+    }
+
+    // Extract job name from parentheses at end: "Paint (4008 Braid Ct)"
+    const jobMatch = titleRest.match(/\(([^)]+)\)\s*$/);
+    let sourceJobName = '';
+    let eventTitle = titleRest;
+    if (jobMatch) {
+      sourceJobName = jobMatch[1].trim();
+      eventTitle = titleRest.slice(0, jobMatch.index).trim();
+    }
+
+    if (!eventTitle) eventTitle = sourceJobName || 'Untitled';
+
+    const isNonProd = NON_PRODUCTION_KEYWORDS.test(eventTitle) || NON_PRODUCTION_KEYWORDS.test(sourceJobName);
+    const isOffice  = OFFICE_KEYWORDS.test(eventTitle) || OFFICE_KEYWORDS.test(sourceJobName) || !sourceJobName;
+
+    let eventCategory = 'other';
+    if (/estimate/i.test(eventTitle))        eventCategory = 'estimate';
+    else if (/tour/i.test(eventTitle))       eventCategory = 'tour';
+    else if (/meeting/i.test(eventTitle))    eventCategory = 'meeting';
+    else if (/reminder/i.test(eventTitle))   eventCategory = 'reminder';
+    else if (isOffice && !sourceJobName)     eventCategory = 'office_internal';
+    else if (sourceJobName)                  eventCategory = 'job_visit';
+
+    staged.push({
+      import_batch_id: batchId,
+      source_file_name: fileName,
+      source_row: i + 1,
+      raw_source_text: line,
+      event_date: eventDate,
+      event_title: eventTitle,
+      start_time: startTime,
+      end_time: endTime,
+      source_job_name: sourceJobName,
+      normalized_job_name: normalize(sourceJobName),
+      event_category: eventCategory,
+      is_non_production: isNonProd,
+      is_office_event: isOffice,
+      match_status: 'unmatched',
+      matched_job_id: null,
+      matched_staged_job_id: null,
+      warnings: safeJson([]),
+      errors: safeJson([]),
+      review_status: 'pending',
+    });
+  });
+
+  return { staged, errors };
+}
+
+// ─── Cross-Matching ────────────────────────────────────────────────────────────
+
+/**
+ * Try to match staged logs to staged jobs by normalized job name.
+ * Updates match_status and matched_staged_job_id in place.
+ */
+export function matchLogsToJobs(stagedLogs, stagedJobs) {
+  const jobIndex = new Map(stagedJobs.map(j => [j.normalized_job_name, j]));
+
+  return stagedLogs.map(log => {
+    const norm = log.normalized_job_name;
+    if (!norm) return log;
+    const match = jobIndex.get(norm);
+    if (match) {
+      return {
+        ...log,
+        match_status: 'matched_staged',
+        matched_staged_job_id: match.import_batch_id ? null : match.id, // no DB id yet before insert
+      };
+    }
+    return log;
+  });
+}
+
+/**
+ * Try to match staged events to staged jobs by normalized job name.
+ */
+export function matchEventsToJobs(stagedEvents, stagedJobs) {
+  const jobIndex = new Map(stagedJobs.map(j => [j.normalized_job_name, j]));
+
+  return stagedEvents.map(ev => {
+    const norm = ev.normalized_job_name;
+    if (!norm || ev.is_office_event) return ev;
+    const match = jobIndex.get(norm);
+    if (match) {
+      return {
+        ...ev,
+        match_status: 'matched_staged',
+      };
+    }
+    return ev;
+  });
+}

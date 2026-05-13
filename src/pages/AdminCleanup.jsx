@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trash2, Eye, AlertTriangle, CheckCircle2, Shield, XCircle } from 'lucide-react';
+import { Loader2, Trash2, Eye, AlertTriangle, CheckCircle2, Shield } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { isAdmin, getSession } from '@/lib/adminAuth';
 import {

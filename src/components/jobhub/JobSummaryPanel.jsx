@@ -12,15 +12,16 @@ export default function JobSummaryPanel({ job, isAdmin }) {
   const queryClient = useQueryClient();
   const actorName = getInternalRole();
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(job.description || '');
+  const [title, setTitle] = useState(job.title || '');
+  const [description, setDescription] = useState(job.description || '');
 
   const saveMut = useMutation({
-    mutationFn: (desc) => base44.entities.Job.update(job.id, { description: desc }),
+    mutationFn: () => base44.entities.Job.update(job.id, { title, description }),
     onSuccess: async () => {
-      await audit.job.edited(job.id, actorName || 'admin', 'Summary updated', { job_address: job.address });
+      await audit.job.edited(job.id, actorName || 'admin', 'Title/Summary updated', { job_address: job.address });
       queryClient.invalidateQueries({ queryKey: ['job-hub', job.id] });
       setEditing(false);
-      toast.success('Summary saved');
+      toast.success('Title and summary saved');
     },
   });
 
@@ -38,6 +39,7 @@ export default function JobSummaryPanel({ job, isAdmin }) {
   })();
 
   const displayText = job.description || derivedSummary;
+  const displayTitle = job.title || 'Untitled';
 
   return (
     <div className="bg-card border border-border rounded-2xl px-4 py-3">
@@ -48,7 +50,7 @@ export default function JobSummaryPanel({ job, isAdmin }) {
         </div>
         {isAdmin && !editing && (
           <button
-            onClick={() => { setValue(job.description || ''); setEditing(true); }}
+            onClick={() => { setTitle(job.title || ''); setDescription(job.description || ''); setEditing(true); }}
             className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
           >
             <Pencil className="w-3 h-3" /> Edit
@@ -57,17 +59,23 @@ export default function JobSummaryPanel({ job, isAdmin }) {
       </div>
 
       {editing ? (
-        <div className="space-y-2 mt-1">
+        <div className="space-y-3 mt-1">
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Job title"
+            className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            autoFocus
+          />
           <Textarea
-            value={value}
-            onChange={e => setValue(e.target.value)}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
             placeholder="Describe the job scope, status, or next steps..."
             className="rounded-xl text-sm min-h-20 resize-none"
-            autoFocus
           />
           <div className="flex gap-2">
             <button
-              onClick={() => saveMut.mutate(value)}
+              onClick={() => saveMut.mutate()}
               disabled={saveMut.isPending}
               className="flex items-center gap-1 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
@@ -75,7 +83,7 @@ export default function JobSummaryPanel({ job, isAdmin }) {
               Save
             </button>
             <button
-              onClick={() => setEditing(false)}
+              onClick={() => { setTitle(job.title || ''); setDescription(job.description || ''); setEditing(false); }}
               className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-muted transition-colors"
             >
               Cancel
@@ -83,9 +91,12 @@ export default function JobSummaryPanel({ job, isAdmin }) {
           </div>
         </div>
       ) : (
-        <p className={`text-sm leading-relaxed ${displayText ? 'text-foreground' : 'text-muted-foreground italic'}`}>
-          {displayText || 'No summary yet. Tap edit to add one.'}
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-foreground">{displayTitle}</p>
+          <p className={`text-sm leading-relaxed ${displayText ? 'text-foreground' : 'text-muted-foreground italic'}`}>
+            {displayText || 'No summary yet. Tap edit to add one.'}
+          </p>
+        </div>
       )}
     </div>
   );

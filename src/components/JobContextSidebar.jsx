@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Loader2, MapPin, Plus, Search, Filter } from 'lucide-react';
+import { Briefcase, Loader2, MapPin, Plus, Search, Archive } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { getInternalRole } from '@/lib/adminAuth';
 import JobStatusBadge from '@/components/jobs/JobStatusBadge';
@@ -67,7 +67,14 @@ function JobContextSummary({ job }) {
   );
 }
 
+const INACTIVE_STATUSES = new Set(['archived', 'canceled', 'closed']);
+
+function isJobArchived(job) {
+  return job?.lifecycle_status === 'archived' || job?.status === 'archived';
+}
+
 function JobListItem({ job, active, onClick }) {
+  const archived = isJobArchived(job);
   return (
     <button
       type="button"
@@ -75,16 +82,23 @@ function JobListItem({ job, active, onClick }) {
       className={`w-full rounded-lg border p-3 text-left transition-colors ${
         active
           ? 'border-primary bg-secondary text-primary shadow-sm'
-          : 'border-transparent bg-transparent text-foreground hover:border-border hover:bg-muted/60'
+          : archived
+            ? 'border-transparent bg-transparent text-muted-foreground hover:border-border hover:bg-muted/40 opacity-70'
+            : 'border-transparent bg-transparent text-foreground hover:border-border hover:bg-muted/60'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{getJobTitle(job)}</p>
           {getJobSubtitle(job) && (
             <p className={`mt-1 line-clamp-2 text-xs ${active ? 'text-primary/80' : 'text-muted-foreground'}`}>
               {getJobSubtitle(job)}
             </p>
+          )}
+          {archived && (
+            <span className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+              <Archive className="w-2.5 h-2.5" /> Archived
+            </span>
           )}
         </div>
         <JobStatusBadge status={job.op_status || 'new'} size="sm" />
@@ -118,34 +132,50 @@ export function MobileJobContextBar() {
   );
 }
 
+// Filter tab options
+const VIEW_TABS = [
+  { key: 'active',    label: 'Active' },
+  { key: 'archived',  label: 'Archived' },
+  { key: 'all',       label: 'All' },
+];
+
 export default function JobContextSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const role = getInternalRole();
   const currentJobId = getCurrentJobId(location);
   const [searchText, setSearchText] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
+  const [viewTab, setViewTab] = useState('active');
   const { data: jobs = [], isLoading, isError } = useWorkspaceJobs();
 
-  const INACTIVE_STATUSES = new Set(['archived', 'canceled', 'closed']);
-
   const sortedJobs = useMemo(() => sortJobs(jobs), [jobs]);
+
   const filteredJobs = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     return sortedJobs.filter(job => {
       const ls = job?.lifecycle_status || '';
-      if (!showInactive && INACTIVE_STATUSES.has(ls)) return false;
+      const archived = isJobArchived(job);
+      const inactive = INACTIVE_STATUSES.has(ls);
+
+      // Always show the currently active job regardless of filter
+      if (job.id === currentJobId) {
+        // still apply search if typing
+        if (query) {
+          return [job.title, job.address, job.customer_name, job.job_number, job.op_status, job.lifecycle_status]
+            .some(v => String(v || '').toLowerCase().includes(query));
+        }
+        return true;
+      }
+
+      // Apply tab filter
+      if (viewTab === 'active' && (archived || inactive)) return false;
+      if (viewTab === 'archived' && !archived) return false;
+
       if (!query) return true;
-      return [
-        job.title,
-        job.address,
-        job.customer_name,
-        job.job_number,
-        job.op_status,
-        job.lifecycle_status,
-      ].some(value => String(value || '').toLowerCase().includes(query));
+      return [job.title, job.address, job.customer_name, job.job_number, job.op_status, job.lifecycle_status]
+        .some(v => String(v || '').toLowerCase().includes(query));
     });
-  }, [searchText, sortedJobs, showInactive]);
+  }, [searchText, sortedJobs, viewTab, currentJobId]);
 
   const currentJob = jobs.find(job => job.id === currentJobId);
   const canCreateJob = role === 'admin' || role === 'owner';
@@ -184,22 +214,24 @@ export default function JobContextSidebar() {
         </label>
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-4 py-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Jobs</p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowInactive(v => !v)}
-            title={showInactive ? 'Hide archived/closed' : 'Show archived/closed'}
-            className={`flex items-center gap-1 min-h-0 text-xs rounded-lg px-2 py-1 transition-colors ${
-              showInactive
-                ? 'bg-primary/10 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            <Filter className="h-3 w-3" />
-            {showInactive ? 'All' : 'Active'}
-          </button>
+      <div className="px-4 py-2 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
+            {VIEW_TABS.map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setViewTab(tab.key)}
+                className={`min-h-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  viewTab === tab.key
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => navigate('/search')}

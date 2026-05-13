@@ -28,13 +28,33 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
     return <p className="text-sm text-muted-foreground py-6 text-center">No jobsites staged.</p>;
   }
 
+  const pendingCount  = jobs.filter(j => j.review_status === 'pending').length;
+  const approvedCount = jobs.filter(j => j.review_status === 'approved').length;
+
+  const approveAll = () => jobs
+    .filter(j => j.review_status === 'pending')
+    .forEach(j => onStatusChange(j.id, 'approved'));
+
+  const skipAll = () => jobs
+    .filter(j => j.review_status === 'pending')
+    .forEach(j => onStatusChange(j.id, 'skipped'));
+
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-0 bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        <span>Job</span>
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-0 bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide items-center">
+        <span>Job ({jobs.length})</span>
         <span className="px-2">Match</span>
         <span className="px-2">Status</span>
-        <span className="px-2">Actions</span>
+        <div className="px-2 flex items-center gap-1">
+          {pendingCount > 0 && (
+            <>
+              <button onClick={approveAll} className="text-[10px] text-green-700 hover:underline whitespace-nowrap">Approve all</button>
+              <span className="text-muted-foreground/40">·</span>
+              <button onClick={skipAll} className="text-[10px] text-muted-foreground hover:underline whitespace-nowrap">Skip all</button>
+            </>
+          )}
+          {pendingCount === 0 && <span className="text-[10px] text-green-700">{approvedCount} approved</span>}
+        </div>
       </div>
       {jobs.map(job => {
         const isOpen = expanded === job.id;
@@ -52,7 +72,18 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
               <div className="flex items-center gap-2 min-w-0">
                 {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{job.clean_job_name || job.raw_job_name}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium text-foreground truncate">{job.clean_job_name || job.raw_job_name}</p>
+                    {flags.includes('internal_record') && (
+                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-medium shrink-0">INTERNAL</span>
+                    )}
+                    {flags.includes('missing_address') && (
+                      <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium shrink-0">NO ADDR</span>
+                    )}
+                    {flags.includes('missing_client') && (
+                      <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium shrink-0">NO CLIENT</span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{[job.address, job.city, job.state].filter(Boolean).join(', ') || '—'}</p>
                 </div>
               </div>

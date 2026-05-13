@@ -27,20 +27,19 @@ function stripDatePrefix(name) {
     /^(\d{1,2})-(\d{1,2})-(\d{4})\s+/,       // 04-24-2026
   ];
 
-  for (const re of patterns) {
+  for (let idx = 0; idx < patterns.length; idx++) {
+    const re = patterns[idx];
     const m = name.match(re);
     if (m) {
       const clean = name.replace(re, '').trim();
-      // Best-effort date parse
       let date = null;
       try {
-        if (re.source.startsWith('^(\\d{4})')) {
-          // YYYY M/D
+        if (idx === 0) {
+          // YYYY M/D  →  m[1]=year m[2]=month m[3]=day
           date = `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
         } else {
-          // M/D/YYYY or M-D-YYYY
-          const yr = m[3], mo = String(m[1]).padStart(2, '0'), dy = String(m[2]).padStart(2, '0');
-          date = `${yr}-${mo}-${dy}`;
+          // M/D/YYYY or M-D-YYYY  →  m[1]=month m[2]=day m[3]=year
+          date = `${m[3]}-${String(m[1]).padStart(2, '0')}-${String(m[2]).padStart(2, '0')}`;
         }
       } catch { date = null; }
       return { clean, date };
@@ -77,7 +76,8 @@ export function parseJobsiteRows(rows, batchId, fileName) {
     const flags = [];
 
     // Duplicate detection within this batch
-    if (seenNames.has(normalizedName)) {
+    const isDuplicate = seenNames.has(normalizedName);
+    if (isDuplicate) {
       warnings.push(`Possible duplicate of row ${seenNames.get(normalizedName) + 2}`);
     } else {
       seenNames.set(normalizedName, i);
@@ -96,15 +96,14 @@ export function parseJobsiteRows(rows, batchId, fileName) {
     if (!client)            flags.push('missing_client');
     if (zip && !/^\d{5}(-\d{4})?$/.test(zip)) flags.push('invalid_zip');
 
-    // Internal / test detection
-    const lowerName = normalizedName.toLowerCase();
-    if (/grand strand office|gs office|internal|test/i.test(lowerName)) flags.push('internal_record');
+    // Internal / test / office detection (normalizedName is already lowercased)
+    if (/grand strand office|gs office|\binternal\b|\btest\b|office only/i.test(normalizedName)) flags.push('internal_record');
 
     staged.push({
       import_batch_id: batchId,
       source_file_name: fileName,
       source_row: i + 2,
-      raw_source_text: JSON.stringify(row),
+      raw_source_text: JSON.stringify(row).slice(0, 1000),
       raw_job_name: rawName,
       clean_job_name: cleanName,
       normalized_job_name: normalizedName,
@@ -118,7 +117,7 @@ export function parseJobsiteRows(rows, batchId, fileName) {
       customer_email: email,
       schedule_status: (row['Schedule Status'] || '').trim() || null,
       square_footage: sqft,
-      match_status: seenNames.get(normalizedName) !== i ? 'possible_duplicate' : 'new',
+      match_status: isDuplicate ? 'possible_duplicate' : 'new',
       matched_job_id: null,
       warnings: safeJson(warnings),
       errors: safeJson([]),
@@ -330,6 +329,7 @@ export function parseCalendarText(text, batchId, fileName) {
  * Updates match_status and matched_staged_job_id in place.
  */
 export function matchLogsToJobs(stagedLogs, stagedJobs) {
+  // stagedJobs here are post-DB-insert objects (reloaded with IDs) when called from BTImport
   const jobIndex = new Map(stagedJobs.map(j => [j.normalized_job_name, j]));
 
   return stagedLogs.map(log => {
@@ -340,7 +340,7 @@ export function matchLogsToJobs(stagedLogs, stagedJobs) {
       return {
         ...log,
         match_status: 'matched_staged',
-        matched_staged_job_id: match.import_batch_id ? null : match.id, // no DB id yet before insert
+        matched_staged_job_id: match.id || null,
       };
     }
     return log;

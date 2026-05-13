@@ -144,19 +144,19 @@ export default function BTImport() {
         allErrors.push(...result.errors.map(e => `[Jobs] ${e}`));
       }
 
-      // Parse Daily Logs
+      // Parse Daily Logs (no matching yet — staged job IDs not known until after DB insert)
       if (files.daily_logs) {
         const text = await readFileAsText(files.daily_logs);
         const result = parseDailyLogText(text, batch.id, files.daily_logs.name);
-        logs   = matchLogsToJobs(result.staged, jobs);
+        logs = result.staged;
         allErrors.push(...result.errors.map(e => `[Logs] ${e}`));
       }
 
-      // Parse Calendar
+      // Parse Calendar (same — match after DB insert)
       if (files.schedule_calendar) {
         const text = await readFileAsText(files.schedule_calendar);
         const result = parseCalendarText(text, batch.id, files.schedule_calendar.name);
-        events = matchEventsToJobs(result.staged, jobs);
+        events = result.staged;
         allErrors.push(...result.errors.map(e => `[Calendar] ${e}`));
       }
 
@@ -165,25 +165,46 @@ export default function BTImport() {
       if (logs.length)   await base44.entities.StagedDailyLog.bulkCreate(logs);
       if (events.length) await base44.entities.StagedCalendarEvent.bulkCreate(events);
 
-      // Update batch with counts
-      await base44.entities.ImportBatch.update(batch.id, {
-        dry_run_status: 'complete',
-        total_rows: jobs.length + logs.length + events.length,
-        staged_count: jobs.length + logs.length + events.length,
-        warning_count: jobs.filter(j => safeParseJson(j.warnings, []).length > 0).length,
-        error_count: allErrors.length,
-      });
-
-      // Reload from DB so we have IDs
-      const [dbJobs, dbLogs, dbEvents] = await Promise.all([
+      // Reload from DB so we have real IDs, then run cross-matching with real IDs
+      const [dbJobs, dbLogsRaw, dbEventsRaw] = await Promise.all([
         base44.entities.StagedJob.filter({ import_batch_id: batch.id }),
         base44.entities.StagedDailyLog.filter({ import_batch_id: batch.id }),
         base44.entities.StagedCalendarEvent.filter({ import_batch_id: batch.id }),
       ]);
 
+      // Run cross-matching now that we have real DB IDs for staged jobs
+      const dbLogs   = logs.length   ? matchLogsToJobs(dbLogsRaw, dbJobs)   : dbLogsRaw;
+      const dbEvents = events.length ? matchEventsToJobs(dbEventsRaw, dbJobs) : dbEventsRaw;
+
+      // Persist match results back to DB
+      await Promise.all([
+        ...dbLogs.filter(l => l.match_status !== 'unmatched').map(l =>
+          base44.entities.StagedDailyLog.update(l.id, {
+            match_status: l.match_status,
+            matched_staged_job_id: l.matched_staged_job_id || null,
+          })
+        ),
+        ...dbEvents.filter(e => e.match_status !== 'unmatched').map(e =>
+          base44.entities.StagedCalendarEvent.update(e.id, {
+            match_status: e.match_status,
+            matched_staged_job_id: e.matched_staged_job_id || null,
+          })
+        ),
+      ]);
+
+      // Update batch with counts
+      await base44.entities.ImportBatch.update(batch.id, {
+        dry_run_status: 'complete',
+        total_rows: dbJobs.length + dbLogs.length + dbEvents.length,
+        staged_count: dbJobs.length + dbLogs.length + dbEvents.length,
+        warning_count: dbJobs.filter(j => safeParseJson(j.warnings, []).length > 0).length,
+        error_count: allErrors.length,
+      });
+
       setStagedJobs(dbJobs);
       setStagedLogs(dbLogs);
       setStagedEvents(dbEvents);
+      // Note: dbLogs/dbEvents here already have updated match_status from the cross-match step
       setParseErrors(allErrors);
       setStep(STEPS.DRY_RUN);
       qc.invalidateQueries({ queryKey: ['import_batches'] });

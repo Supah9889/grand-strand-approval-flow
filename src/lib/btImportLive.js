@@ -120,8 +120,13 @@ export async function importApprovedDailyLogs(batchId, approvedLogs, stagedJobsB
           staged.weather_summary ? `Weather: ${staged.weather_summary}` : null,
           staged.temp_high != null ? `Temp: ${staged.temp_high}°F high / ${staged.temp_low ?? '?'}°F low` : null,
           staged.needs_attachment_review ? `[Attachments not imported — ${staged.attachment_count} file(s) referenced]` : null,
-          `BT Import batch: ${batchId} | staged_id: ${staged.id}`,  // ← batch traceability
-        ].filter(Boolean).join('\n'),
+        ].filter(Boolean).join('\n') || null,
+        // ── Provenance ──
+        source_system:    'buildertrend',
+        import_batch_id:  batchId,
+        source_file_name: staged.source_file_name || null,
+        source_row:       staged.source_row || null,
+        raw_source_text:  staged.raw_source_text ? staged.raw_source_text.slice(0, 1000) : null,
       });
 
       await base44.entities.StagedDailyLog.update(staged.id, {
@@ -194,10 +199,16 @@ export async function importApprovedCalendarEvents(batchId, approvedEvents, stag
         all_day:         !staged.start_time,
         status:          'scheduled',
         created_by_name: actorName,
-        internal_notes:  [
-          staged.start_time ? `Time: ${staged.start_time}${staged.end_time ? ` – ${staged.end_time}` : ''}` : null,
-          `BT Import batch: ${batchId} | staged_id: ${staged.id}`,  // ← batch traceability
-        ].filter(Boolean).join('\n'),
+        internal_notes:  staged.start_time
+          ? `Time: ${staged.start_time}${staged.end_time ? ` – ${staged.end_time}` : ''}`
+          : null,
+        // ── Provenance ──
+        source_system:    'buildertrend',
+        import_batch_id:  batchId,
+        source_file_name: staged.source_file_name || null,
+        source_row:       staged.source_row || null,
+        source_page:      staged.source_page || null,
+        raw_source_text:  staged.raw_source_text ? staged.raw_source_text.slice(0, 1000) : null,
       });
 
       await base44.entities.StagedCalendarEvent.update(staged.id, {

@@ -2,26 +2,44 @@
   "name": "CalendarEvent",
   "type": "object",
   "properties": {
-    "job_id": {
-      "type": "string"
-    },
     "title": {
       "type": "string"
     },
-    "start_date": {
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "job_visit",
+        "work_block",
+        "estimate_appointment",
+        "warranty_appointment",
+        "follow_up",
+        "task_deadline",
+        "delivery",
+        "inspection",
+        "meeting",
+        "other"
+      ],
+      "default": "job_visit"
+    },
+    "job_id": {
       "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "description": "ISO date or datetime"
     },
     "end_date": {
       "type": "string"
     },
-    "assigned_to": {
-      "type": "string"
-    },
-    "location": {
-      "type": "string"
-    },
-    "status": {
-      "type": "string"
+    "all_day": {
+      "type": "boolean",
+      "default": true
     },
     "notes": {
       "type": "string"
@@ -29,9 +47,78 @@
     "internal_notes": {
       "type": "string"
     },
-    "share_with_client": {
-      "type": "boolean",
-      "default": false
+    "assigned_to": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "confirmed",
+        "in_progress",
+        "completed",
+        "waiting",
+        "canceled",
+        "rescheduled"
+      ],
+      "default": "scheduled"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color for calendar display"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "client",
+        "vendor",
+        "both"
+      ],
+      "default": "internal"
+    },
+    "linked_task_id": {
+      "type": "string"
+    },
+    "linked_warranty_id": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "external_sync_id": {
+      "type": "string",
+      "description": "Future: external calendar sync ID"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "buildertrend"
+      ],
+      "default": "app",
+      "description": "Origin of this record"
+    },
+    "import_batch_id": {
+      "type": "string",
+      "description": "ImportBatch entity ID \u2014 set for all BT-imported records"
+    },
+    "source_file_name": {
+      "type": "string",
+      "description": "Original export file name"
+    },
+    "source_row": {
+      "type": "number",
+      "description": "Row/block number within the source file"
+    },
+    "source_page": {
+      "type": "number",
+      "description": "Page number within a multi-page export (e.g. calendar PDF)"
+    },
+    "raw_source_text": {
+      "type": "string",
+      "description": "Truncated raw source text for traceability (max ~1000 chars)"
     }
   },
   "required": [

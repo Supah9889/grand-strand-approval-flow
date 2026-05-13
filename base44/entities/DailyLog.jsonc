@@ -13,10 +13,17 @@
     },
     "log_date": {
       "type": "string",
-      "description": "Daily log date"
+      "description": "ISO date YYYY-MM-DD"
+    },
+    "created_by_name": {
+      "type": "string"
     },
     "crew_present": {
-      "type": "string"
+      "type": "string",
+      "description": "Names or description of who was on site"
+    },
+    "crew_count": {
+      "type": "number"
     },
     "work_completed": {
       "type": "string"
@@ -44,11 +51,30 @@
         "other"
       ]
     },
+    "weather_notes": {
+      "type": "string"
+    },
     "safety_notes": {
       "type": "string"
     },
     "subcontractors_present": {
       "type": "string"
+    },
+    "visitors_inspectors": {
+      "type": "string"
+    },
+    "equipment_used": {
+      "type": "string"
+    },
+    "start_conditions": {
+      "type": "string"
+    },
+    "end_status": {
+      "type": "string"
+    },
+    "photos": {
+      "type": "string",
+      "description": "JSON array of photo URLs"
     },
     "follow_up_needed": {
       "type": "boolean",
@@ -57,19 +83,43 @@
     "follow_up_note": {
       "type": "string"
     },
+    "follow_up_assigned_to": {
+      "type": "string"
+    },
     "follow_up_status": {
       "type": "string",
-      "description": "Follow-up state such as resolved"
+      "enum": [
+        "open",
+        "in_progress",
+        "resolved"
+      ],
+      "default": "open"
     },
-    "photos": {
+    "source_system": {
       "type": "string",
-      "description": "JSON array of uploaded photo URLs"
+      "enum": [
+        "app",
+        "imported",
+        "buildertrend"
+      ],
+      "default": "app",
+      "description": "Origin of this record"
     },
-    "created_by": {
-      "type": "string"
+    "import_batch_id": {
+      "type": "string",
+      "description": "ImportBatch entity ID \u2014 set for all BT-imported records"
     },
-    "created_by_name": {
-      "type": "string"
+    "source_file_name": {
+      "type": "string",
+      "description": "Original export file name"
+    },
+    "source_row": {
+      "type": "number",
+      "description": "Row/block number within the source file"
+    },
+    "raw_source_text": {
+      "type": "string",
+      "description": "Truncated raw source text for traceability (max ~1000 chars)"
     }
   },
   "required": [

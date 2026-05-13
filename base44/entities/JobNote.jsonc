@@ -76,6 +76,32 @@
       "type": "boolean",
       "default": false,
       "description": "Whether this note has been viewed/acknowledged"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "buildertrend"
+      ],
+      "default": "app",
+      "description": "Origin of this record"
+    },
+    "import_batch_id": {
+      "type": "string",
+      "description": "ImportBatch entity ID \u2014 set for all BT-imported records"
+    },
+    "source_file_name": {
+      "type": "string",
+      "description": "Original export file name"
+    },
+    "source_row": {
+      "type": "number",
+      "description": "Row/block number within the source file"
+    },
+    "raw_source_text": {
+      "type": "string",
+      "description": "Truncated raw source text for traceability (max ~1000 chars)"
     }
   },
   "required": [

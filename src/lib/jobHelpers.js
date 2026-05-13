@@ -75,3 +75,20 @@ export const JOB_GROUP_CONFIG = {
 
 export const ACTIVE_LIFECYCLE_STATUSES = ['open','in_progress','waiting','warranty','on_hold'];
 export const CLOSED_LIFECYCLE_STATUSES = ['completed','closed','archived','canceled'];
+
+// ── Centralized lifecycle helpers ─────────────────────────────────────────────
+
+/** Returns true if the job is considered "active" and should appear in normal selectors */
+export function isActiveJob(job) {
+  if (!job) return false;
+  const ls = job.lifecycle_status || '';
+  const s  = job.status || '';
+  if (ls === 'archived' || s === 'archived') return false;
+  if (ls === 'canceled' || ls === 'closed') return false;
+  return true;
+}
+
+/** Filter an array of jobs to only active ones */
+export function getActiveJobs(jobs = []) {
+  return jobs.filter(isActiveJob);
+}

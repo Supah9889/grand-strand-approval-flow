@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Clock, LogIn, LogOut, User, MapPin, CheckCircle2, AlertTriangle, Timer, ClipboardCheck } from 'lucide-react';
+import JobSearchSelect from '@/components/jobs/JobSearchSelect';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import AppLayout from '../components/AppLayout';
@@ -66,14 +67,10 @@ export default function TimeClock() {
   }, [sessionEmployeeId, sessionEmployeeName, sessionEmployeeCode, sessionEmployeeRole]);
   const hasReliableStaffIdentity = isAdminUser || !!sessionEmployeeId;
 
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['clock-jobs'],
-    queryFn: () => base44.entities.Job.filter({ status: 'pending' }),
-  });
-
-  const allJobs = useQuery({
+  const { data: allJobsList = [] } = useQuery({
     queryKey: ['clock-all-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 100),
+    queryFn: () => base44.entities.Job.list('-created_date', 300),
+    staleTime: 60_000,
   });
 
   const { data: timeEntries = [] } = useQuery({
@@ -151,7 +148,7 @@ export default function TimeClock() {
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
-      const job = (allJobs.data || []).find(j => j.id === selectedJob);
+      const job = allJobsList.find(j => j.id === selectedJob);
 
       // Geo capture (non-blocking)
       setGeoStatus('capturing');
@@ -394,18 +391,13 @@ export default function TimeClock() {
               </div>
 
               <div className="space-y-3">
-                <Select value={selectedJob} onValueChange={setSelectedJob}>
-                  <SelectTrigger className="h-11 rounded-xl">
-                    <SelectValue placeholder="Select job / address" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(allJobs.data || []).map(j => (
-                      <SelectItem key={j.id} value={j.id}>
-                        {j.address} {j.customer_name ? `· ${j.customer_name}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <JobSearchSelect
+                  value={selectedJob || ''}
+                  onChange={setSelectedJob}
+                  jobs={allJobsList}
+                  filterActive={true}
+                  placeholder="Select job / address"
+                />
 
                 <Select value={costCode} onValueChange={setCostCode}>
                   <SelectTrigger className="h-11 rounded-xl">

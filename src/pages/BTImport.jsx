@@ -45,79 +45,175 @@ async function readFileAsText(file) {
 }
 
 /**
+ * RFC4180-compliant CSV state-machine tokeniser.
+ * Correctly handles:
+ *   - quoted fields with embedded commas
+ *   - quoted fields with embedded newlines (CRLF or LF)
+ *   - escaped double-quotes ("")
+ *   - UTF-8 BOM
+ *
+ * Returns an array of string arrays (one per logical record).
+ */
+function tokenizeCsv(raw) {
+  // Strip UTF-8 BOM
+  const text = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+
+  const records = [];
+  let fields = [];
+  let field = '';
+  let inQuote = false;
+  let i = 0;
+  const len = text.length;
+
+  while (i < len) {
+    const ch = text[i];
+
+    if (inQuote) {
+      if (ch === '"') {
+        // Peek ahead: "" = escaped quote, otherwise end of quoted field
+        if (i + 1 < len && text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          inQuote = false;
+          i++;
+        }
+      } else {
+        // Any character inside quotes (including \n, \r) is literal field content
+        field += ch;
+        i++;
+      }
+    } else {
+      if (ch === '"') {
+        inQuote = true;
+        i++;
+      } else if (ch === ',') {
+        fields.push(field);
+        field = '';
+        i++;
+      } else if (ch === '\r') {
+        // CRLF or bare CR = record separator
+        fields.push(field);
+        field = '';
+        records.push(fields);
+        fields = [];
+        if (i + 1 < len && text[i + 1] === '\n') i++; // consume LF
+        i++;
+      } else if (ch === '\n') {
+        fields.push(field);
+        field = '';
+        records.push(fields);
+        fields = [];
+        i++;
+      } else {
+        field += ch;
+        i++;
+      }
+    }
+  }
+
+  // Flush last field / record
+  if (field !== '' || fields.length > 0) {
+    fields.push(field);
+    records.push(fields);
+  }
+
+  return records;
+}
+
+/**
  * Parse a Buildertrend Jobsites CSV directly from the File object.
- * - Strips UTF-8 BOM from the first header
- * - Normalises headers: trim, lowercase, collapse tabs/spaces
- * - Maps each row to a plain object keyed by ORIGINAL header text
- * - Hard-stops with a diagnostic error if "job name" header is not found
- * - Returns { rows, debugInfo }
+ * Uses a proper RFC4180 state-machine — handles quoted fields with embedded
+ * commas, newlines, and escaped double-quotes.
+ *
+ * Returns { rows, debugInfo }
  */
 function parseJobsitesCsv(file) {
   return file.text().then((raw) => {
-    // Strip UTF-8 BOM if present
-    const text = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+    const records = tokenizeCsv(raw);
 
-    const lines = text.split(/\r?\n/);
-    const rawLines = lines; // keep for diagnostics
+    if (records.length < 2) throw new Error('CSV file appears empty or has no data rows');
 
-    if (lines.length < 2) throw new Error('CSV file appears empty or has no data rows');
-
-    // First non-empty line = headers
-    const headerLine = lines[0];
-    const rawHeaders = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim());
-
-    // Normalise for lookup: lowercase, collapse whitespace/tabs
+    // First record = headers
+    const rawHeaders = records[0].map(h => h.trim());
     const normHeader = (h) => h.toLowerCase().replace(/[\t]+/g, ' ').replace(/\s+/g, ' ').trim();
     const normHeaders = rawHeaders.map(normHeader);
 
-    // Hard-stop if "job name" is not among the headers
+    // Hard-stop if "job name" column is missing
     if (!normHeaders.includes('job name')) {
       const diagnostic = [
         `CSV header check failed — "Job Name" column not found.`,
-        `Parser: manual CSV (file.text())`,
+        `Parser: RFC4180 state-machine`,
         `Total columns found: ${rawHeaders.length}`,
         `Detected headers: ${rawHeaders.join(' | ')}`,
-        `First 3 raw lines:`,
-        ...rawLines.slice(0, 3).map((l, i) => `  [${i}] ${l.slice(0, 120)}`),
+        `First 3 raw records (fields):`,
+        ...records.slice(0, 3).map((r, i) => `  [${i}] ${r.slice(0, 6).join(' | ')}`),
       ].join('\n');
       throw new Error(diagnostic);
     }
 
-    // Parse data rows (skip header line, skip blank lines)
+    const jobNameIdx = normHeaders.indexOf('job name');
+
     const rows = [];
     let skippedBlank = 0;
+    let fragmented = 0;
+    const malformedRows = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) { skippedBlank++; continue; }
+    for (let i = 1; i < records.length; i++) {
+      const fields = records[i];
 
-      // Simple CSV split — handles basic quoting
-      const values = [];
-      let cur = '', inQuote = false;
-      for (let c = 0; c < line.length; c++) {
-        const ch = line[c];
-        if (ch === '"') { inQuote = !inQuote; }
-        else if (ch === ',' && !inQuote) { values.push(cur.trim()); cur = ''; }
-        else { cur += ch; }
-      }
-      values.push(cur.trim());
+      // Skip truly blank records (single empty field)
+      if (fields.length === 1 && fields[0].trim() === '') { skippedBlank++; continue; }
 
       const row = {};
       rawHeaders.forEach((h, idx) => {
-        row[h] = values[idx] !== undefined ? values[idx].replace(/^"|"$/g, '').trim() : '';
+        row[h] = fields[idx] !== undefined ? fields[idx].trim() : '';
       });
+
+      // ── Fragmentation detection ─────────────────────────────────────────────
+      const jobName = row['Job Name'] || '';
+      if (!jobName) {
+        // Check if address/city/state/zip fields are populated — hallmark of a
+        // fragmented multiline row that was incorrectly split
+        const hasAddr = !!(row['Street Address'] || row['Address'] || row['City'] || row['State'] || row['Zip']);
+        if (hasAddr) {
+          fragmented++;
+          malformedRows.push({
+            sourceRow: i + 1,
+            reason: 'possible multiline row fragmentation',
+            fields: row,
+          });
+        } else {
+          skippedBlank++;
+        }
+        continue;
+      }
+
       rows.push(row);
     }
 
+    const first5Names = rows.slice(0, 5).map(r => r['Job Name'] || '(empty)');
+
     const debugInfo = {
-      parser: 'manual CSV (file.text())',
-      totalRows: rows.length,
+      parser: 'RFC4180 state-machine',
+      totalRawRecords: records.length - 1, // exclude header
+      totalParsedRows: rows.length,
       skippedBlank,
+      malformedCount: fragmented,
+      first5JobNames: first5Names,
       detectedHeaders: rawHeaders,
-      first3JobNames: rows.slice(0, 3).map(r => r['Job Name'] || '(empty)'),
+      malformedRows, // full detail for diagnostics panel
     };
 
-    console.log('[BTImport] CSV parse debug:', debugInfo);
+    console.log('[BTImport] RFC4180 CSV parse diagnostics:', {
+      parser: debugInfo.parser,
+      totalRawRecords: debugInfo.totalRawRecords,
+      totalParsedRows: debugInfo.totalParsedRows,
+      skippedBlank,
+      malformedCount: fragmented,
+      first5JobNames: first5Names,
+    });
+
     return { rows, debugInfo };
   });
 }
@@ -181,18 +277,34 @@ export default function BTImport() {
       const allErrors = [];
       let jobs = [], logs = [], events = [];
 
-      // Parse Jobsites CSV — direct file.text() path, no AI extraction
+      // Parse Jobsites CSV — RFC4180 state-machine, no AI extraction
       if (files.jobsites) {
         const { rows, debugInfo } = await parseJobsitesCsv(files.jobsites);
         const result = parseJobsiteRows(rows, batch.id, files.jobsites.name);
         jobs = result.staged;
         allErrors.push(...result.errors.map(e => `[Jobs] ${e}`));
-        // Surface debug summary as first info entry (not a real error)
+
+        // ── Parser diagnostics summary (always shown) ─────────────────────────
         allErrors.unshift(
-          `[Jobs debug] parser=${debugInfo.parser} | rows=${debugInfo.totalRows} | ` +
-          `skipped_blank=${debugInfo.skippedBlank} | ` +
-          `first_jobs=${debugInfo.first3JobNames.join(', ')}`
+          `[Parser diagnostics]`,
+          `  parser:             ${debugInfo.parser}`,
+          `  total raw records:  ${debugInfo.totalRawRecords}`,
+          `  parsed rows:        ${debugInfo.totalParsedRows}`,
+          `  skipped blank:      ${debugInfo.skippedBlank}`,
+          `  malformed (fragmented): ${debugInfo.malformedCount}`,
+          `  first 5 job names:  ${debugInfo.first5JobNames.join(' | ')}`,
         );
+
+        // ── Fragmented row details ─────────────────────────────────────────────
+        if (debugInfo.malformedRows && debugInfo.malformedRows.length > 0) {
+          allErrors.push(``, `[Fragmented rows — possible multiline row fragmentation]`);
+          debugInfo.malformedRows.forEach(m => {
+            allErrors.push(
+              `  Row ${m.sourceRow}: ${m.reason}`,
+              `    Fields: ${Object.entries(m.fields).filter(([,v]) => v).map(([k,v]) => `${k}="${v}"`).join(', ')}`,
+            );
+          });
+        }
       }
 
       // Parse Daily Logs (no matching yet — staged job IDs not known until after DB insert)

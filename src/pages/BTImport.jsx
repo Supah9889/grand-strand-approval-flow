@@ -43,38 +43,82 @@ async function readFileAsText(file) {
   });
 }
 
-async function parseExcelFile(file) {
-  // Use Base44 ExtractDataFromUploadedFile for Excel/CSV
-  const { file_url } = await base44.integrations.Core.UploadFile({ file });
-  const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-    file_url,
-    json_schema: {
-      type: 'object',
-      properties: {
-        rows: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              'Job Name': { type: 'string' },
-              'Address':  { type: 'string' },
-              'City':     { type: 'string' },
-              'State':    { type: 'string' },
-              'Zip':      { type: 'string' },
-              'Client':   { type: 'string' },
-              'Phone':    { type: 'string' },
-              'Email':    { type: 'string' },
-              'Schedule Status': { type: 'string' },
-              'Square Footage':  { type: 'string' },
-            },
-          },
-        },
-      },
-    },
+/**
+ * Parse a Buildertrend Jobsites CSV directly from the File object.
+ * - Strips UTF-8 BOM from the first header
+ * - Normalises headers: trim, lowercase, collapse tabs/spaces
+ * - Maps each row to a plain object keyed by ORIGINAL header text
+ * - Hard-stops with a diagnostic error if "job name" header is not found
+ * - Returns { rows, debugInfo }
+ */
+function parseJobsitesCsv(file) {
+  return file.text().then((raw) => {
+    // Strip UTF-8 BOM if present
+    const text = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+
+    const lines = text.split(/\r?\n/);
+    const rawLines = lines; // keep for diagnostics
+
+    if (lines.length < 2) throw new Error('CSV file appears empty or has no data rows');
+
+    // First non-empty line = headers
+    const headerLine = lines[0];
+    const rawHeaders = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim());
+
+    // Normalise for lookup: lowercase, collapse whitespace/tabs
+    const normHeader = (h) => h.toLowerCase().replace(/[\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const normHeaders = rawHeaders.map(normHeader);
+
+    // Hard-stop if "job name" is not among the headers
+    if (!normHeaders.includes('job name')) {
+      const diagnostic = [
+        `CSV header check failed — "Job Name" column not found.`,
+        `Parser: manual CSV (file.text())`,
+        `Total columns found: ${rawHeaders.length}`,
+        `Detected headers: ${rawHeaders.join(' | ')}`,
+        `First 3 raw lines:`,
+        ...rawLines.slice(0, 3).map((l, i) => `  [${i}] ${l.slice(0, 120)}`),
+      ].join('\n');
+      throw new Error(diagnostic);
+    }
+
+    // Parse data rows (skip header line, skip blank lines)
+    const rows = [];
+    let skippedBlank = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) { skippedBlank++; continue; }
+
+      // Simple CSV split — handles basic quoting
+      const values = [];
+      let cur = '', inQuote = false;
+      for (let c = 0; c < line.length; c++) {
+        const ch = line[c];
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { values.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      values.push(cur.trim());
+
+      const row = {};
+      rawHeaders.forEach((h, idx) => {
+        row[h] = values[idx] !== undefined ? values[idx].replace(/^"|"$/g, '').trim() : '';
+      });
+      rows.push(row);
+    }
+
+    const debugInfo = {
+      parser: 'manual CSV (file.text())',
+      totalRows: rows.length,
+      skippedBlank,
+      detectedHeaders: rawHeaders,
+      first3JobNames: rows.slice(0, 3).map(r => r['Job Name'] || '(empty)'),
+    };
+
+    console.log('[BTImport] CSV parse debug:', debugInfo);
+    return { rows, debugInfo };
   });
-  if (result.status !== 'success') throw new Error(result.details || 'Failed to parse Excel file');
-  const rows = result.output?.rows || result.output || [];
-  return Array.isArray(rows) ? rows : [];
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -136,12 +180,18 @@ export default function BTImport() {
       const allErrors = [];
       let jobs = [], logs = [], events = [];
 
-      // Parse Jobsites Excel
+      // Parse Jobsites CSV — direct file.text() path, no AI extraction
       if (files.jobsites) {
-        const rows = await parseExcelFile(files.jobsites);
+        const { rows, debugInfo } = await parseJobsitesCsv(files.jobsites);
         const result = parseJobsiteRows(rows, batch.id, files.jobsites.name);
-        jobs   = result.staged;
+        jobs = result.staged;
         allErrors.push(...result.errors.map(e => `[Jobs] ${e}`));
+        // Surface debug summary as first info entry (not a real error)
+        allErrors.unshift(
+          `[Jobs debug] parser=${debugInfo.parser} | rows=${debugInfo.totalRows} | ` +
+          `skipped_blank=${debugInfo.skippedBlank} | ` +
+          `first_jobs=${debugInfo.first3JobNames.join(', ')}`
+        );
       }
 
       // Parse Daily Logs (no matching yet — staged job IDs not known until after DB insert)

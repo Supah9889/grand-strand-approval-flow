@@ -14,6 +14,42 @@ function safeJson(arr) {
   try { return JSON.stringify(arr); } catch { return '[]'; }
 }
 
+const MONTHS = {
+  jan: '01', january: '01',
+  feb: '02', february: '02',
+  mar: '03', march: '03',
+  apr: '04', april: '04',
+  may: '05',
+  jun: '06', june: '06',
+  jul: '07', july: '07',
+  aug: '08', august: '08',
+  sep: '09', sept: '09', september: '09',
+  oct: '10', october: '10',
+  nov: '11', november: '11',
+  dec: '12', december: '12',
+};
+
+const DATE_HEADING_RE = /^(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2}),\s+(\d{4})$/i;
+
+function parseDateHeading(line) {
+  const match = String(line || '').trim().match(DATE_HEADING_RE);
+  if (!match) return null;
+  const month = MONTHS[match[1].toLowerCase()];
+  if (!month) return null;
+  return `${match[3]}-${month}-${String(match[2]).padStart(2, '0')}`;
+}
+
+function isLabelLine(line, label) {
+  return String(line || '').trim().toLowerCase() === label.toLowerCase();
+}
+
+function nextNonEmptyIndex(lines, start) {
+  for (let i = start; i < lines.length; i++) {
+    if (String(lines[i] || '').trim()) return i;
+  }
+  return -1;
+}
+
 /**
  * BT job names often start with a date prefix like "2026 4/24 4008 Braid Ct"
  * or "04/24/2026 Smith Residence". Strip leading date tokens.
@@ -204,7 +240,7 @@ export function parseJobsiteRows(rows, batchId, fileName) {
  * Parse a plain-text Buildertrend Daily Log export.
  * Logs are separated by blank lines; each block starts with "Date: " and "Job: ".
  */
-export function parseDailyLogText(text, batchId, fileName) {
+function parseDailyLogTextLegacy(text, batchId, fileName) {
   const staged = [];
   const errors = [];
 
@@ -402,6 +438,7 @@ export function matchLogsToJobs(stagedLogs, stagedJobs) {
   const jobIndex = new Map(stagedJobs.map(j => [j.normalized_job_name, j]));
 
   return stagedLogs.map(log => {
+    if (log.match_status && log.match_status !== 'unmatched') return log;
     const norm = log.normalized_job_name;
     if (!norm) return log;
     const match = jobIndex.get(norm);
@@ -434,4 +471,156 @@ export function matchEventsToJobs(stagedEvents, stagedJobs) {
     }
     return ev;
   });
+}
+
+export function parseDailyLogText(text, batchId, fileName) {
+  const staged = [];
+  const errors = [];
+  const parserUsed = 'manual Daily Logs text parser';
+  const rawLines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  const nonEmptyLines = rawLines.map(line => line.trim()).filter(Boolean);
+  const detectedDateHeadings = nonEmptyLines.filter(line => parseDateHeading(line));
+  const jobLabelCount = nonEmptyLines.filter(line => isLabelLine(line, 'Job:')).length;
+  const first40Lines = rawLines.slice(0, 40).map((line, index) => `${index + 1}: ${line}`).join('\n');
+
+  const buildDiagnostics = () => ({
+    parser: parserUsed,
+    totalBlocks: 0,
+    stagedCount: staged.length,
+    matchedCount: 0,
+    unmatchedCount: staged.length,
+    attachmentReviewCount: staged.filter(log => log.needs_attachment_review).length,
+    first5Jobs: staged.slice(0, 5).map(log => log.source_job_name || '(no job name)'),
+    first3UnmatchedJobs: staged.slice(0, 3).map(log => log.source_job_name || '(no job name)'),
+    detectedDateHeadings,
+    jobLabelCount,
+    first40Lines,
+  });
+
+  if (!text || !text.trim()) {
+    errors.push('Empty daily log file');
+    return { staged, errors, diagnostics: buildDiagnostics() };
+  }
+
+  const starts = [];
+  for (let i = 0; i < nonEmptyLines.length; i++) {
+    if (!parseDateHeading(nonEmptyLines[i])) continue;
+    const nextIndex = nextNonEmptyIndex(nonEmptyLines, i + 1);
+    if (nextIndex >= 0 && isLabelLine(nonEmptyLines[nextIndex], 'Job:')) {
+      starts.push(i);
+    }
+  }
+
+  if (starts.length === 0) {
+    const legacy = parseDailyLogTextLegacy(text, batchId, fileName);
+    if (legacy.staged.length > 0) {
+      return {
+        ...legacy,
+        diagnostics: {
+          ...buildDiagnostics(),
+          parser: `${parserUsed} fallback legacy label parser`,
+          totalBlocks: legacy.staged.length,
+          stagedCount: legacy.staged.length,
+          unmatchedCount: legacy.staged.length,
+          first5Jobs: legacy.staged.slice(0, 5).map(log => log.source_job_name || '(no job name)'),
+          first3UnmatchedJobs: legacy.staged.slice(0, 3).map(log => log.source_job_name || '(no job name)'),
+        },
+      };
+    }
+  }
+
+  const blocks = starts.map((start, index) => ({
+    sourceRow: index + 1,
+    lines: nonEmptyLines.slice(start, starts[index + 1] ?? nonEmptyLines.length),
+  }));
+
+  const getValueAfterLabel = (lines, label) => {
+    const index = lines.findIndex(line => isLabelLine(line, label));
+    if (index < 0) return '';
+    const valueIndex = nextNonEmptyIndex(lines, index + 1);
+    return valueIndex >= 0 ? lines[valueIndex] : '';
+  };
+
+  const collectAfterLabel = (lines, label, stopLabels) => {
+    const index = lines.findIndex(line => isLabelLine(line, label));
+    if (index < 0) return '';
+    const collected = [];
+    for (let i = index + 1; i < lines.length; i++) {
+      if (stopLabels.some(stop => isLabelLine(lines[i], stop))) break;
+      collected.push(lines[i]);
+    }
+    return collected.join('\n').trim();
+  };
+
+  blocks.forEach((block) => {
+    const lines = block.lines;
+    const logDate = parseDateHeading(lines[0]);
+    const jobName = getValueAfterLabel(lines, 'Job:');
+    const title = getValueAfterLabel(lines, 'Title:');
+    const addedBy = getValueAfterLabel(lines, 'Added By:');
+    const logNotes = collectAfterLabel(lines, 'Log Notes:', ['Weather Conditions:', 'Attachments:']);
+    const weatherSummary = getValueAfterLabel(lines, 'Weather Conditions:');
+    const weatherTimestamp = lines.find(line => /^[a-z]{3},\s+[a-z]{3}\s+\d{1,2},\s+\d{4},\s+\d{1,2}:\d{2}\s+[ap]m$/i.test(line)) || null;
+    const temps = lines
+      .map(line => line.match(/(-?\d+(?:\.\d+)?)\s*°?\s*f\b/i))
+      .filter(Boolean)
+      .map(match => Number(match[1]));
+    const tempHigh = temps[0] ?? null;
+    const tempLow = temps[1] ?? null;
+    const wind = (lines.find(line => /^wind:/i.test(line)) || '').replace(/^wind:\s*/i, '').trim() || null;
+    const humidity = (lines.find(line => /^humidity:/i.test(line)) || '').replace(/^humidity:\s*/i, '').trim() || null;
+    const precipitation = (lines.find(line => /^total precip:/i.test(line)) || '').replace(/^total precip:\s*/i, '').trim() || null;
+    const attachmentCount = Number.parseInt(getValueAfterLabel(lines, 'Attachments:'), 10) || 0;
+
+    if (!logDate) {
+      errors.push(`Block ${block.sourceRow}: missing date - skipped`);
+      return;
+    }
+
+    staged.push({
+      import_batch_id: batchId,
+      source_file_name: fileName,
+      source_row: block.sourceRow,
+      raw_source_text: lines.join('\n').slice(0, 2000),
+      log_date: logDate,
+      source_job_name: jobName || '',
+      normalized_job_name: normalize(jobName || ''),
+      title: title || null,
+      added_by: addedBy || null,
+      log_notes: logNotes || null,
+      weather_summary: weatherSummary || null,
+      weather_timestamp: weatherTimestamp,
+      temp_high: tempHigh,
+      temp_low: tempLow,
+      wind,
+      humidity,
+      precipitation,
+      attachment_count: attachmentCount,
+      needs_attachment_review: attachmentCount > 0,
+      match_status: 'unmatched',
+      matched_job_id: null,
+      matched_staged_job_id: null,
+      warnings: safeJson([]),
+      errors: safeJson([]),
+      review_status: 'pending',
+    });
+  });
+
+  const diagnostics = {
+    ...buildDiagnostics(),
+    totalBlocks: blocks.length,
+  };
+
+  if (staged.length === 0) {
+    errors.push([
+      'Daily Logs parse produced zero logs.',
+      `parser used: ${parserUsed}`,
+      `detected date headings: ${detectedDateHeadings.join(' | ') || '(none)'}`,
+      `detected Job: labels count: ${jobLabelCount}`,
+      'first 40 lines:',
+      first40Lines || '(empty)',
+    ].join('\n'));
+  }
+
+  return { staged, errors, diagnostics };
 }

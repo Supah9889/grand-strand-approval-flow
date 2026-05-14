@@ -33,6 +33,7 @@ export default function BTDryRunSummary({ stats }) {
           label="Daily Logs"
           total={stats.totalLogs}
           items={[
+            stats.matchedLogs > 0    && { label: `${stats.matchedLogs} matched to job`, warn: false },
             stats.unmatchedLogs > 0  && { label: `${stats.unmatchedLogs} unmatched to job`, warn: true },
             stats.attachmentLogs > 0 && { label: `${stats.attachmentLogs} have attachments`, warn: false },
           ].filter(Boolean)}

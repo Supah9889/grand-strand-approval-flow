@@ -158,6 +158,32 @@ export function findExistingBuildertrendImportedJob(stagedJob, liveJobs = []) {
   return null;
 }
 
+export function findBuildertrendImportedJobForLog(sourceJobName, liveJobs = []) {
+  const source = normalizeBuildertrendMatchValue(sourceJobName);
+  if (!source) return null;
+
+  const importedJobs = (liveJobs || []).filter(isBuildertrendImportedJob);
+  const sourceCompact = source.replace(/\s+/g, '');
+
+  return importedJobs.find((job) => {
+    const rawName = normalizeBuildertrendMatchValue(job.buildertrend_id || job.buildertrendId || job.raw_job_name);
+    const title = normalizeBuildertrendMatchValue(job.clean_job_name || job.title);
+    const address = normalizeAddressParts(job.address);
+    const fullAddress = normalizeAddressParts(job.address, job.city, job.state, job.zip);
+    const addressCompact = address.replace(/\s+/g, '');
+    const fullAddressCompact = fullAddress.replace(/\s+/g, '');
+
+    return (
+      rawName === source ||
+      title === source ||
+      address === source ||
+      fullAddress === source ||
+      Boolean(sourceCompact && addressCompact && (addressCompact.includes(sourceCompact) || sourceCompact.includes(addressCompact))) ||
+      Boolean(sourceCompact && fullAddressCompact && (fullAddressCompact.includes(sourceCompact) || sourceCompact.includes(fullAddressCompact)))
+    );
+  }) || null;
+}
+
 export function requiresJobSignatureWorkflow(job) {
   if (!job) return false;
   if (isBuildertrendImportedJob(job)) return false;

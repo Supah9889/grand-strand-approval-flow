@@ -27,7 +27,7 @@ import {
   matchLogsToJobs,
   matchEventsToJobs,
 } from '@/lib/btParsers';
-import { findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
+import { findBuildertrendImportedJobForLog, findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
 import {
   importApprovedJobs,
   importApprovedDailyLogs,
@@ -242,6 +242,36 @@ function markAlreadyImportedJobs(stagedJobs, liveJobs) {
   });
 }
 
+function matchDailyLogsToImportedJobs(stagedLogs, liveJobs) {
+  return stagedLogs.map((log) => {
+    const match = findBuildertrendImportedJobForLog(log.source_job_name, liveJobs);
+    if (!match) return log;
+    return {
+      ...log,
+      match_status: 'matched_live',
+      matched_job_id: match.id || null,
+    };
+  });
+}
+
+function buildDailyLogDiagnosticLines(diagnostics, logs) {
+  if (!diagnostics) return [];
+  const matchedCount = logs.filter(log => log.match_status === 'matched_live').length;
+  const unmatched = logs.filter(log => log.match_status === 'unmatched');
+  const attachmentReviewCount = logs.filter(log => log.needs_attachment_review).length;
+  return [
+    `[Daily Logs diagnostics]`,
+    `  parser used:              ${diagnostics.parser}`,
+    `  total log blocks found:   ${diagnostics.totalBlocks}`,
+    `  staged logs created:      ${logs.length}`,
+    `  matched logs:             ${matchedCount}`,
+    `  unmatched logs:           ${unmatched.length}`,
+    `  attachment review count:  ${attachmentReviewCount}`,
+    `  first 5 parsed jobs:      ${logs.slice(0, 5).map(log => log.source_job_name || '(no job name)').join(' | ') || '(none)'}`,
+    `  first 3 unmatched jobs:   ${unmatched.slice(0, 3).map(log => log.source_job_name || '(no job name)').join(' | ') || '(none)'}`,
+  ];
+}
+
 const STEPS = { UPLOAD: 'upload', DRY_RUN: 'dry_run', CONFIRM: 'confirm', DONE: 'done' };
 
 export default function BTImport() {
@@ -311,13 +341,14 @@ export default function BTImport() {
 
       const allErrors = [];
       let jobs = [], logs = [], events = [];
+      let liveJobsForMatching = null;
 
       // Parse Jobsites CSV — RFC4180 state-machine, no AI extraction
       if (files.jobsites) {
         const { rows, debugInfo } = await parseJobsitesCsv(files.jobsites);
         const result = parseJobsiteRows(rows, batch.id, files.jobsites.name);
-        const liveJobs = await base44.entities.Job.list('-created_date');
-        jobs = markAlreadyImportedJobs(result.staged, liveJobs);
+        liveJobsForMatching = liveJobsForMatching || await base44.entities.Job.list('-created_date');
+        jobs = markAlreadyImportedJobs(result.staged, liveJobsForMatching);
         allErrors.push(...result.errors.map(e => `[Jobs] ${e}`));
 
         // ── Parser diagnostics summary (always shown) ─────────────────────────
@@ -345,10 +376,15 @@ export default function BTImport() {
 
       // Parse Daily Logs (no matching yet — staged job IDs not known until after DB insert)
       if (files.daily_logs) {
-        const text = await readFileAsText(files.daily_logs);
+        const text = await files.daily_logs.text();
         const result = parseDailyLogText(text, batch.id, files.daily_logs.name);
-        logs = result.staged;
+        liveJobsForMatching = liveJobsForMatching || await base44.entities.Job.list('-created_date');
+        logs = matchDailyLogsToImportedJobs(result.staged, liveJobsForMatching);
+        allErrors.push(...buildDailyLogDiagnosticLines(result.diagnostics, logs));
         allErrors.push(...result.errors.map(e => `[Logs] ${e}`));
+        if (logs.length === 0) {
+          throw new Error(result.errors.join('\n\n') || 'Daily Logs parse produced zero logs.');
+        }
       }
 
       // Parse Calendar (same — match after DB insert)
@@ -487,6 +523,7 @@ export default function BTImport() {
     approvedJobs:   stagedJobs.filter(j => j.review_status === 'approved').length,
     skippedJobs:    stagedJobs.filter(j => j.review_status === 'skipped').length,
     totalLogs:      stagedLogs.length,
+    matchedLogs:    stagedLogs.filter(l => l.match_status === 'matched_live' || l.match_status === 'matched_staged').length,
     unmatchedLogs:  stagedLogs.filter(l => l.match_status === 'unmatched').length,
     attachmentLogs: stagedLogs.filter(l => l.needs_attachment_review).length,
     totalEvents:    stagedEvents.length,

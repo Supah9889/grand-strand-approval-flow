@@ -16,6 +16,7 @@ import { getSession } from '@/lib/adminAuth';
 import { normalizeSignatureRecordPayload, validateSignatureRecordPayload } from '@/lib/signatureRecords';
 import { JOB_PRIMARY_ACTIONS, isJobSigned, getBestSignedDocUrl, getJobPrimaryAction, hasSourceWorkOrder } from '@/lib/signedDocHelpers';
 import { buildApprovalPath, ensureSignaturePublicToken } from '@/lib/signingLinks';
+import { isBuildertrendImportedJob } from '@/lib/jobHelpers';
 import {
   SIGNATURE_DOCUMENT_MODES,
   SIGNATURE_PLACEMENTS,
@@ -769,6 +770,20 @@ function SignatureRecordCard({ record, isAdmin, onEdit, onDelete, navigate, jobI
 
 // ── Job-level approval summary (from job.status) ──────────────────────────────
 function JobApprovalSummary({ job, records, navigate, onPreview, isAdmin }) {
+  if (isBuildertrendImportedJob(job)) {
+    return (
+      <div className="rounded-xl px-4 py-3 border border-slate-200 bg-slate-50 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+          <Archive className="w-4 h-4 text-slate-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">Buildertrend Imported Record</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Historical import. Signature workflow is not required.</p>
+        </div>
+      </div>
+    );
+  }
+
   const isSigned = isJobSigned(job);
   const isPending = job.status === 'pending';
 

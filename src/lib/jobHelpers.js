@@ -1,5 +1,6 @@
 export const JOB_LIFECYCLE_CONFIG = {
   presale:     { label: 'Presale',     color: 'bg-slate-100 text-slate-600',   border: 'border-slate-200' },
+  imported:    { label: 'Imported',    color: 'bg-slate-100 text-slate-600',   border: 'border-slate-200' },
   open:        { label: 'Open',        color: 'bg-blue-100 text-blue-700',     border: 'border-blue-200' },
   in_progress: { label: 'In Progress', color: 'bg-amber-100 text-amber-700',   border: 'border-amber-200' },
   waiting:     { label: 'Waiting',     color: 'bg-orange-100 text-orange-700', border: 'border-orange-200' },
@@ -15,6 +16,7 @@ export const JOB_LIFECYCLE_CONFIG = {
 // Groups: neutral | attention | waiting | active | paused | financial/done
 export const OP_STATUS_CONFIG = {
   new:               { label: 'New',                  group: 'neutral',    color: 'bg-slate-100 text-slate-600',    dot: 'bg-slate-400' },
+  imported:          { label: 'Imported',             group: 'neutral',    color: 'bg-slate-100 text-slate-600',    dot: 'bg-slate-400' },
   needs_review:      { label: 'Needs Review',         group: 'neutral',    color: 'bg-blue-50 text-blue-700',       dot: 'bg-blue-400' },
   needs_scheduling:  { label: 'Needs Scheduling',     group: 'attention',  color: 'bg-amber-100 text-amber-700',    dot: 'bg-amber-500' },
   waiting_homeowner: { label: 'Waiting on Homeowner', group: 'waiting',    color: 'bg-orange-100 text-orange-700',  dot: 'bg-orange-500' },
@@ -31,7 +33,7 @@ export const OP_STATUS_CONFIG = {
 };
 
 export const OP_STATUS_GROUPS = [
-  { key: 'neutral',   label: 'New / Review',  statuses: ['new', 'needs_review'] },
+  { key: 'neutral',   label: 'New / Review',  statuses: ['new', 'imported', 'needs_review'] },
   { key: 'attention', label: 'Action Needed', statuses: ['needs_scheduling'] },
   { key: 'waiting',   label: 'Waiting',       statuses: ['waiting_homeowner','waiting_builder','waiting_vendor','waiting_materials'] },
   { key: 'active',    label: 'Active',        statuses: ['scheduled','in_progress'] },
@@ -43,7 +45,7 @@ export const OP_STATUS_GROUPS = [
 // Grouped filter buckets for list views
 export const OP_STATUS_FILTER_BUCKETS = [
   { key: 'all',       label: 'All' },
-  { key: 'open',      label: 'Open',      statuses: ['new','needs_review','needs_scheduling','waiting_homeowner','waiting_builder','waiting_vendor','waiting_materials','scheduled','in_progress','on_hold'] },
+  { key: 'open',      label: 'Open',      statuses: ['new','imported','needs_review','needs_scheduling','waiting_homeowner','waiting_builder','waiting_vendor','waiting_materials','scheduled','in_progress','on_hold'] },
   { key: 'waiting',   label: 'Waiting',   statuses: ['waiting_homeowner','waiting_builder','waiting_vendor','waiting_materials'] },
   { key: 'active',    label: 'Active',    statuses: ['scheduled','in_progress'] },
   { key: 'financial', label: 'Financial', statuses: ['invoiced','paid'] },
@@ -77,6 +79,20 @@ export const ACTIVE_LIFECYCLE_STATUSES = ['open','in_progress','waiting','warran
 export const CLOSED_LIFECYCLE_STATUSES = ['completed','closed','archived','canceled'];
 
 // ── Centralized lifecycle helpers ─────────────────────────────────────────────
+
+export function isBuildertrendImportedJob(job) {
+  if (!job) return false;
+  const sourceSystem = String(job.source_system || job.sourceSystem || job.data?.source_system || job.data?.sourceSystem || '').toLowerCase();
+  return sourceSystem === 'buildertrend';
+}
+
+export function requiresJobSignatureWorkflow(job) {
+  if (!job) return false;
+  if (isBuildertrendImportedJob(job)) return false;
+  if (job.requires_signature === false || job.signature_required === false) return false;
+  if (job.signature_status === 'not_required' || job.approval_status === 'imported') return false;
+  return job.status === 'pending';
+}
 
 /** Returns true if the job is considered "active" and should appear in normal selectors */
 export function isActiveJob(job) {

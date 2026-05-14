@@ -1,5 +1,6 @@
 import React from 'react';
 import { PenLine, CheckCircle2, Star, Archive } from 'lucide-react';
+import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
 const SECTIONS = [
   { key: 'pending',  label: 'Pending Signatures', icon: PenLine,      color: 'text-amber-500',  bg: 'bg-amber-50' },
@@ -10,7 +11,7 @@ const SECTIONS = [
 
 export default function DashboardStats({ jobs, activeSection, onSelect }) {
   const counts = {
-    pending:  jobs.filter(j => j.status === 'pending').length,
+    pending:  jobs.filter(requiresJobSignatureWorkflow).length,
     approved: jobs.filter(j => j.status === 'approved' && !j.review_rating).length,
     reviewed: jobs.filter(j => j.status === 'approved' && !!j.review_rating).length,
     archived: jobs.filter(j => j.status === 'archived').length,

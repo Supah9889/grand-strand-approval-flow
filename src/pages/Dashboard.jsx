@@ -14,6 +14,7 @@ import DashTodaySchedule from '../components/dashboard/DashTodaySchedule';
 import DashRecentActivity from '../components/dashboard/DashRecentActivity';
 import DashNeedsAttention from '../components/dashboard/DashNeedsAttention';
 import DashFinancialFollowUp from '../components/dashboard/DashFinancialFollowUp';
+import { isBuildertrendImportedJob, requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
 // Company/context filter options mapped to job_group values
 const COMPANY_FILTERS = [
@@ -180,9 +181,10 @@ export default function Dashboard() {
   }, [calendarEvents, jobs, companyFilter]);
 
   // ── Attention / urgency counts ────────────────────────────────────────────
-  const pendingSigs  = useMemo(() => filteredJobs.filter(j => j.status === 'pending'), [filteredJobs]);
+  const workflowJobs = useMemo(() => filteredJobs.filter(j => !isBuildertrendImportedJob(j)), [filteredJobs]);
+  const pendingSigs  = useMemo(() => workflowJobs.filter(requiresJobSignatureWorkflow), [workflowJobs]);
   const overdueInvs  = useMemo(() => invoices.filter(i => i.status === 'overdue'), [invoices]);
-  const waitingJobs  = useMemo(() => filteredJobs.filter(j => j.lifecycle_status === 'waiting'), [filteredJobs]);
+  const waitingJobs  = useMemo(() => workflowJobs.filter(j => j.lifecycle_status === 'waiting'), [workflowJobs]);
   const attentionCount = pendingSigs.length + overdueInvs.length + waitingJobs.length;
 
   // ── Financial count badge ─────────────────────────────────────────────────

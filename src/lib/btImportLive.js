@@ -6,6 +6,20 @@
  */
 import { base44 } from '@/api/base44Client';
 
+const BUILDER_TREND_IMPORTED_JOB_FIELDS = {
+  source_system: 'buildertrend',
+  sourceSystem: 'buildertrend',
+  requires_signature: false,
+  signature_required: false,
+  signature_status: 'not_required',
+  needs_attention: false,
+  attention_needed: false,
+  approval_status: 'imported',
+  status: 'imported',
+  lifecycle_status: 'imported',
+  op_status: 'imported',
+};
+
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -43,9 +57,7 @@ export async function importApprovedJobs(batchId, approvedJobs, actorName) {
         customer_phone: staged.customer_phone || null,
         description:    `Imported from Buildertrend — ${staged.raw_job_name}`,
         price:          0,
-        lifecycle_status: 'open',
-        op_status:      'new',
-        source_system:  'buildertrend',         // ← traceability tag
+        ...BUILDER_TREND_IMPORTED_JOB_FIELDS,
         buildertrend_id: staged.raw_job_name,   // preserve raw BT name as reference ID
         start_date:     staged.received_date || null,
         square_footage: staged.square_footage || null,
@@ -68,6 +80,33 @@ export async function importApprovedJobs(batchId, approvedJobs, actorName) {
   }
 
   return { imported, skipped, errors };
+}
+
+export async function backfillBuildertrendImportedJobs(actorName = 'Admin') {
+  const jobs = await base44.entities.Job.list('-created_date');
+  const candidates = (jobs || []).filter((job) => {
+    const sourceSystem = String(job.source_system || job.sourceSystem || '').toLowerCase();
+    return sourceSystem === 'buildertrend';
+  });
+
+  const updated = [];
+  const errors = [];
+  const now = new Date().toISOString();
+
+  for (const job of candidates) {
+    try {
+      await base44.entities.Job.update(job.id, {
+        ...BUILDER_TREND_IMPORTED_JOB_FIELDS,
+        import_normalized_at: now,
+        import_normalized_by: actorName,
+      });
+      updated.push({ id: job.id, address: job.address || job.title || job.id });
+    } catch (err) {
+      errors.push({ id: job.id, address: job.address || job.title || job.id, error: err?.message || 'Unknown error' });
+    }
+  }
+
+  return { scanned: jobs?.length || 0, matched: candidates.length, updated, errors };
 }
 
 // ─── Daily Logs ───────────────────────────────────────────────────────────────

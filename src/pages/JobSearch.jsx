@@ -12,7 +12,7 @@ import AppLayout from '../components/AppLayout';
 import JobGroupBadge from '../components/jobs/JobGroupBadge';
 import JobStatusBadge from '../components/jobs/JobStatusBadge';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
-import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS } from '@/lib/jobHelpers';
+import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS, isBuildertrendImportedJob } from '@/lib/jobHelpers';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { JOB_PRIMARY_ACTIONS, buildSignedDocPreview, getJobPrimaryAction } from '@/lib/signedDocHelpers';
@@ -28,6 +28,7 @@ const VIEW_TABS = [
 const STATUS_BADGE = {
   pending:  { label: 'Pending',  class: 'bg-amber-50 text-amber-600' },
   approved: { label: 'Signed',   class: 'bg-secondary text-primary' },
+  imported: { label: 'Imported', class: 'bg-slate-100 text-slate-600' },
   archived: { label: 'Archived', class: 'bg-muted text-muted-foreground' },
 };
 
@@ -237,7 +238,8 @@ export default function JobSearch() {
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
               {filtered.map((job) => {
-                const badge = STATUS_BADGE[job?.status] || STATUS_BADGE.pending;
+                const isBtImported = isBuildertrendImportedJob(job);
+                const badge = isBtImported ? STATUS_BADGE.imported : (STATUS_BADGE[job?.status] || STATUS_BADGE.pending);
                 const primaryAction = getJobPrimaryAction(job, [], { canUploadWorkOrder });
                 const isSelected = selectedIds.has(job?.id);
                 const isArchived = job?.lifecycle_status === 'archived';
@@ -263,6 +265,7 @@ export default function JobSearch() {
                           <p className="text-sm font-medium text-foreground leading-snug">{job?.address}</p>
                           <div className="flex items-center gap-1 shrink-0">
                             {isArchived && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Archived</span>}
+                            {isBtImported && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">Buildertrend</span>}
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.class}`}>{badge.label}</span>
                           </div>
                         </div>
@@ -278,13 +281,15 @@ export default function JobSearch() {
                         {job?.buildertrend_id && <p className="text-xs text-muted-foreground/60 mt-1">BT# {job.buildertrend_id}</p>}
                         {!selectionMode && (
                           <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={() => handlePrimaryAction(job)}
-                              disabled={primaryAction.disabled}
-                              className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {primaryAction.label}
-                            </button>
+                            {!isBtImported && (
+                              <button
+                                onClick={() => handlePrimaryAction(job)}
+                                disabled={primaryAction.disabled}
+                                className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {primaryAction.label}
+                              </button>
+                            )}
                             <button
                               onClick={() => navigate(`/job-hub?jobId=${job.id}`)}
                               className="text-xs bg-muted text-foreground px-2.5 py-1 rounded-lg hover:bg-muted/80 transition-colors"
@@ -301,7 +306,7 @@ export default function JobSearch() {
                             {isSelected ? 'Deselect' : 'Select this job'}
                           </button>
                         )}
-                        {primaryAction.helperText && !selectionMode && (
+                        {primaryAction.helperText && !selectionMode && !isBtImported && (
                           <p className="mt-1.5 text-xs text-muted-foreground">{primaryAction.helperText}</p>
                         )}
                       </div>

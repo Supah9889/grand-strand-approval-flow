@@ -20,6 +20,7 @@ import { SIGNATURE_DOCUMENT_MODES } from '@/lib/signatureDocumentModes';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 import { JOB_PRIMARY_ACTIONS, getBestSignedDocR2Key, getBestSignedDocUrl, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 import { buildApprovalPath, ensureSignaturePublicToken } from '@/lib/signingLinks';
+import { isBuildertrendImportedJob } from '@/lib/jobHelpers';
 
 function toR2Ref(key) {
   return key ? `r2://${key}` : '';
@@ -129,6 +130,10 @@ export default function JobNextStep({ job, isAdmin, onGoToSignature }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null); // { url, title, docType }
+
+  if (isBuildertrendImportedJob(job)) {
+    return null;
+  }
 
   const primaryAction = getJobPrimaryAction(job, [], { canUploadWorkOrder: isAdmin });
   const step = getStep(job);

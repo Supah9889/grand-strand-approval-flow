@@ -31,7 +31,9 @@ import {
   importApprovedJobs,
   importApprovedDailyLogs,
   importApprovedCalendarEvents,
+  backfillBuildertrendImportedJobs,
 } from '@/lib/btImportLive';
+import { toast } from 'sonner';
 
 // ─── File reading helpers ─────────────────────────────────────────────────────
 
@@ -248,6 +250,19 @@ export default function BTImport() {
   });
 
   // ── Step 1: Parse & Stage ──────────────────────────────────────────────────
+
+  const backfillMutation = useMutation({
+    mutationFn: () => backfillBuildertrendImportedJobs(actorName),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin-jobs'] });
+      toast.success(`Normalized ${result.updated.length} Buildertrend job${result.updated.length === 1 ? '' : 's'}`);
+      if (result.errors.length) {
+        toast.error(`${result.errors.length} Buildertrend job${result.errors.length === 1 ? '' : 's'} could not be normalized`);
+      }
+    },
+    onError: (err) => toast.error(err?.message || 'Buildertrend cleanup failed'),
+  });
 
   const handleFilesReady = useCallback(async (files) => {
     setParsing(true);
@@ -482,11 +497,25 @@ export default function BTImport() {
             <h1 className="text-xl font-bold text-foreground">Buildertrend Import — Phase 1</h1>
             <p className="text-sm text-muted-foreground mt-0.5">Dry-run staging before any live records are written</p>
           </div>
-          {step !== STEPS.UPLOAD && (
-            <Button variant="outline" className="gap-2 text-sm" onClick={() => { setStep(STEPS.UPLOAD); setStagedJobs([]); setStagedLogs([]); setStagedEvents([]); setImportResult(null); setParseError(''); }}>
-              <RotateCcw className="w-4 h-4" /> New Import
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              className="gap-2 text-sm"
+              onClick={() => backfillMutation.mutate()}
+              disabled={backfillMutation.isPending}
+            >
+              {backfillMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Shield className="w-4 h-4" />
+              }
+              Normalize Imported Jobs
             </Button>
-          )}
+            {step !== STEPS.UPLOAD && (
+              <Button variant="outline" className="gap-2 text-sm" onClick={() => { setStep(STEPS.UPLOAD); setStagedJobs([]); setStagedLogs([]); setStagedEvents([]); setImportResult(null); setParseError(''); }}>
+                <RotateCcw className="w-4 h-4" /> New Import
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Parse error — selectable for copy/paste */}

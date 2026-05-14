@@ -51,21 +51,86 @@ function stripDatePrefix(name) {
 // ─── Jobsite Rows (Excel) ──────────────────────────────────────────────────────
 
 /**
+ * Given an array of raw row objects (as returned by ExtractDataFromUploadedFile),
+ * detect and skip any export-title rows, then normalise all header keys so we
+ * can look them up case-/whitespace-/tab-insensitively.
+ *
+ * BT export layout:
+ *   Row 0  →  "Jobsites (exported on …)"  — title row, no useful data
+ *   Row 1  →  actual column headers (may also arrive as row-0 if the LLM skipped the title)
+ *   Row 2+ →  job data
+ *
+ * The function accepts whatever the integration returns (pre-keyed objects) and
+ * re-keys them using the BT column name variants we actually care about.
+ */
+
+/** Normalise a header string: lowercase, trim, collapse whitespace & tabs */
+function normalizeHeader(h) {
+  return (h || '').toLowerCase().replace(/[\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Given a row object, return the value for the first key whose normalised form
+ * matches any of the supplied candidates (case/whitespace insensitive).
+ */
+function getField(row, ...candidates) {
+  const normCandidates = candidates.map(normalizeHeader);
+  for (const key of Object.keys(row)) {
+    if (normCandidates.includes(normalizeHeader(key))) {
+      const val = row[key];
+      return val == null ? '' : String(val).trim();
+    }
+  }
+  return '';
+}
+
+/**
+ * Detect whether a row is a BT export-title row (e.g. "Jobsites (exported on …)").
+ * Title rows have only one non-empty value and it looks like a section header.
+ */
+function isTitleRow(row) {
+  const values = Object.values(row).map(v => (v == null ? '' : String(v).trim())).filter(Boolean);
+  if (values.length !== 1) return false;
+  return /exported on|jobsites|daily logs|schedule/i.test(values[0]);
+}
+
+/**
  * Parse an array of raw Excel row objects into StagedJob records.
- * @param {object[]} rows
- * @param {string} batchId
- * @param {string} fileName
+ * @param {object[]} rows  — raw objects from ExtractDataFromUploadedFile or xlsx parsing
+ * @param {string}   batchId
+ * @param {string}   fileName
  * @returns {{ staged: object[], errors: string[] }}
  */
 export function parseJobsiteRows(rows, batchId, fileName) {
   const staged = [];
   const errors = [];
-  const seenNames = new Map(); // normalized name → first index
+  const seenNames = new Map(); // normalized name → first data-row index
 
-  rows.forEach((row, i) => {
-    const rawName = (row['Job Name'] || row['job_name'] || row['JobName'] || '').trim();
+  if (!rows || rows.length === 0) {
+    errors.push('No rows received from file parser');
+    return { staged, errors };
+  }
+
+  // ── Skip title rows at the top ──────────────────────────────────────────────
+  let dataRows = rows;
+  let skippedTitleRows = 0;
+  while (dataRows.length > 0 && isTitleRow(dataRows[0])) {
+    dataRows = dataRows.slice(1);
+    skippedTitleRows++;
+  }
+
+  console.log(`[btParsers] parseJobsiteRows — title rows skipped: ${skippedTitleRows}`);
+  console.log(`[btParsers] Total data rows to parse: ${dataRows.length}`);
+  if (dataRows.length > 0) {
+    const sampleHeaders = Object.keys(dataRows[0]).map(normalizeHeader);
+    console.log(`[btParsers] Detected headers (normalised):`, sampleHeaders);
+  }
+
+  dataRows.forEach((row, i) => {
+    // ── Job Name — try all known BT variants ─────────────────────────────────
+    const rawName = getField(row, 'Job Name', 'job name', 'JobName', 'job_name', 'Name');
     if (!rawName) {
-      errors.push(`Row ${i + 2}: missing Job Name — skipped`);
+      errors.push(`Row ${i + 1 + skippedTitleRows + 1}: missing Job Name — skipped`);
       return;
     }
 
@@ -78,31 +143,34 @@ export function parseJobsiteRows(rows, batchId, fileName) {
     // Duplicate detection within this batch
     const isDuplicate = seenNames.has(normalizedName);
     if (isDuplicate) {
-      warnings.push(`Possible duplicate of row ${seenNames.get(normalizedName) + 2}`);
+      warnings.push(`Possible duplicate of row ${seenNames.get(normalizedName) + 1 + skippedTitleRows + 1}`);
     } else {
       seenNames.set(normalizedName, i);
     }
 
-    const address = (row['Address'] || row['address'] || '').trim();
-    const city    = (row['City']    || row['city']    || '').trim();
-    const state   = (row['State']   || row['state']   || '').trim();
-    const zip     = (row['Zip']     || row['zip']     || row['Postal Code'] || '').trim();
-    const client  = (row['Client']  || row['client']  || row['Customer'] || '').trim();
-    const phone   = (row['Phone']   || row['phone']   || '').trim();
-    const email   = (row['Email']   || row['email']   || '').trim();
-    const sqft    = parseFloat(row['Square Footage'] || row['square_footage'] || '') || null;
+    // ── Field extraction — BT actual column names + common variants ──────────
+    const address = getField(row, 'Street Address', 'Address', 'address', 'street_address');
+    const city    = getField(row, 'City', 'city');
+    const state   = getField(row, 'State', 'state');
+    const zip     = getField(row, 'Zip', 'zip', 'Postal Code', 'postal_code', 'ZIP Code');
+    const client  = getField(row, 'Clients', 'Client', 'client', 'Customer', 'customer');
+    const phone   = getField(row, 'Client Phone', 'Phone', 'phone', 'client_phone');
+    const email   = getField(row, 'Client Email', 'Email', 'email', 'client_email');
+    const sqft    = parseFloat(getField(row, 'Square Footage', 'square_footage', 'Sq Ft', 'sqft')) || null;
+    const schedSt = getField(row, 'Schedule Status', 'schedule_status', 'Status');
 
     if (!address && !city) flags.push('missing_address');
     if (!client)            flags.push('missing_client');
     if (zip && !/^\d{5}(-\d{4})?$/.test(zip)) flags.push('invalid_zip');
 
-    // Internal / test / office detection (normalizedName is already lowercased)
-    if (/grand strand office|gs office|\binternal\b|\btest\b|office only/i.test(normalizedName)) flags.push('internal_record');
+    if (/grand strand office|gs office|\binternal\b|\btest\b|office only/i.test(normalizedName)) {
+      flags.push('internal_record');
+    }
 
     staged.push({
       import_batch_id: batchId,
       source_file_name: fileName,
-      source_row: i + 2,
+      source_row: i + 1 + skippedTitleRows + 1, // 1-based, accounting for skipped rows
       raw_source_text: JSON.stringify(row).slice(0, 1000),
       raw_job_name: rawName,
       clean_job_name: cleanName,
@@ -115,7 +183,7 @@ export function parseJobsiteRows(rows, batchId, fileName) {
       customer_name: client,
       customer_phone: phone,
       customer_email: email,
-      schedule_status: (row['Schedule Status'] || '').trim() || null,
+      schedule_status: schedSt || null,
       square_footage: sqft,
       match_status: isDuplicate ? 'possible_duplicate' : 'new',
       matched_job_id: null,
@@ -126,6 +194,7 @@ export function parseJobsiteRows(rows, batchId, fileName) {
     });
   });
 
+  console.log(`[btParsers] Staged ${staged.length} jobs, ${errors.length} skipped/errors`);
   return { staged, errors };
 }
 

@@ -86,6 +86,78 @@ export function isBuildertrendImportedJob(job) {
   return sourceSystem === 'buildertrend';
 }
 
+export function normalizeBuildertrendMatchValue(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^\w\s#-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeAddressParts(...parts) {
+  return normalizeBuildertrendMatchValue(parts.filter(Boolean).join(' '));
+}
+
+export function findExistingBuildertrendImportedJob(stagedJob, liveJobs = []) {
+  if (!stagedJob) return null;
+
+  const importedJobs = (liveJobs || []).filter(isBuildertrendImportedJob);
+  const stagedBtId = normalizeBuildertrendMatchValue(stagedJob.buildertrend_id || stagedJob.raw_job_name);
+  const stagedRawName = normalizeBuildertrendMatchValue(stagedJob.raw_job_name);
+  const stagedCleanName = normalizeBuildertrendMatchValue(stagedJob.clean_job_name || stagedJob.raw_job_name);
+  const stagedAddress = normalizeAddressParts(stagedJob.address);
+  const stagedCity = normalizeBuildertrendMatchValue(stagedJob.city);
+  const stagedState = normalizeBuildertrendMatchValue(stagedJob.state);
+  const stagedZip = normalizeBuildertrendMatchValue(stagedJob.zip);
+  const stagedFullAddress = normalizeAddressParts(stagedJob.address, stagedJob.city, stagedJob.state, stagedJob.zip);
+  const addressMatches = (liveAddress) => (
+    liveAddress === stagedAddress ||
+    liveAddress === stagedFullAddress ||
+    Boolean(stagedAddress && liveAddress.startsWith(`${stagedAddress} `))
+  );
+
+  if (stagedBtId) {
+    const match = importedJobs.find((job) =>
+      normalizeBuildertrendMatchValue(job.buildertrend_id || job.buildertrendId) === stagedBtId
+    );
+    if (match) return match;
+  }
+
+  if (stagedRawName) {
+    const match = importedJobs.find((job) =>
+      normalizeBuildertrendMatchValue(job.buildertrend_id || job.buildertrendId || job.raw_job_name || job.title) === stagedRawName
+    );
+    if (match) return match;
+  }
+
+  if (stagedCleanName && stagedAddress) {
+    const match = importedJobs.find((job) => {
+      const liveName = normalizeBuildertrendMatchValue(job.clean_job_name || job.title || job.buildertrend_id || job.buildertrendId);
+      const liveAddress = normalizeAddressParts(job.address);
+      return liveName === stagedCleanName && addressMatches(liveAddress);
+    });
+    if (match) return match;
+  }
+
+  if (stagedAddress && stagedCity && stagedState && stagedZip) {
+    const match = importedJobs.find((job) => {
+      const liveAddress = normalizeAddressParts(job.address);
+      const liveFullAddress = normalizeAddressParts(job.address, job.city, job.state, job.zip);
+      const liveCity = normalizeBuildertrendMatchValue(job.city);
+      const liveState = normalizeBuildertrendMatchValue(job.state);
+      const liveZip = normalizeBuildertrendMatchValue(job.zip);
+      return (
+        liveFullAddress === stagedFullAddress ||
+        liveAddress === stagedFullAddress ||
+        (addressMatches(liveAddress) && liveCity === stagedCity && liveState === stagedState && liveZip === stagedZip)
+      );
+    });
+    if (match) return match;
+  }
+
+  return null;
+}
+
 export function requiresJobSignatureWorkflow(job) {
   if (!job) return false;
   if (isBuildertrendImportedJob(job)) return false;

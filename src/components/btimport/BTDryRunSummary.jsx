@@ -18,8 +18,14 @@ export default function BTDryRunSummary({ stats }) {
           label="Jobsites"
           total={stats.totalJobs}
           items={[
+            { label: `${stats.newJobs || 0} new staged`, warn: false },
+            (stats.alreadyImportedJobs || 0) > 0 && { label: `${stats.alreadyImportedJobs} already imported skipped`, warn: false },
             stats.duplicateJobs > 0 && { label: `${stats.duplicateJobs} possible duplicates`, warn: true },
             stats.flaggedJobs > 0   && { label: `${stats.flaggedJobs} needs review`, warn: true },
+            stats.internalJobs > 0   && { label: `${stats.internalJobs} internal/office/test`, warn: false },
+            stats.missingAddressJobs > 0 && { label: `${stats.missingAddressJobs} missing address`, warn: true },
+            stats.missingClientJobs > 0  && { label: `${stats.missingClientJobs} missing client`, warn: true },
+            { label: `${stats.approvedJobs || 0} approved / ${stats.skippedJobs || 0} skipped`, warn: false },
           ].filter(Boolean)}
         />
         <StatCard

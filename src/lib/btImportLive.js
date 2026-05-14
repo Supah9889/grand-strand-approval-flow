@@ -5,6 +5,7 @@
  * NO live records are created anywhere else in the import pipeline.
  */
 import { base44 } from '@/api/base44Client';
+import { findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
 
 const BUILDER_TREND_IMPORTED_JOB_FIELDS = {
   source_system: 'buildertrend',
@@ -30,6 +31,7 @@ export async function importApprovedJobs(batchId, approvedJobs, actorName) {
   const imported = [];
   const skipped  = [];
   const errors   = [];
+  const liveJobs = await base44.entities.Job.list('-created_date');
 
   for (const staged of approvedJobs) {
     if (staged.review_status !== 'approved') {
@@ -44,6 +46,22 @@ export async function importApprovedJobs(batchId, approvedJobs, actorName) {
     }
 
     try {
+      const existingJob = findExistingBuildertrendImportedJob(staged, liveJobs);
+      if (existingJob) {
+        skipped.push({
+          stagedId: staged.id,
+          liveId: existingJob.id,
+          address: existingJob.address || staged.address,
+          reason: 'Already imported from Buildertrend',
+        });
+        await base44.entities.StagedJob.update(staged.id, {
+          match_status: 'already_imported',
+          matched_job_id: existingJob.id,
+          review_status: 'skipped',
+        });
+        continue;
+      }
+
       const address = [staged.address, staged.city, staged.state].filter(Boolean).join(', ');
 
       const job = await base44.entities.Job.create({
@@ -65,6 +83,8 @@ export async function importApprovedJobs(batchId, approvedJobs, actorName) {
         internal_notes: `BT Import batch: ${batchId} | staged_id: ${staged.id} | imported by: ${actorName}`,
         assigned_to:    actorName,
       });
+
+      liveJobs.push(job);
 
       // Update staged record with live ID
       await base44.entities.StagedJob.update(staged.id, {

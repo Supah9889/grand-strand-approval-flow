@@ -15,6 +15,7 @@ const STATUS_BADGE = {
 
 const MATCH_BADGE = {
   new:               { label: 'New',              className: 'bg-primary/10 text-primary' },
+  already_imported:  { label: 'Already Imported', className: 'bg-slate-100 text-slate-600' },
   possible_duplicate:{ label: 'Possible Dup',     className: 'bg-amber-100 text-amber-700' },
   matched_existing:  { label: 'Matches Live Job', className: 'bg-blue-100 text-blue-700' },
   needs_review:      { label: 'Needs Review',     className: 'bg-amber-100 text-amber-700' },
@@ -27,11 +28,11 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
     return <p className="text-sm text-muted-foreground py-6 text-center">No jobsites staged.</p>;
   }
 
-  const pendingCount  = jobs.filter(j => j.review_status === 'pending').length;
+  const pendingCount  = jobs.filter(j => j.review_status === 'pending' && j.match_status !== 'already_imported').length;
   const approvedCount = jobs.filter(j => j.review_status === 'approved').length;
 
   const approveAll = () => jobs
-    .filter(j => j.review_status === 'pending')
+    .filter(j => j.review_status === 'pending' && j.match_status !== 'already_imported')
     .forEach(j => onStatusChange(j.id, 'approved'));
 
   const skipAll = () => jobs
@@ -61,6 +62,7 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
         const flags = safeJson(job.flags);
         const statusBadge = STATUS_BADGE[job.review_status] || STATUS_BADGE.pending;
         const matchBadge  = MATCH_BADGE[job.match_status]   || MATCH_BADGE.new;
+        const isAlreadyImported = job.match_status === 'already_imported';
 
         return (
           <div key={job.id} className="border-t border-border/60">
@@ -92,7 +94,7 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
                 <button
                   onClick={() => onStatusChange(job.id, 'approved')}
                   className={`p-1 rounded transition-colors ${job.review_status === 'approved' ? 'text-green-600' : 'text-muted-foreground hover:text-green-600'}`}
-                  title="Approve"
+                  title={isAlreadyImported ? 'Approve anyway' : 'Approve'}
                 >
                   <CheckCircle2 className="w-4 h-4" />
                 </button>

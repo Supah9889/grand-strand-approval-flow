@@ -3,6 +3,7 @@
  * Used across JobSearch, JobNextStep, JobSignatureTab, etc.
  */
 import { isStampUploadedPdfMode } from '@/lib/signatureDocumentModes';
+import { isBuildertrendImportedJob } from '@/lib/jobHelpers';
 
 export const JOB_PRIMARY_ACTIONS = Object.freeze({
   UPLOAD_WORK_ORDER: 'upload_work_order',
@@ -20,6 +21,7 @@ export function canUploadWorkOrder(role) {
  * Returns true if the job is considered fully signed/approved.
  */
 export function isJobSigned(job) {
+  if (isBuildertrendImportedJob(job)) return false;
   return job.status === 'approved' || job.status === 'locked';
 }
 
@@ -112,6 +114,15 @@ export function buildSignedDocPreview(job) {
  * Returns the single primary action a non-technical user should see for a job.
  */
 export function getJobPrimaryAction(job, records = [], options = {}) {
+  if (isBuildertrendImportedJob(job)) {
+    return {
+      type: JOB_PRIMARY_ACTIONS.WAITING_ON_WORK_ORDER,
+      label: 'Imported',
+      helperText: 'Buildertrend historical import',
+      disabled: true,
+    };
+  }
+
   const signedDocUrl = getBestSignedDocUrl(job, records);
   const signedDocR2Key = getBestSignedDocR2Key(job, records);
   const canUpload = options.canUploadWorkOrder ?? true;

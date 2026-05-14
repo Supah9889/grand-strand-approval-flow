@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Loader2, FileUp, PenLine, CheckCircle2, Star, MessageSquare, MousePointerClick } from 'lucide-react';
+import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
 function StatCard({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-secondary' }) {
   return (
@@ -33,7 +34,7 @@ export default function ReportingPanel() {
   }
 
   const totalImported = auditLogs.filter(l => l.action === 'imported_from_csv').length;
-  const pending = jobs.filter(j => j.status === 'pending').length;
+  const pending = jobs.filter(requiresJobSignatureWorkflow).length;
   const signed = jobs.filter(j => j.status === 'approved').length;
   const reviewPromptShown = jobs.filter(j => j.review_prompt_shown).length;
   const googleClicked = jobs.filter(j => j.google_review_clicked).length;

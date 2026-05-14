@@ -15,10 +15,12 @@ import JobEditModal from './JobEditModal';
 import JobAuditLog from './JobAuditLog';
 import { logAudit } from '@/lib/audit';
 import JobStatusBadge from '../jobs/JobStatusBadge';
+import { isBuildertrendImportedJob } from '@/lib/jobHelpers';
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  icon: Clock,         class: 'bg-secondary text-secondary-foreground' },
   approved: { label: 'Approved', icon: CheckCircle2,  class: 'bg-primary/10 text-primary' },
+  imported: { label: 'Imported', icon: Archive,       class: 'bg-slate-100 text-slate-600' },
   archived: { label: 'Archived', icon: ArchiveX,      class: 'bg-muted text-muted-foreground' },
 };
 
@@ -111,7 +113,8 @@ export default function JobsTable({ jobs, isLoading, role = 'admin', hideFilters
       ) : (
         <div className="space-y-2">
           {(hideFilters ? jobs : filtered).map(job => {
-            const sc = STATUS_CONFIG[job.status] || STATUS_CONFIG.pending;
+            const isBtImported = isBuildertrendImportedJob(job);
+            const sc = isBtImported ? STATUS_CONFIG.imported : (STATUS_CONFIG[job.status] || STATUS_CONFIG.pending);
             const StatusIcon = sc.icon;
             const historyOpen = expandedHistory === job.id;
 
@@ -134,6 +137,11 @@ export default function JobsTable({ jobs, isLoading, role = 'admin', hideFilters
                         <StatusIcon className="w-3 h-3 mr-1" />
                         {sc.label}
                       </Badge>
+                      {isBtImported && (
+                        <Badge className="text-xs bg-slate-100 text-slate-600 border-0">
+                          Buildertrend
+                        </Badge>
+                      )}
                       {isAdminRole && (
                         <>
                           <Button
@@ -191,7 +199,7 @@ export default function JobsTable({ jobs, isLoading, role = 'admin', hideFilters
 
                   {/* Status quick-change + History toggle */}
                   <div className="pl-6 flex items-center justify-between">
-                    {isAdminRole && job.status !== 'archived' ? (
+                    {isAdminRole && job.status !== 'archived' && !isBtImported ? (
                       <Select
                         value={job.status}
                         onValueChange={val => handleStatusChange(job, val)}

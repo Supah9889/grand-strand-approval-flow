@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowRight } from 'lucide-react';
-import { getOpStatusConfig } from '@/lib/jobHelpers';
+import { getOpStatusConfig, isBuildertrendImportedJob, requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
 const PRIORITY_COLORS = {
   high:   'border-l-red-400 bg-red-50/50',
@@ -30,9 +30,10 @@ function AttentionItem({ label, address, sub, priority = 'medium', onClick }) {
 export default function DashNeedsAttention({ jobs = [], invoices = [], tasks = [], leads = [], bills = [] }) {
   const navigate = useNavigate();
   const items = [];
+  const workflowJobs = jobs.filter(j => !isBuildertrendImportedJob(j));
 
   // Pending signatures — high priority
-  jobs.filter(j => j.status === 'pending').slice(0, 5).forEach(j => items.push({
+  workflowJobs.filter(requiresJobSignatureWorkflow).slice(0, 5).forEach(j => items.push({
     id: `sig-${j.id}`,
     label: 'Needs signature',
     address: j.address,
@@ -53,7 +54,7 @@ export default function DashNeedsAttention({ jobs = [], invoices = [], tasks = [
 
   // Waiting jobs — driven by op_status
   const WAITING_STATUSES = ['waiting_homeowner','waiting_builder','waiting_vendor','waiting_materials','on_hold','needs_scheduling','needs_review'];
-  jobs.filter(j => WAITING_STATUSES.includes(j.op_status || '')).slice(0, 6).forEach(j => {
+  workflowJobs.filter(j => WAITING_STATUSES.includes(j.op_status || '')).slice(0, 6).forEach(j => {
     const cfg = getOpStatusConfig(j.op_status);
     items.push({
       id: `wait-${j.id}`,
@@ -106,7 +107,7 @@ export default function DashNeedsAttention({ jobs = [], invoices = [], tasks = [
   }));
 
   // Jobs explicitly needing scheduling per op_status (avoid duplicates from waiting section)
-  jobs.filter(j => j.op_status === 'needs_scheduling' && !WAITING_STATUSES.includes(j.op_status)).slice(0, 3).forEach(j => items.push({
+  workflowJobs.filter(j => j.op_status === 'needs_scheduling' && !WAITING_STATUSES.includes(j.op_status)).slice(0, 3).forEach(j => items.push({
     id: `sched-${j.id}`,
     label: 'Needs Scheduling',
     address: j.address,

@@ -20,11 +20,12 @@ import AccessConfigPanel from '../components/admin/AccessConfigPanel';
 import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { format } from 'date-fns';
+import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
 const emptyJob = { address: '', customer_name: '', description: '', price: '', buildertrend_id: '', email: '', phone: '' };
 
 const SECTION_FILTER = {
-  pending:  j => j.status === 'pending',
+  pending:  requiresJobSignatureWorkflow,
   approved: j => j.status === 'approved' && !j.review_rating,
   reviewed: j => j.status === 'approved' && !!j.review_rating,
   archived: j => j.status === 'archived',

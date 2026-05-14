@@ -10,6 +10,7 @@ import AppLayout from '../components/AppLayout';
 import { StatCard, SectionHeader } from '../components/dashboard/DashSection';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { format, parseISO } from 'date-fns';
+import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
 export default function AdminOverview() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ function AdminOverviewContent({ navigate }) {
   const isLoading = loadingJobs || loadingExpenses;
 
   // --- Derived ---
-  const pendingJobs   = useMemo(() => jobs.filter(j => j.status === 'pending'), [jobs]);
+  const pendingJobs   = useMemo(() => jobs.filter(requiresJobSignatureWorkflow), [jobs]);
   const signedJobs    = useMemo(() => jobs.filter(j => j.status === 'approved'), [jobs]);
   const archivedJobs  = useMemo(() => jobs.filter(j => j.lifecycle_status === 'archived'), [jobs]);
 

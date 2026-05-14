@@ -99,6 +99,7 @@
       "type": "string",
       "enum": [
         "presale",
+        "imported",
         "open",
         "in_progress",
         "waiting",
@@ -115,6 +116,7 @@
       "type": "string",
       "enum": [
         "new",
+        "imported",
         "needs_review",
         "needs_scheduling",
         "waiting_homeowner",
@@ -149,10 +151,47 @@
       "enum": [
         "pending",
         "approved",
+        "imported",
         "archived"
       ],
       "default": "pending",
       "description": "Signature approval status"
+    },
+    "requires_signature": {
+      "type": "boolean",
+      "default": true
+    },
+    "signature_required": {
+      "type": "boolean",
+      "default": true
+    },
+    "signature_status": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "not_requested",
+        "pending",
+        "signed"
+      ],
+      "default": "not_requested"
+    },
+    "needs_attention": {
+      "type": "boolean",
+      "default": false
+    },
+    "attention_needed": {
+      "type": "boolean",
+      "default": false
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "not_required",
+        "pending",
+        "approved",
+        "archived"
+      ]
     },
     "locked": {
       "type": "boolean",
@@ -252,6 +291,24 @@
         "buildertrend"
       ],
       "default": "app"
+    },
+    "sourceSystem": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry",
+        "buildertrend"
+      ],
+      "default": "app"
+    },
+    "import_normalized_at": {
+      "type": "string",
+      "description": "ISO timestamp when imported job workflow flags were normalized"
+    },
+    "import_normalized_by": {
+      "type": "string",
+      "description": "Actor who normalized imported job workflow flags"
     },
     "qb_customer_id": {
       "type": "string"

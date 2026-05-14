@@ -109,7 +109,10 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
 
             {isOpen && (
               <div className="bg-muted/20 border-t border-border/40 px-6 py-3 space-y-2 text-xs">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-muted-foreground">
+                <div
+                  className="grid grid-cols-2 gap-x-8 gap-y-1 text-muted-foreground"
+                  style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
+                >
                   <p>Raw name: <span className="text-foreground">{job.raw_job_name}</span></p>
                   <p>Customer: <span className="text-foreground">{job.customer_name || '—'}</span></p>
                   <p>Phone: <span className="text-foreground">{job.customer_phone || '—'}</span></p>
@@ -134,6 +137,18 @@ export default function BTStagedJobsTable({ jobs, onStatusChange }) {
                       <span key={i} className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">{f}</span>
                     ))}
                   </div>
+                )}
+                {/* Raw details — selectable pre for copy/paste debugging */}
+                {job.raw_source_text && (
+                  <details className="pt-1">
+                    <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground select-none">Raw source data</summary>
+                    <pre
+                      className="mt-1 text-[10px] text-muted-foreground bg-muted/40 rounded p-2 whitespace-pre-wrap break-all max-h-32 overflow-y-auto"
+                      style={{ userSelect: 'text', WebkitUserSelect: 'text', cursor: 'text' }}
+                    >
+                      {job.raw_source_text}
+                    </pre>
+                  </details>
                 )}
               </div>
             )}

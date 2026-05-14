@@ -14,6 +14,7 @@ import { isAdmin, getSession } from '@/lib/adminAuth';
 
 import BTImportUploader from '@/components/btimport/BTImportUploader';
 import BTDryRunSummary  from '@/components/btimport/BTDryRunSummary';
+import BTDiagnosticsPanel   from '@/components/btimport/BTDiagnosticsPanel';
 import BTStagedJobsTable    from '@/components/btimport/BTStagedJobsTable';
 import BTStagedLogsTable    from '@/components/btimport/BTStagedLogsTable';
 import BTStagedEventsTable  from '@/components/btimport/BTStagedEventsTable';
@@ -376,10 +377,25 @@ export default function BTImport() {
           )}
         </div>
 
-        {/* Parse error */}
+        {/* Parse error — selectable for copy/paste */}
         {parseError && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive flex gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {parseError}
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-destructive/20">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
+              <span className="text-sm font-semibold text-destructive flex-1">Parse error</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(parseError)}
+                className="text-[11px] text-destructive/70 hover:text-destructive underline underline-offset-2"
+              >
+                Copy
+              </button>
+            </div>
+            <pre
+              className="px-4 py-3 text-xs text-destructive whitespace-pre-wrap break-words max-h-64 overflow-y-auto"
+              style={{ userSelect: 'text', WebkitUserSelect: 'text', cursor: 'text' }}
+            >
+              {parseError}
+            </pre>
           </div>
         )}
 
@@ -415,12 +431,11 @@ export default function BTImport() {
             <BTDryRunSummary stats={stats} />
 
             {parseErrors.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
-                <p className="text-xs font-semibold text-amber-800">Parse warnings / skipped rows:</p>
-                {parseErrors.map((e, i) => (
-                  <p key={i} className="text-xs text-amber-700">{e}</p>
-                ))}
-              </div>
+              <BTDiagnosticsPanel
+                lines={parseErrors}
+                label="Parse warnings / skipped rows"
+                fileName="bt-parse-warnings"
+              />
             )}
 
             <Tabs defaultValue="jobs">

@@ -27,6 +27,7 @@ import {
   matchLogsToJobs,
   matchEventsToJobs,
 } from '@/lib/btParsers';
+import { findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
 import {
   importApprovedJobs,
   importApprovedDailyLogs,
@@ -222,6 +223,25 @@ function parseJobsitesCsv(file) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+function addWarning(job, warning) {
+  const warnings = safeParseJson(job.warnings, []);
+  return JSON.stringify(warnings.includes(warning) ? warnings : [...warnings, warning]);
+}
+
+function markAlreadyImportedJobs(stagedJobs, liveJobs) {
+  return stagedJobs.map((job) => {
+    const match = findExistingBuildertrendImportedJob(job, liveJobs);
+    if (!match) return job;
+    return {
+      ...job,
+      match_status: 'already_imported',
+      matched_job_id: match.id || null,
+      review_status: 'skipped',
+      warnings: addWarning(job, 'Already imported from Buildertrend'),
+    };
+  });
+}
+
 const STEPS = { UPLOAD: 'upload', DRY_RUN: 'dry_run', CONFIRM: 'confirm', DONE: 'done' };
 
 export default function BTImport() {
@@ -296,7 +316,8 @@ export default function BTImport() {
       if (files.jobsites) {
         const { rows, debugInfo } = await parseJobsitesCsv(files.jobsites);
         const result = parseJobsiteRows(rows, batch.id, files.jobsites.name);
-        jobs = result.staged;
+        const liveJobs = await base44.entities.Job.list('-created_date');
+        jobs = markAlreadyImportedJobs(result.staged, liveJobs);
         allErrors.push(...result.errors.map(e => `[Jobs] ${e}`));
 
         // ── Parser diagnostics summary (always shown) ─────────────────────────
@@ -417,7 +438,7 @@ export default function BTImport() {
     try {
       await base44.entities.ImportBatch.update(currentBatchId, { import_status: 'in_progress' });
 
-      const approvedJobs   = stagedJobs.filter(j => j.review_status === 'approved');
+      const approvedJobs   = stagedJobs.filter(j => j.review_status === 'approved' && j.match_status !== 'already_imported');
       const approvedLogs   = stagedLogs.filter(l => l.review_status === 'approved');
       const approvedEvents = stagedEvents.filter(e => e.review_status === 'approved');
 
@@ -456,8 +477,15 @@ export default function BTImport() {
 
   const stats = {
     totalJobs:      stagedJobs.length,
+    newJobs:        stagedJobs.filter(j => j.match_status === 'new').length,
+    alreadyImportedJobs: stagedJobs.filter(j => j.match_status === 'already_imported').length,
     duplicateJobs:  stagedJobs.filter(j => j.match_status === 'possible_duplicate').length,
     flaggedJobs:    stagedJobs.filter(j => j.match_status === 'needs_review').length,
+    internalJobs:   stagedJobs.filter(j => safeParseJson(j.flags, []).includes('internal_record')).length,
+    missingAddressJobs: stagedJobs.filter(j => safeParseJson(j.flags, []).includes('missing_address')).length,
+    missingClientJobs: stagedJobs.filter(j => safeParseJson(j.flags, []).includes('missing_client')).length,
+    approvedJobs:   stagedJobs.filter(j => j.review_status === 'approved').length,
+    skippedJobs:    stagedJobs.filter(j => j.review_status === 'skipped').length,
     totalLogs:      stagedLogs.length,
     unmatchedLogs:  stagedLogs.filter(l => l.match_status === 'unmatched').length,
     attachmentLogs: stagedLogs.filter(l => l.needs_attachment_review).length,

@@ -360,9 +360,11 @@ function buildCalendarDiagnosticLines(diagnostics, events) {
     `  unmatched jobs:           ${unmatched.length}`,
     `  office/internal review:   ${officeCount}`,
     `  malformed blocks:         ${diagnostics.malformedBlocks}`,
+    `  invalid date skips:       ${diagnostics.invalidEventSkips?.length ?? 0}`,
     `  detected date patterns:   ${diagnostics.detectedDatePatterns?.join(' | ') || '(n/a)'}`,
     `  detected time patterns:   ${diagnostics.detectedTimePatterns?.join(' | ') || '(n/a)'}`,
     `  skipped reasons:          ${diagnostics.skippedReasons?.join(' | ') || '(none)'}`,
+    `  invalid skip samples:     ${diagnostics.invalidEventSkips?.map(skip => `${skip.reason}; tokens=${skip.detectedDateTokens?.join(', ') || 'none'}; raw=${skip.rawPreview || '(empty)'}`).join(' | ') || '(none)'}`,
     `  first 10 parsed events:   ${diagnostics.first10Events?.join(' | ') || '(none)'}`,
     diagnostics.first20Lines ? `  first 20 lines:\n${diagnostics.first20Lines}` : null,
   ].filter(Boolean);

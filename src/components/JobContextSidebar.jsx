@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Loader2, MapPin, Plus, Search, Archive } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { getInternalRole } from '@/lib/adminAuth';
+import { isActiveJob } from '@/lib/jobHelpers';
 import JobStatusBadge from '@/components/jobs/JobStatusBadge';
 
 function getCurrentJobId(location) {
@@ -24,17 +25,17 @@ function getJobSubtitle(job) {
 
 function sortJobs(jobs) {
   return [...jobs].sort((a, b) => {
-    const aArchived = a.status === 'archived' || a.lifecycle_status === 'archived';
-    const bArchived = b.status === 'archived' || b.lifecycle_status === 'archived';
+    const aArchived = isJobArchived(a);
+    const bArchived = isJobArchived(b);
     if (aArchived !== bArchived) return aArchived ? 1 : -1;
-    return String(b.created_date || '').localeCompare(String(a.created_date || ''));
+    return String(b.updated_date || b.created_date || '').localeCompare(String(a.updated_date || a.created_date || ''));
   });
 }
 
 function useWorkspaceJobs() {
   return useQuery({
     queryKey: ['workspace-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryFn: () => base44.entities.Job.list('-updated_date'),
     staleTime: 60_000,
   });
 }
@@ -67,10 +68,38 @@ function JobContextSummary({ job }) {
   );
 }
 
-const INACTIVE_STATUSES = new Set(['archived', 'canceled', 'closed']);
-
 function isJobArchived(job) {
-  return job?.lifecycle_status === 'archived' || job?.status === 'archived';
+  return job?.lifecycle_status === 'archived' || job?.status === 'archived' || job?.archived === true;
+}
+
+function matchesJobSearch(job, query) {
+  if (!query) return true;
+  const fields = [
+    job.title,
+    job.address,
+    job.customer_name,
+    job.job_number,
+    job.buildertrend_id,
+    job.buildertrendId,
+    job.city,
+    job.state,
+    job.zip,
+    job.customer_phone,
+    job.customer_email,
+    job.phone,
+    job.email,
+    job.description,
+    job.op_status,
+    job.lifecycle_status,
+    job.status,
+  ];
+  return fields.some(v => String(v || '').toLowerCase().includes(query));
+}
+
+function matchesViewTab(job, viewTab) {
+  if (viewTab === 'all') return true;
+  if (viewTab === 'archived') return isJobArchived(job);
+  return isActiveJob(job);
 }
 
 function JobListItem({ job, active, onClick }) {
@@ -150,32 +179,28 @@ export default function JobContextSidebar() {
 
   const sortedJobs = useMemo(() => sortJobs(jobs), [jobs]);
 
-  const filteredJobs = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    return sortedJobs.filter(job => {
-      const ls = job?.lifecycle_status || '';
-      const archived = isJobArchived(job);
-      const inactive = INACTIVE_STATUSES.has(ls);
+  const query = searchText.trim().toLowerCase();
 
+  const filteredJobs = useMemo(() => {
+    return sortedJobs.filter(job => {
       // Always show the currently active job regardless of filter
       if (job.id === currentJobId) {
-        // still apply search if typing
-        if (query) {
-          return [job.title, job.address, job.customer_name, job.job_number, job.op_status, job.lifecycle_status]
-            .some(v => String(v || '').toLowerCase().includes(query));
-        }
-        return true;
+        return matchesJobSearch(job, query);
       }
 
-      // Apply tab filter
-      if (viewTab === 'active' && (archived || inactive)) return false;
-      if (viewTab === 'archived' && !archived) return false;
-
-      if (!query) return true;
-      return [job.title, job.address, job.customer_name, job.job_number, job.op_status, job.lifecycle_status]
-        .some(v => String(v || '').toLowerCase().includes(query));
+      return matchesViewTab(job, viewTab) && matchesJobSearch(job, query);
     });
-  }, [searchText, sortedJobs, viewTab, currentJobId]);
+  }, [query, sortedJobs, viewTab, currentJobId]);
+
+  const searchMatches = useMemo(() => {
+    if (!query) return [];
+    return sortedJobs.filter(job => matchesJobSearch(job, query));
+  }, [query, sortedJobs]);
+
+  const excludedByCurrentFilter = useMemo(() => {
+    if (!query) return [];
+    return searchMatches.filter(job => !matchesViewTab(job, viewTab) && job.id !== currentJobId);
+  }, [query, searchMatches, viewTab, currentJobId]);
 
   const currentJob = jobs.find(job => job.id === currentJobId);
   const canCreateJob = role === 'admin' || role === 'owner';
@@ -257,7 +282,20 @@ export default function JobContextSidebar() {
         {!isLoading && !isError && filteredJobs.length === 0 && (
           <div className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
             <Briefcase className="mx-auto mb-2 h-5 w-5" />
-            No matching jobs.
+            {excludedByCurrentFilter.length > 0 ? (
+              <>
+                <p>No matching jobs in {viewTab}.</p>
+                <button
+                  type="button"
+                  onClick={() => setViewTab('all')}
+                  className="mt-2 text-xs font-semibold text-primary hover:text-primary/80"
+                >
+                  Show {excludedByCurrentFilter.length} result{excludedByCurrentFilter.length !== 1 ? 's' : ''} in All
+                </button>
+              </>
+            ) : (
+              <p>No matching jobs.</p>
+            )}
           </div>
         )}
         <div className="space-y-1">

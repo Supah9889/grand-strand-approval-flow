@@ -94,6 +94,13 @@ export function normalizeBuildertrendMatchValue(value) {
     .trim();
 }
 
+export function stripBuildertrendDatePrefix(value) {
+  return String(value || '')
+    .replace(/^\d{4}\s+\d{1,2}\/\d{1,2}\s+/, '')
+    .replace(/^\d{1,2}[/-]\d{1,2}[/-]\d{4}\s+/, '')
+    .trim();
+}
+
 function normalizeAddressParts(...parts) {
   return normalizeBuildertrendMatchValue(parts.filter(Boolean).join(' '));
 }
@@ -159,7 +166,7 @@ export function findExistingBuildertrendImportedJob(stagedJob, liveJobs = []) {
 }
 
 export function findBuildertrendImportedJobForLog(sourceJobName, liveJobs = []) {
-  const source = normalizeBuildertrendMatchValue(sourceJobName);
+  const source = normalizeBuildertrendMatchValue(stripBuildertrendDatePrefix(sourceJobName));
   if (!source) return null;
 
   const importedJobs = (liveJobs || []).filter(isBuildertrendImportedJob);

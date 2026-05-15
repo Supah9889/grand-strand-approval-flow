@@ -84,6 +84,17 @@ function stripDatePrefix(name) {
   return { clean: name.trim(), date: null };
 }
 
+function normalizeJobNameForMatch(name) {
+  return normalize(stripDatePrefix(name || '').clean || name || '');
+}
+
+function normalizeHashValue(value) {
+  return normalizeJobNameForMatch(value)
+    .replace(/[^\w\s#-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ─── Jobsite Rows (Excel) ──────────────────────────────────────────────────────
 
 /**
@@ -171,7 +182,7 @@ export function parseJobsiteRows(rows, batchId, fileName) {
     }
 
     const { clean: cleanName, date: receivedDate } = stripDatePrefix(rawName);
-    const normalizedName = normalize(cleanName || rawName);
+    const normalizedName = normalizeJobNameForMatch(rawName);
 
     const warnings = [];
     const flags = [];
@@ -308,7 +319,7 @@ function parseDailyLogTextLegacy(text, batchId, fileName) {
       raw_source_text: block.slice(0, 2000),
       log_date: logDate,
       source_job_name: jobName || '',
-      normalized_job_name: normalize(jobName || ''),
+      normalized_job_name: normalizeJobNameForMatch(jobName || ''),
       title: title || null,
       added_by: addedBy || null,
       log_notes: logNotes || null,
@@ -336,6 +347,331 @@ function parseDailyLogTextLegacy(text, batchId, fileName) {
 
 const NON_PRODUCTION_KEYWORDS = /\b(estimate|tour|birthday|reminder|meeting|office|holiday|closed|vacation|training)\b/i;
 const OFFICE_KEYWORDS = /grand strand office|gs office|office only/i;
+const PRODUCTION_KEYWORDS = /\b(drywall|paint|painting|patch|skim|install|repair|trim|texture|caulk|carpentry|framing|siding|ceiling|punch|warranty|touch\s*up)\b/i;
+const TIME_RE = /\b\d{1,2}:\d{2}\s*[AP]M\b/gi;
+
+function classifyCalendarEvent(eventTitle, sourceJobName) {
+  const combined = `${eventTitle || ''} ${sourceJobName || ''}`;
+  const isOffice = OFFICE_KEYWORDS.test(combined) || NON_PRODUCTION_KEYWORDS.test(combined) || !sourceJobName;
+
+  let eventCategory = 'other';
+  if (/estimate/i.test(combined)) eventCategory = 'estimate';
+  else if (/tour/i.test(combined)) eventCategory = 'tour';
+  else if (/meeting/i.test(combined)) eventCategory = 'meeting';
+  else if (/reminder/i.test(combined)) eventCategory = 'reminder';
+  else if (isOffice) eventCategory = 'office_internal';
+  else if (PRODUCTION_KEYWORDS.test(combined) || sourceJobName) eventCategory = 'job_visit';
+
+  return {
+    eventCategory,
+    isNonProduction: isOffice && !PRODUCTION_KEYWORDS.test(combined),
+    isOffice,
+  };
+}
+
+function createCalendarDuplicateHash({ eventTitle, eventDate, startTime, endTime, sourceJobName }) {
+  return [
+    eventDate || '',
+    startTime || '',
+    endTime || '',
+    normalizeHashValue(eventTitle),
+    normalizeHashValue(sourceJobName),
+  ].join('|');
+}
+
+function cleanCalendarText(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+-\s*$/, '')
+    .replace(/-\s*$/, '')
+    .trim();
+}
+
+function normalizePdfItems(items) {
+  return (items || [])
+    .map(item => ({
+      ...item,
+      str: String(item.str || '').trim(),
+      x: Number(item.x || 0),
+      y: Number(item.y || 0),
+      page: Number(item.page || 1),
+    }))
+    .filter(item => item.str);
+}
+
+function detectCalendarMonthYear(pages) {
+  const monthNames = Object.keys(MONTHS).filter(name => name.length > 3 || name === 'may');
+  const allText = pages.flatMap(page => page.items.map(item => item.str));
+  const monthLabel = allText.find(text => monthNames.some(month => month.toLowerCase() === text.toLowerCase()));
+  const month = monthLabel ? Number(MONTHS[monthLabel.toLowerCase()]) : null;
+  const yearMatch = allText.join(' ').match(/\b(20\d{2})\s+\d{1,2}\/\d{1,2}\b/) || allText.join(' ').match(/\b(20\d{2})\b/);
+  const year = yearMatch ? Number(yearMatch[1]) : null;
+  return { month, year, label: monthLabel || '' };
+}
+
+function findDayMarkerRows(items) {
+  const candidates = items
+    .filter(item => /^\d{1,2}$/.test(item.str) && Number(item.str) >= 1 && Number(item.str) <= 31)
+    .filter(item => item.x >= 35 && item.x <= 740);
+
+  const byY = new Map();
+  candidates.forEach(item => {
+    const yKey = Math.round(item.y / 4) * 4;
+    if (!byY.has(yKey)) byY.set(yKey, []);
+    byY.get(yKey).push(item);
+  });
+
+  return [...byY.entries()]
+    .map(([y, rowItems]) => ({
+      y: Number(y),
+      items: rowItems.sort((a, b) => a.x - b.x).slice(0, 7),
+    }))
+    .filter(row => row.items.length >= 7)
+    .sort((a, b) => b.y - a.y);
+}
+
+function assignDatesToRows(rows, month, year) {
+  if (!month || !year) return rows;
+  let cursorMonth = rows[0]?.items?.[0] && Number(rows[0].items[0].str) > 7 ? month - 1 : month;
+  let cursorYear = year;
+  if (cursorMonth === 0) {
+    cursorMonth = 12;
+    cursorYear -= 1;
+  }
+  let previousDay = null;
+
+  return rows.map(row => ({
+    ...row,
+    dates: row.items.map(item => {
+      const day = Number(item.str);
+      if (previousDay != null && day < previousDay) {
+        cursorMonth += 1;
+        if (cursorMonth === 13) {
+          cursorMonth = 1;
+          cursorYear += 1;
+        }
+      }
+      previousDay = day;
+      return `${cursorYear}-${String(cursorMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }),
+  }));
+}
+
+function getColumnIndex(item, row) {
+  const centers = row.items.map(marker => marker.x);
+  let bestIndex = 0;
+  let bestDistance = Infinity;
+  centers.forEach((center, index) => {
+    const distance = Math.abs(item.x - center);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
+function groupCellLines(items) {
+  const seen = new Set();
+  const uniqueItems = [];
+  items.forEach(item => {
+    const key = `${Math.round(item.x)}|${Math.round(item.y)}|${item.str}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    uniqueItems.push(item);
+  });
+
+  const rows = [];
+  uniqueItems.sort((a, b) => b.y - a.y || a.x - b.x).forEach(item => {
+    const row = rows.find(existing => Math.abs(existing.y - item.y) <= 4);
+    if (row) row.items.push(item);
+    else rows.push({ y: item.y, items: [item] });
+  });
+
+  return rows
+    .sort((a, b) => b.y - a.y)
+    .map(row => row.items.sort((a, b) => a.x - b.x).map(item => item.str).join(' ').trim())
+    .filter(line => line && !/^non-workday$/i.test(line) && !/^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/i.test(line));
+}
+
+function splitCalendarEventBlocks(lines) {
+  const raw = lines.join('\n');
+  const parenMatches = [...raw.matchAll(/\([^)]{2,200}\)/g)];
+  if (parenMatches.length) {
+    return parenMatches.map((match, index) => {
+      const previousEnd = index > 0 ? parenMatches[index - 1].index + parenMatches[index - 1][0].length : 0;
+      const nextStart = parenMatches[index + 1]?.index ?? raw.length;
+      return raw.slice(previousEnd, nextStart).split('\n').map(line => line.trim()).filter(Boolean);
+    });
+  }
+
+  const blocks = [];
+  let current = [];
+  let timeCount = 0;
+
+  lines.forEach(line => {
+    current.push(line);
+    timeCount += (line.match(TIME_RE) || []).length;
+    if (timeCount >= 2) {
+      blocks.push(current);
+      current = [];
+      timeCount = 0;
+    }
+  });
+
+  if (current.some(line => /\([^)]*/.test(line))) blocks.push(current);
+  return blocks;
+}
+
+function parseCalendarEventBlock(blockLines) {
+  const raw = blockLines.join('\n').trim();
+  const times = [...raw.matchAll(TIME_RE)].map(match => match[0].replace(/\s+/g, ' ').toUpperCase());
+  const withoutTimes = raw.replace(TIME_RE, ' ');
+  const jobMatch = withoutTimes.match(/\(([\s\S]*?)\)/);
+  const sourceJobName = cleanCalendarText(jobMatch?.[1] || '');
+  let beforeJob = jobMatch ? withoutTimes.slice(0, jobMatch.index) : withoutTimes;
+  if (beforeJob.includes(')')) beforeJob = beforeJob.slice(beforeJob.lastIndexOf(')') + 1);
+  const eventTitle = cleanCalendarText(beforeJob) || sourceJobName || 'Untitled calendar event';
+
+  if (!eventTitle && !sourceJobName) return null;
+
+  return {
+    raw,
+    eventTitle,
+    sourceJobName,
+    startTime: times[0] || null,
+    endTime: times[1] || null,
+  };
+}
+
+export function parseCalendarPdfPages(pages, batchId, fileName) {
+  const staged = [];
+  const errors = [];
+  const malformedBlocks = [];
+  const duplicateHashes = new Set();
+  let rawBlockCount = 0;
+  let duplicateSkipped = 0;
+
+  const normalizedPages = (pages || []).map(page => ({
+    page: page.page,
+    items: normalizePdfItems(page.items),
+  }));
+  const { month, year, label } = detectCalendarMonthYear(normalizedPages);
+
+  if (!month || !year) {
+    errors.push('Calendar PDF parser could not detect month/year from the text layer.');
+    return { staged, errors, diagnostics: { parser: 'Buildertrend Calendar PDF text-layer parser', totalRawBlocks: 0, deduplicatedEvents: 0, duplicateSkipped: 0, malformedBlocks: 0, first10Events: [] } };
+  }
+
+  const rowRefs = [];
+  normalizedPages.forEach(page => {
+    findDayMarkerRows(page.items).forEach(row => rowRefs.push({ ...row, page: page.page }));
+  });
+  const rowsWithDates = assignDatesToRows(rowRefs, month, year);
+  const rowsByPage = new Map();
+  rowsWithDates.forEach(row => {
+    if (!rowsByPage.has(row.page)) rowsByPage.set(row.page, []);
+    rowsByPage.get(row.page).push(row);
+  });
+
+  let carryRow = null;
+  normalizedPages.forEach(page => {
+    const rows = (rowsByPage.get(page.page) || []).sort((a, b) => b.y - a.y);
+    const segments = [];
+    if (carryRow && rows[0]) segments.push({ row: carryRow, top: Infinity, bottom: rows[0].y + 4 });
+    rows.forEach((row, index) => {
+      segments.push({
+        row,
+        top: row.y - 5,
+        bottom: rows[index + 1] ? rows[index + 1].y + 4 : -Infinity,
+      });
+    });
+
+    segments.forEach(segment => {
+      const cellItems = Array.from({ length: 7 }, () => []);
+      page.items.forEach(item => {
+        if (item.y > segment.top || item.y <= segment.bottom) return;
+        if (/^\d{1,2}$/.test(item.str) && Math.abs(item.y - segment.row.y) <= 6) return;
+        const col = getColumnIndex(item, segment.row);
+        cellItems[col].push(item);
+      });
+
+      cellItems.forEach((items, colIndex) => {
+        const eventDate = segment.row.dates?.[colIndex];
+        if (!eventDate || items.length === 0) return;
+        const lines = groupCellLines(items);
+        splitCalendarEventBlocks(lines).forEach(blockLines => {
+          rawBlockCount++;
+          const parsed = parseCalendarEventBlock(blockLines);
+          if (!parsed || !parsed.sourceJobName) {
+            malformedBlocks.push(blockLines.join(' | ').slice(0, 250));
+            return;
+          }
+
+          const duplicateHash = createCalendarDuplicateHash({
+            eventTitle: parsed.eventTitle,
+            eventDate,
+            startTime: parsed.startTime,
+            endTime: parsed.endTime,
+            sourceJobName: parsed.sourceJobName,
+          });
+          if (duplicateHashes.has(duplicateHash)) {
+            duplicateSkipped++;
+            return;
+          }
+          duplicateHashes.add(duplicateHash);
+
+          const classification = classifyCalendarEvent(parsed.eventTitle, parsed.sourceJobName);
+          const warnings = [];
+          if (classification.isOffice) warnings.push('Office/internal calendar item - requires review');
+
+          staged.push({
+            import_batch_id: batchId,
+            source_file_name: fileName,
+            source_row: rawBlockCount,
+            source_page: page.page,
+            raw_source_text: parsed.raw.slice(0, 2000),
+            event_date: eventDate,
+            event_title: parsed.eventTitle,
+            start_time: parsed.startTime,
+            end_time: parsed.endTime,
+            source_job_name: parsed.sourceJobName,
+            normalized_job_name: normalizeJobNameForMatch(parsed.sourceJobName),
+            duplicate_hash: duplicateHash,
+            event_category: classification.eventCategory,
+            is_non_production: classification.isNonProduction,
+            is_office_event: classification.isOffice,
+            match_status: 'unmatched',
+            matched_job_id: null,
+            matched_staged_job_id: null,
+            warnings: safeJson(warnings),
+            errors: safeJson([]),
+            review_status: classification.isOffice ? 'needs_review' : 'pending',
+          });
+        });
+      });
+    });
+
+    carryRow = rows[rows.length - 1] || carryRow;
+  });
+
+  const diagnostics = {
+    parser: 'Buildertrend Calendar PDF text-layer parser',
+    month: label,
+    year,
+    totalRawBlocks: rawBlockCount,
+    deduplicatedEvents: staged.length,
+    duplicateSkipped,
+    malformedBlocks: malformedBlocks.length,
+    first10Events: staged.slice(0, 10).map(event => `${event.event_date} ${event.start_time || ''}-${event.end_time || ''} ${event.event_title} (${event.source_job_name})`.trim()),
+  };
+
+  if (staged.length === 0) {
+    errors.push('Calendar PDF parser produced zero staged events from the text layer.');
+  }
+
+  return { staged, errors, diagnostics };
+}
 
 /**
  * Parse a plain-text Buildertrend schedule/calendar export.
@@ -411,7 +747,7 @@ export function parseCalendarText(text, batchId, fileName) {
       start_time: startTime,
       end_time: endTime,
       source_job_name: sourceJobName,
-      normalized_job_name: normalize(sourceJobName),
+      normalized_job_name: normalizeJobNameForMatch(sourceJobName),
       event_category: eventCategory,
       is_non_production: isNonProd,
       is_office_event: isOffice,
@@ -467,6 +803,7 @@ export function matchEventsToJobs(stagedEvents, stagedJobs) {
       return {
         ...ev,
         match_status: 'matched_staged',
+        matched_staged_job_id: match.id || null,
       };
     }
     return ev;
@@ -584,7 +921,7 @@ export function parseDailyLogText(text, batchId, fileName) {
       raw_source_text: lines.join('\n').slice(0, 2000),
       log_date: logDate,
       source_job_name: jobName || '',
-      normalized_job_name: normalize(jobName || ''),
+      normalized_job_name: normalizeJobNameForMatch(jobName || ''),
       title: title || null,
       added_by: addedBy || null,
       log_notes: logNotes || null,

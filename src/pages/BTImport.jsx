@@ -24,10 +24,12 @@ import {
   parseJobsiteRows,
   parseDailyLogText,
   parseCalendarText,
+  parseCalendarPdfPages,
   matchLogsToJobs,
   matchEventsToJobs,
 } from '@/lib/btParsers';
 import { findBuildertrendImportedJobForLog, findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
+import { extractPdfTextPages } from '@/lib/btPdfText';
 import {
   importApprovedJobs,
   importApprovedDailyLogs,
@@ -37,6 +39,50 @@ import {
 import { toast } from 'sonner';
 
 // ─── File reading helpers ─────────────────────────────────────────────────────
+
+const RATE_LIMIT_ERROR_MESSAGE = 'Base44 rate limit reached. Please wait a moment and retry.';
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error) {
+  const status = error?.status || error?.response?.status || error?.code;
+  const message = String(error?.message || error?.error || '').toLowerCase();
+  return status === 429 || message.includes('rate limit') || message.includes('too many requests');
+}
+
+async function withRateLimitRetry(fn, { retries = 3, baseDelayMs = 750, onRetry } = {}) {
+  let attempt = 0;
+  while (attempt <= retries) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!isRateLimitError(error) || attempt === retries) throw error;
+      const delayMs = baseDelayMs * (2 ** attempt);
+      if (onRetry) onRetry({ attempt: attempt + 1, retries, delayMs, error });
+      await sleep(delayMs);
+      attempt++;
+    }
+  }
+}
+
+async function runThrottled(items, worker, {
+  batchSize = 25,
+  delayMs = 500,
+  retries = 3,
+  onProgress,
+  onRetry,
+} = {}) {
+  const total = items.length;
+  for (let index = 0; index < total; index += batchSize) {
+    const chunk = items.slice(index, index + batchSize);
+    if (onProgress) onProgress({ completed: index, total, batchSize: chunk.length });
+    await withRateLimitRetry(() => worker(chunk, index, total), { retries, baseDelayMs: delayMs, onRetry });
+    if (index + batchSize < total) await sleep(delayMs);
+  }
+  if (onProgress) onProgress({ completed: total, total, batchSize: 0 });
+}
 
 async function readFileAsText(file) {
   return new Promise((resolve, reject) => {
@@ -254,6 +300,19 @@ function matchDailyLogsToImportedJobs(stagedLogs, liveJobs) {
   });
 }
 
+function matchCalendarEventsToImportedJobs(stagedEvents, liveJobs) {
+  return stagedEvents.map((event) => {
+    if (event.is_office_event) return event;
+    const match = findBuildertrendImportedJobForLog(event.source_job_name, liveJobs);
+    if (!match) return event;
+    return {
+      ...event,
+      match_status: 'matched_live',
+      matched_job_id: match.id || null,
+    };
+  });
+}
+
 function buildDailyLogDiagnosticLines(diagnostics, logs) {
   if (!diagnostics) return [];
   const matchedCount = logs.filter(log => log.match_status === 'matched_live').length;
@@ -272,6 +331,26 @@ function buildDailyLogDiagnosticLines(diagnostics, logs) {
   ];
 }
 
+function buildCalendarDiagnosticLines(diagnostics, events) {
+  if (!diagnostics) return [];
+  const matchedCount = events.filter(event => event.match_status === 'matched_live' || event.match_status === 'matched_staged').length;
+  const unmatched = events.filter(event => event.match_status === 'unmatched' && !event.is_office_event);
+  const officeCount = events.filter(event => event.is_office_event).length;
+  return [
+    `[Calendar PDF diagnostics]`,
+    `  parser used:              ${diagnostics.parser}`,
+    `  calendar month/year:      ${[diagnostics.month, diagnostics.year].filter(Boolean).join(' ') || '(unknown)'}`,
+    `  total raw blocks found:   ${diagnostics.totalRawBlocks}`,
+    `  deduplicated events:      ${diagnostics.deduplicatedEvents}`,
+    `  duplicate blocks skipped: ${diagnostics.duplicateSkipped}`,
+    `  matched jobs:             ${matchedCount}`,
+    `  unmatched jobs:           ${unmatched.length}`,
+    `  office/internal review:   ${officeCount}`,
+    `  malformed blocks:         ${diagnostics.malformedBlocks}`,
+    `  first 10 parsed events:   ${diagnostics.first10Events?.join(' | ') || '(none)'}`,
+  ];
+}
+
 const STEPS = { UPLOAD: 'upload', DRY_RUN: 'dry_run', CONFIRM: 'confirm', DONE: 'done' };
 
 export default function BTImport() {
@@ -282,6 +361,7 @@ export default function BTImport() {
   const [step, setStep]         = useState(STEPS.UPLOAD);
   const [parsing, setParsing]   = useState(false);
   const [importing, setImporting] = useState(false);
+  const [progressMessage, setProgressMessage] = useState('');
   const [parseError, setParseError] = useState('');
   const [currentBatchId, setCurrentBatchId] = useState(null);
 
@@ -318,6 +398,7 @@ export default function BTImport() {
     setParsing(true);
     setParseError('');
     setParseErrors([]);
+    setProgressMessage('');
     setStagedJobs([]);
     setStagedLogs([]);
     setStagedEvents([]);
@@ -328,7 +409,7 @@ export default function BTImport() {
       const fileNames = Object.entries(files).map(([type, f]) => `${type}:${f.name}`).join(', ');
       const sourceType = Object.keys(files).length === 1 ? Object.keys(files)[0] : 'mixed';
 
-      const batch = await base44.entities.ImportBatch.create({
+      const batch = await withRateLimitRetry(() => base44.entities.ImportBatch.create({
         source_system: 'buildertrend',
         source_type: sourceType,
         source_file_name: fileNames,
@@ -336,6 +417,8 @@ export default function BTImport() {
         uploaded_at: new Date().toISOString(),
         dry_run_status: 'running',
         import_status: 'not_started',
+      }), {
+        onRetry: () => setProgressMessage('Creating import batch after Base44 rate limit...'),
       });
       setCurrentBatchId(batch.id);
 
@@ -389,16 +472,44 @@ export default function BTImport() {
 
       // Parse Calendar (same — match after DB insert)
       if (files.schedule_calendar) {
-        const text = await readFileAsText(files.schedule_calendar);
-        const result = parseCalendarText(text, batch.id, files.schedule_calendar.name);
-        events = result.staged;
+        const isPdf = files.schedule_calendar.type === 'application/pdf' || /\.pdf$/i.test(files.schedule_calendar.name);
+        const result = isPdf
+          ? parseCalendarPdfPages(await extractPdfTextPages(files.schedule_calendar), batch.id, files.schedule_calendar.name)
+          : parseCalendarText(await readFileAsText(files.schedule_calendar), batch.id, files.schedule_calendar.name);
+        liveJobsForMatching = liveJobsForMatching || await base44.entities.Job.list('-created_date');
+        events = matchCalendarEventsToImportedJobs(result.staged, liveJobsForMatching);
+        if (isPdf) allErrors.push(...buildCalendarDiagnosticLines(result.diagnostics, events));
         allErrors.push(...result.errors.map(e => `[Calendar] ${e}`));
       }
 
       // Persist staged records to DB
-      if (jobs.length)   await base44.entities.StagedJob.bulkCreate(jobs);
-      if (logs.length)   await base44.entities.StagedDailyLog.bulkCreate(logs);
-      if (events.length) await base44.entities.StagedCalendarEvent.bulkCreate(events);
+      if (jobs.length) {
+        setProgressMessage(`Staging Jobs 0/${jobs.length}`);
+        await runThrottled(jobs, async (chunk) => {
+          await base44.entities.StagedJob.bulkCreate(chunk);
+        }, {
+          onProgress: ({ completed, total, batchSize }) => setProgressMessage(`Staging Jobs ${Math.min(completed + batchSize, total)}/${total}`),
+          onRetry: ({ delayMs }) => setProgressMessage(`Staging Jobs hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`),
+        });
+      }
+      if (logs.length) {
+        setProgressMessage(`Staging Daily Logs 0/${logs.length}`);
+        await runThrottled(logs, async (chunk) => {
+          await base44.entities.StagedDailyLog.bulkCreate(chunk);
+        }, {
+          onProgress: ({ completed, total, batchSize }) => setProgressMessage(`Staging Daily Logs ${Math.min(completed + batchSize, total)}/${total}`),
+          onRetry: ({ delayMs }) => setProgressMessage(`Staging Daily Logs hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`),
+        });
+      }
+      if (events.length) {
+        setProgressMessage(`Staging Calendar Events 0/${events.length}`);
+        await runThrottled(events, async (chunk) => {
+          await base44.entities.StagedCalendarEvent.bulkCreate(chunk);
+        }, {
+          onProgress: ({ completed, total, batchSize }) => setProgressMessage(`Staging Calendar Events ${Math.min(completed + batchSize, total)}/${total}`),
+          onRetry: ({ delayMs }) => setProgressMessage(`Staging Calendar Events hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`),
+        });
+      }
 
       // Reload from DB so we have real IDs, then run cross-matching with real IDs
       const [dbJobs, dbLogsRaw, dbEventsRaw] = await Promise.all([
@@ -412,28 +523,39 @@ export default function BTImport() {
       const dbEvents = events.length ? matchEventsToJobs(dbEventsRaw, dbJobs) : dbEventsRaw;
 
       // Persist match results back to DB
-      await Promise.all([
-        ...dbLogs.filter(l => l.match_status !== 'unmatched').map(l =>
-          base44.entities.StagedDailyLog.update(l.id, {
-            match_status: l.match_status,
-            matched_staged_job_id: l.matched_staged_job_id || null,
-          })
-        ),
-        ...dbEvents.filter(e => e.match_status !== 'unmatched').map(e =>
-          base44.entities.StagedCalendarEvent.update(e.id, {
-            match_status: e.match_status,
-            matched_staged_job_id: e.matched_staged_job_id || null,
-          })
-        ),
-      ]);
+      const matchedLogs = dbLogs.filter(l => l.match_status !== 'unmatched');
+      const matchedEvents = dbEvents.filter(e => e.match_status !== 'unmatched');
+      if (matchedLogs.length) {
+        await runThrottled(matchedLogs, async (chunk) => {
+          for (const log of chunk) {
+            await base44.entities.StagedDailyLog.update(log.id, {
+              match_status: log.match_status,
+              matched_staged_job_id: log.matched_staged_job_id || null,
+            });
+          }
+        });
+      }
+      if (matchedEvents.length) {
+        await runThrottled(matchedEvents, async (chunk) => {
+          for (const event of chunk) {
+            await base44.entities.StagedCalendarEvent.update(event.id, {
+              match_status: event.match_status,
+              matched_job_id: event.matched_job_id || null,
+              matched_staged_job_id: event.matched_staged_job_id || null,
+            });
+          }
+        });
+      }
 
       // Update batch with counts
-      await base44.entities.ImportBatch.update(batch.id, {
+      await withRateLimitRetry(() => base44.entities.ImportBatch.update(batch.id, {
         dry_run_status: 'complete',
         total_rows: dbJobs.length + dbLogs.length + dbEvents.length,
         staged_count: dbJobs.length + dbLogs.length + dbEvents.length,
         warning_count: dbJobs.filter(j => safeParseJson(j.warnings, []).length > 0).length,
         error_count: allErrors.length,
+      }), {
+        onRetry: () => setProgressMessage('Finalizing import batch after Base44 rate limit...'),
       });
 
       setStagedJobs(dbJobs);
@@ -444,8 +566,9 @@ export default function BTImport() {
       setStep(STEPS.DRY_RUN);
       qc.invalidateQueries({ queryKey: ['import_batches'] });
     } catch (err) {
-      setParseError(err.message || 'Parse failed');
+      setParseError(isRateLimitError(err) ? RATE_LIMIT_ERROR_MESSAGE : (err.message || 'Parse failed'));
     } finally {
+      setProgressMessage('');
       setParsing(false);
     }
   }, [actorName, qc]);
@@ -453,17 +576,17 @@ export default function BTImport() {
   // ── Step 2: Review — approve/skip individual records ──────────────────────
 
   const handleJobStatusChange = useCallback(async (id, status) => {
-    await base44.entities.StagedJob.update(id, { review_status: status, reviewed_by: actorName });
+    await withRateLimitRetry(() => base44.entities.StagedJob.update(id, { review_status: status, reviewed_by: actorName }));
     setStagedJobs(prev => prev.map(j => j.id === id ? { ...j, review_status: status } : j));
   }, [actorName]);
 
   const handleLogStatusChange = useCallback(async (id, status) => {
-    await base44.entities.StagedDailyLog.update(id, { review_status: status, reviewed_by: actorName });
+    await withRateLimitRetry(() => base44.entities.StagedDailyLog.update(id, { review_status: status, reviewed_by: actorName }));
     setStagedLogs(prev => prev.map(l => l.id === id ? { ...l, review_status: status } : l));
   }, [actorName]);
 
   const handleEventStatusChange = useCallback(async (id, status) => {
-    await base44.entities.StagedCalendarEvent.update(id, { review_status: status, reviewed_by: actorName });
+    await withRateLimitRetry(() => base44.entities.StagedCalendarEvent.update(id, { review_status: status, reviewed_by: actorName }));
     setStagedEvents(prev => prev.map(e => e.id === id ? { ...e, review_status: status } : e));
   }, [actorName]);
 
@@ -615,6 +738,7 @@ export default function BTImport() {
               </div>
             </div>
             <BTImportUploader onFilesReady={handleFilesReady} loading={parsing} />
+            {progressMessage && <div className="pl-6 text-xs text-muted-foreground">{progressMessage}</div>}
             {parsing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin" /> Parsing files and staging records…

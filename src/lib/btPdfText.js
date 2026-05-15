@@ -1,6 +1,14 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+async function loadPdfJs() {
+  try {
+    return await import('pdfjs-dist');
+  } catch (error) {
+    console.error('[BTImport] Calendar PDF parser dependency failed to load:', error);
+    throw new Error('Calendar PDF parser dependency could not load in this environment.');
+  }
+}
 
 export async function extractPdfTextPages(file) {
+  const pdfjsLib = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjsLib.getDocument({ data, disableWorker: true }).promise;
   const pages = [];

@@ -38,6 +38,63 @@ import { toast } from 'sonner';
 
 // ─── File reading helpers ─────────────────────────────────────────────────────
 
+const RATE_LIMIT_ERROR_MESSAGE = 'Base44 rate limit reached. Please wait a moment and retry.';
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error) {
+  const status = error?.status || error?.response?.status || error?.code;
+  const message = String(error?.message || error?.error || '').toLowerCase();
+  return status === 429 || message.includes('rate limit') || message.includes('too many requests');
+}
+
+async function withRateLimitRetry(fn, { retries = 3, baseDelayMs = 750, onRetry } = {}) {
+  let attempt = 0;
+  while (attempt <= retries) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!isRateLimitError(error) || attempt === retries) throw error;
+      const delayMs = baseDelayMs * (2 ** attempt);
+      if (onRetry) onRetry({ attempt: attempt + 1, retries, delayMs, error });
+      await sleep(delayMs);
+      attempt++;
+    }
+  }
+}
+
+async function runThrottled(items, worker, {
+  batchSize = 25,
+  delayMs = 500,
+  retries = 3,
+  onProgress,
+  onRetry,
+} = {}) {
+  const results = [];
+  const total = items.length;
+
+  for (let index = 0; index < total; index += batchSize) {
+    const batch = items.slice(index, index + batchSize);
+    if (onProgress) onProgress({ completed: index, total, batchSize: batch.length });
+
+    const result = await withRateLimitRetry(
+      () => worker(batch, index, total),
+      { retries, baseDelayMs: delayMs, onRetry }
+    );
+    if (Array.isArray(result)) results.push(...result);
+    else if (result !== undefined) results.push(result);
+
+    if (index + batchSize < total) {
+      await sleep(delayMs);
+    }
+  }
+
+  if (onProgress) onProgress({ completed: total, total, batchSize: 0 });
+  return results;
+}
+
 async function readFileAsText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -282,6 +339,7 @@ export default function BTImport() {
   const [step, setStep]         = useState(STEPS.UPLOAD);
   const [parsing, setParsing]   = useState(false);
   const [importing, setImporting] = useState(false);
+  const [progressMessage, setProgressMessage] = useState('');
   const [parseError, setParseError] = useState('');
   const [currentBatchId, setCurrentBatchId] = useState(null);
 
@@ -318,6 +376,7 @@ export default function BTImport() {
     setParsing(true);
     setParseError('');
     setParseErrors([]);
+    setProgressMessage('');
     setStagedJobs([]);
     setStagedLogs([]);
     setStagedEvents([]);
@@ -328,7 +387,7 @@ export default function BTImport() {
       const fileNames = Object.entries(files).map(([type, f]) => `${type}:${f.name}`).join(', ');
       const sourceType = Object.keys(files).length === 1 ? Object.keys(files)[0] : 'mixed';
 
-      const batch = await base44.entities.ImportBatch.create({
+      const batch = await withRateLimitRetry(() => base44.entities.ImportBatch.create({
         source_system: 'buildertrend',
         source_type: sourceType,
         source_file_name: fileNames,
@@ -336,6 +395,8 @@ export default function BTImport() {
         uploaded_at: new Date().toISOString(),
         dry_run_status: 'running',
         import_status: 'not_started',
+      }), {
+        onRetry: () => setProgressMessage('Creating import batch after Base44 rate limit...'),
       });
       setCurrentBatchId(batch.id);
 
@@ -396,9 +457,54 @@ export default function BTImport() {
       }
 
       // Persist staged records to DB
-      if (jobs.length)   await base44.entities.StagedJob.bulkCreate(jobs);
-      if (logs.length)   await base44.entities.StagedDailyLog.bulkCreate(logs);
-      if (events.length) await base44.entities.StagedCalendarEvent.bulkCreate(events);
+      if (jobs.length) {
+        setProgressMessage(`Staging Jobs 0/${jobs.length}`);
+        await runThrottled(jobs, async (batch) => {
+          await base44.entities.StagedJob.bulkCreate(batch);
+        }, {
+          batchSize: 25,
+          delayMs: 500,
+          retries: 3,
+          onProgress: ({ completed, total, batchSize }) => {
+            setProgressMessage(`Staging Jobs ${Math.min(completed + batchSize, total)}/${total}`);
+          },
+          onRetry: ({ delayMs }) => {
+            setProgressMessage(`Staging Jobs hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`);
+          },
+        });
+      }
+      if (logs.length) {
+        setProgressMessage(`Staging Daily Logs 0/${logs.length}`);
+        await runThrottled(logs, async (batch) => {
+          await base44.entities.StagedDailyLog.bulkCreate(batch);
+        }, {
+          batchSize: 25,
+          delayMs: 500,
+          retries: 3,
+          onProgress: ({ completed, total, batchSize }) => {
+            setProgressMessage(`Staging Daily Logs ${Math.min(completed + batchSize, total)}/${total}`);
+          },
+          onRetry: ({ delayMs }) => {
+            setProgressMessage(`Staging Daily Logs hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`);
+          },
+        });
+      }
+      if (events.length) {
+        setProgressMessage(`Staging Calendar Events 0/${events.length}`);
+        await runThrottled(events, async (batch) => {
+          await base44.entities.StagedCalendarEvent.bulkCreate(batch);
+        }, {
+          batchSize: 25,
+          delayMs: 500,
+          retries: 3,
+          onProgress: ({ completed, total, batchSize }) => {
+            setProgressMessage(`Staging Calendar Events ${Math.min(completed + batchSize, total)}/${total}`);
+          },
+          onRetry: ({ delayMs }) => {
+            setProgressMessage(`Staging Calendar Events hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`);
+          },
+        });
+      }
 
       // Reload from DB so we have real IDs, then run cross-matching with real IDs
       const [dbJobs, dbLogsRaw, dbEventsRaw] = await Promise.all([
@@ -412,28 +518,60 @@ export default function BTImport() {
       const dbEvents = events.length ? matchEventsToJobs(dbEventsRaw, dbJobs) : dbEventsRaw;
 
       // Persist match results back to DB
-      await Promise.all([
-        ...dbLogs.filter(l => l.match_status !== 'unmatched').map(l =>
-          base44.entities.StagedDailyLog.update(l.id, {
-            match_status: l.match_status,
-            matched_staged_job_id: l.matched_staged_job_id || null,
-          })
-        ),
-        ...dbEvents.filter(e => e.match_status !== 'unmatched').map(e =>
-          base44.entities.StagedCalendarEvent.update(e.id, {
-            match_status: e.match_status,
-            matched_staged_job_id: e.matched_staged_job_id || null,
-          })
-        ),
-      ]);
+      const matchedLogs = dbLogs.filter(l => l.match_status !== 'unmatched');
+      const matchedEvents = dbEvents.filter(e => e.match_status !== 'unmatched');
+      if (matchedLogs.length) {
+        setProgressMessage(`Matching Daily Logs 0/${matchedLogs.length}`);
+        await runThrottled(matchedLogs, async (batch) => {
+          for (const log of batch) {
+            await base44.entities.StagedDailyLog.update(log.id, {
+              match_status: log.match_status,
+              matched_staged_job_id: log.matched_staged_job_id || null,
+            });
+          }
+        }, {
+          batchSize: 25,
+          delayMs: 500,
+          retries: 3,
+          onProgress: ({ completed, total, batchSize }) => {
+            setProgressMessage(`Matching Daily Logs ${Math.min(completed + batchSize, total)}/${total}`);
+          },
+          onRetry: ({ delayMs }) => {
+            setProgressMessage(`Matching Daily Logs hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`);
+          },
+        });
+      }
+      if (matchedEvents.length) {
+        setProgressMessage(`Matching Calendar Events 0/${matchedEvents.length}`);
+        await runThrottled(matchedEvents, async (batch) => {
+          for (const event of batch) {
+            await base44.entities.StagedCalendarEvent.update(event.id, {
+              match_status: event.match_status,
+              matched_staged_job_id: event.matched_staged_job_id || null,
+            });
+          }
+        }, {
+          batchSize: 25,
+          delayMs: 500,
+          retries: 3,
+          onProgress: ({ completed, total, batchSize }) => {
+            setProgressMessage(`Matching Calendar Events ${Math.min(completed + batchSize, total)}/${total}`);
+          },
+          onRetry: ({ delayMs }) => {
+            setProgressMessage(`Matching Calendar Events hit a Base44 rate limit. Retrying in ${Math.round(delayMs / 1000)}s...`);
+          },
+        });
+      }
 
       // Update batch with counts
-      await base44.entities.ImportBatch.update(batch.id, {
+      await withRateLimitRetry(() => base44.entities.ImportBatch.update(batch.id, {
         dry_run_status: 'complete',
         total_rows: dbJobs.length + dbLogs.length + dbEvents.length,
         staged_count: dbJobs.length + dbLogs.length + dbEvents.length,
         warning_count: dbJobs.filter(j => safeParseJson(j.warnings, []).length > 0).length,
         error_count: allErrors.length,
+      }), {
+        onRetry: () => setProgressMessage('Finalizing import batch after Base44 rate limit...'),
       });
 
       setStagedJobs(dbJobs);
@@ -444,8 +582,9 @@ export default function BTImport() {
       setStep(STEPS.DRY_RUN);
       qc.invalidateQueries({ queryKey: ['import_batches'] });
     } catch (err) {
-      setParseError(err.message || 'Parse failed');
+      setParseError(isRateLimitError(err) ? RATE_LIMIT_ERROR_MESSAGE : (err.message || 'Parse failed'));
     } finally {
+      setProgressMessage('');
       setParsing(false);
     }
   }, [actorName, qc]);
@@ -453,17 +592,17 @@ export default function BTImport() {
   // ── Step 2: Review — approve/skip individual records ──────────────────────
 
   const handleJobStatusChange = useCallback(async (id, status) => {
-    await base44.entities.StagedJob.update(id, { review_status: status, reviewed_by: actorName });
+    await withRateLimitRetry(() => base44.entities.StagedJob.update(id, { review_status: status, reviewed_by: actorName }));
     setStagedJobs(prev => prev.map(j => j.id === id ? { ...j, review_status: status } : j));
   }, [actorName]);
 
   const handleLogStatusChange = useCallback(async (id, status) => {
-    await base44.entities.StagedDailyLog.update(id, { review_status: status, reviewed_by: actorName });
+    await withRateLimitRetry(() => base44.entities.StagedDailyLog.update(id, { review_status: status, reviewed_by: actorName }));
     setStagedLogs(prev => prev.map(l => l.id === id ? { ...l, review_status: status } : l));
   }, [actorName]);
 
   const handleEventStatusChange = useCallback(async (id, status) => {
-    await base44.entities.StagedCalendarEvent.update(id, { review_status: status, reviewed_by: actorName });
+    await withRateLimitRetry(() => base44.entities.StagedCalendarEvent.update(id, { review_status: status, reviewed_by: actorName }));
     setStagedEvents(prev => prev.map(e => e.id === id ? { ...e, review_status: status } : e));
   }, [actorName]);
 
@@ -472,7 +611,7 @@ export default function BTImport() {
   const handleConfirmImport = useCallback(async () => {
     setImporting(true);
     try {
-      await base44.entities.ImportBatch.update(currentBatchId, { import_status: 'in_progress' });
+      await withRateLimitRetry(() => base44.entities.ImportBatch.update(currentBatchId, { import_status: 'in_progress' }));
 
       const approvedJobs   = stagedJobs.filter(j => j.review_status === 'approved' && j.match_status !== 'already_imported');
       const approvedLogs   = stagedLogs.filter(l => l.review_status === 'approved');
@@ -492,12 +631,12 @@ export default function BTImport() {
       const totalErrors   = jobResult.errors.length + logResult.errors.length + eventResult.errors.length;
       const totalSkipped  = jobResult.skipped.length + logResult.skipped.length + eventResult.skipped.length;
 
-      await base44.entities.ImportBatch.update(currentBatchId, {
+      await withRateLimitRetry(() => base44.entities.ImportBatch.update(currentBatchId, {
         import_status: totalErrors === 0 ? 'complete' : 'partial',
         imported_count: totalImported,
         skipped_count: totalSkipped,
         error_count: totalErrors,
-      });
+      }));
 
       setImportResult({ jobResult, logResult, eventResult });
       setStep(STEPS.DONE);
@@ -616,8 +755,11 @@ export default function BTImport() {
             </div>
             <BTImportUploader onFilesReady={handleFilesReady} loading={parsing} />
             {parsing && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" /> Parsing files and staging records…
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Parsing files and staging records…
+                </div>
+                {progressMessage && <div className="pl-6 text-xs text-muted-foreground">{progressMessage}</div>}
               </div>
             )}
 

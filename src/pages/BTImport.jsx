@@ -349,9 +349,10 @@ function buildCalendarDiagnosticLines(diagnostics, events) {
   const unmatched = events.filter(event => event.match_status === 'unmatched' && !event.is_office_event);
   const officeCount = events.filter(event => event.is_office_event).length;
   return [
-    `[Calendar PDF diagnostics]`,
+    `[Calendar diagnostics]`,
     `  parser used:              ${diagnostics.parser}`,
     `  calendar month/year:      ${[diagnostics.month, diagnostics.year].filter(Boolean).join(' ') || '(unknown)'}`,
+    `  total lines:              ${diagnostics.totalLines ?? '(n/a)'}`,
     `  total raw blocks found:   ${diagnostics.totalRawBlocks}`,
     `  deduplicated events:      ${diagnostics.deduplicatedEvents}`,
     `  duplicate blocks skipped: ${diagnostics.duplicateSkipped}`,
@@ -359,8 +360,12 @@ function buildCalendarDiagnosticLines(diagnostics, events) {
     `  unmatched jobs:           ${unmatched.length}`,
     `  office/internal review:   ${officeCount}`,
     `  malformed blocks:         ${diagnostics.malformedBlocks}`,
+    `  detected date patterns:   ${diagnostics.detectedDatePatterns?.join(' | ') || '(n/a)'}`,
+    `  detected time patterns:   ${diagnostics.detectedTimePatterns?.join(' | ') || '(n/a)'}`,
+    `  skipped reasons:          ${diagnostics.skippedReasons?.join(' | ') || '(none)'}`,
     `  first 10 parsed events:   ${diagnostics.first10Events?.join(' | ') || '(none)'}`,
-  ];
+    diagnostics.first20Lines ? `  first 20 lines:\n${diagnostics.first20Lines}` : null,
+  ].filter(Boolean);
 }
 
 function emptyImportResult() {
@@ -497,7 +502,7 @@ export default function BTImport() {
           : parseCalendarText(await readFileAsText(files.schedule_calendar), batch.id, files.schedule_calendar.name);
         liveJobsForMatching = liveJobsForMatching || await base44.entities.Job.list('-created_date');
         events = matchCalendarEventsToImportedJobs(result.staged, liveJobsForMatching);
-        if (isPdf) allErrors.push(...buildCalendarDiagnosticLines(result.diagnostics, events));
+        allErrors.push(...buildCalendarDiagnosticLines(result.diagnostics, events));
         allErrors.push(...result.errors.map(e => `[Calendar] ${e}`));
       }
 

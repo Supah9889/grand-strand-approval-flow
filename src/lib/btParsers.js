@@ -349,6 +349,7 @@ const NON_PRODUCTION_KEYWORDS = /\b(estimate|tour|birthday|reminder|meeting|offi
 const OFFICE_KEYWORDS = /grand strand office|gs office|office only/i;
 const PRODUCTION_KEYWORDS = /\b(drywall|paint|painting|patch|skim|install|repair|trim|texture|caulk|carpentry|framing|siding|ceiling|punch|warranty|touch\s*up)\b/i;
 const TIME_RE = /\b\d{1,2}:\d{2}\s*[AP]M\b/gi;
+const TIME_LINE_RE = /^\d{1,2}:\d{2}\s*[AP]M$/i;
 
 function classifyCalendarEvent(eventTitle, sourceJobName) {
   const combined = `${eventTitle || ''} ${sourceJobName || ''}`;
@@ -385,6 +386,140 @@ function cleanCalendarText(value) {
     .replace(/\s+-\s*$/, '')
     .replace(/-\s*$/, '')
     .trim();
+}
+
+function extractCalendarDate(value) {
+  const text = String(value || '');
+  const datePrefix = stripDatePrefix(text);
+  if (datePrefix.date) return datePrefix.date;
+
+  const isoMatch = text.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-${String(isoMatch[3]).padStart(2, '0')}`;
+  }
+
+  const slashMatch = text.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b/);
+  if (slashMatch) {
+    const year = slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3];
+    return `${year}-${String(slashMatch[1]).padStart(2, '0')}-${String(slashMatch[2]).padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+function extractCalendarTime(value) {
+  const match = String(value || '').match(/\b(\d{1,2}:\d{2})\s*([AP]M)\b/i);
+  return match ? `${match[1]} ${match[2].toUpperCase()}` : null;
+}
+
+function isCalendarNoiseLine(line) {
+  const value = String(line || '').trim();
+  if (!value) return true;
+  if (value === '-') return true;
+  if (/^non-workday$/i.test(value)) return true;
+  if (/^(schedule\s+-|all listed jobs$)/i.test(value)) return true;
+  if (/^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/i.test(value)) return true;
+  if (/^(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)$/i.test(value)) return true;
+  if (/^\d{1,2}$/.test(value)) return true;
+  return false;
+}
+
+function collectCalendarParenValue(lines, startIndex) {
+  const collected = [];
+  for (let i = startIndex; i < lines.length; i++) {
+    collected.push(lines[i]);
+    if (lines[i].includes(')')) {
+      const raw = collected.join(' ');
+      const match = raw.match(/\(([\s\S]*?)\)/);
+      return {
+        endIndex: i,
+        value: cleanCalendarText(match?.[1] || raw.replace(/[()]/g, ' ')),
+      };
+    }
+  }
+
+  return {
+    endIndex: startIndex,
+    value: cleanCalendarText(lines[startIndex].replace(/[()]/g, ' ')),
+  };
+}
+
+function collectCalendarTitleLines(lines, parenStartIndex, previousBlockEnd) {
+  const titleLines = [];
+  let startIndex = parenStartIndex;
+
+  for (let i = parenStartIndex - 1; i > previousBlockEnd; i--) {
+    const line = String(lines[i] || '').trim();
+    if (TIME_LINE_RE.test(line)) break;
+    if (line.includes(')')) break;
+    if (line === '-') {
+      startIndex = i;
+      continue;
+    }
+    if (isCalendarNoiseLine(line)) break;
+    titleLines.unshift(line);
+    startIndex = i;
+    if (titleLines.length >= 4) break;
+  }
+
+  return {
+    startIndex,
+    title: cleanCalendarText(titleLines.join(' ')),
+  };
+}
+
+function collectCalendarTimes(lines, startIndex) {
+  const times = [];
+  let endIndex = startIndex - 1;
+
+  for (let i = startIndex; i < Math.min(lines.length, startIndex + 8); i++) {
+    const line = String(lines[i] || '').trim();
+    if (!line) continue;
+    const time = extractCalendarTime(line);
+    if (time && TIME_LINE_RE.test(line)) {
+      times.push(time);
+      endIndex = i;
+      if (times.length >= 2) break;
+      continue;
+    }
+    if (!isCalendarNoiseLine(line)) break;
+  }
+
+  return {
+    startTime: times[0] || null,
+    endTime: times[1] || null,
+    endIndex,
+  };
+}
+
+function splitFlattenedCalendarTextBlocks(lines) {
+  const blocks = [];
+  let previousBlockEnd = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!String(lines[i] || '').includes('(')) continue;
+
+    const title = collectCalendarTitleLines(lines, i, previousBlockEnd);
+    const paren = collectCalendarParenValue(lines, i);
+    const times = collectCalendarTimes(lines, paren.endIndex + 1);
+    const blockEnd = Math.max(paren.endIndex, times.endIndex);
+    const sourceStart = Math.min(title.startIndex, i);
+    const rawLines = lines.slice(sourceStart, blockEnd + 1);
+
+    blocks.push({
+      sourceRow: sourceStart + 1,
+      rawLines,
+      eventTitle: title.title,
+      sourceJobName: paren.value,
+      startTime: times.startTime,
+      endTime: times.endTime,
+    });
+
+    previousBlockEnd = blockEnd;
+    i = Math.max(i, blockEnd);
+  }
+
+  return blocks;
 }
 
 function normalizePdfItems(items) {
@@ -675,9 +810,154 @@ export function parseCalendarPdfPages(pages, batchId, fileName) {
 
 /**
  * Parse a plain-text Buildertrend schedule/calendar export.
- * Each line is: "DATE   EVENT TITLE (Job Name)"  or  "DATE TIME-TIME EVENT TITLE"
+ * Supports both one-line rows and flattened monthly calendar text.
  */
 export function parseCalendarText(text, batchId, fileName) {
+  const staged = [];
+  const errors = [];
+  const rawLines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  const lines = rawLines.map(l => l.trim()).filter(Boolean);
+  const detectedDatePatterns = lines.map(line => extractCalendarDate(line)).filter(Boolean).slice(0, 20);
+  const detectedTimePatterns = lines.map(line => extractCalendarTime(line)).filter(Boolean).slice(0, 20);
+  const skippedReasons = [];
+  const malformedBlocks = [];
+  const duplicateHashes = new Set();
+  let duplicateSkipped = 0;
+
+  const buildDiagnostics = (totalRawBlocks = 0) => ({
+    parser: 'Buildertrend Calendar TXT flattened-block parser',
+    totalLines: lines.length,
+    first20Lines: rawLines.slice(0, 20).map((line, index) => `${index + 1}: ${line}`).join('\n'),
+    detectedDatePatterns,
+    detectedTimePatterns,
+    totalRawBlocks,
+    deduplicatedEvents: staged.length,
+    duplicateSkipped,
+    malformedBlocks: malformedBlocks.length,
+    skippedReasons: skippedReasons.slice(0, 20),
+    first10Events: staged.slice(0, 10).map(event => `${event.event_date || '(date review)'} ${event.start_time || ''}-${event.end_time || ''} ${event.event_title} (${event.source_job_name || 'no job'})`.trim()),
+  });
+
+  if (!text || !text.trim()) {
+    errors.push('Empty calendar file');
+    skippedReasons.push('empty file');
+    return { staged, errors, diagnostics: buildDiagnostics() };
+  }
+
+  const addStagedEvent = ({
+    sourceRow,
+    rawSourceText,
+    eventDate,
+    eventTitle,
+    startTime,
+    endTime,
+    sourceJobName,
+  }) => {
+    const cleanTitle = cleanCalendarText(eventTitle) || cleanCalendarText(sourceJobName) || 'Untitled calendar event';
+    const cleanJobName = cleanCalendarText(sourceJobName);
+    const duplicateHash = createCalendarDuplicateHash({
+      eventTitle: cleanTitle,
+      eventDate,
+      startTime,
+      endTime,
+      sourceJobName: cleanJobName,
+    });
+
+    if (duplicateHashes.has(duplicateHash)) {
+      duplicateSkipped++;
+      return;
+    }
+    duplicateHashes.add(duplicateHash);
+
+    const classification = classifyCalendarEvent(cleanTitle, cleanJobName);
+    const warnings = [];
+    if (classification.isOffice) warnings.push('Office/internal calendar item - requires review');
+    if (!eventDate) warnings.push('Calendar date could not be inferred from TXT block');
+    if (!cleanJobName) warnings.push('Job reference missing from TXT block');
+    if (!startTime || !endTime) warnings.push('Calendar time range incomplete');
+    const needsReview = classification.isOffice || !eventDate || !cleanJobName || !startTime || !endTime;
+
+    staged.push({
+      import_batch_id: batchId,
+      source_file_name: fileName,
+      source_row: sourceRow,
+      raw_source_text: String(rawSourceText || '').slice(0, 2000),
+      event_date: eventDate,
+      event_title: cleanTitle,
+      start_time: startTime,
+      end_time: endTime,
+      source_job_name: cleanJobName,
+      normalized_job_name: normalizeJobNameForMatch(cleanJobName),
+      duplicate_hash: duplicateHash,
+      event_category: classification.eventCategory,
+      is_non_production: classification.isNonProduction,
+      is_office_event: classification.isOffice,
+      match_status: 'unmatched',
+      matched_job_id: null,
+      matched_staged_job_id: null,
+      warnings: safeJson(warnings),
+      errors: safeJson([]),
+      review_status: needsReview ? 'needs_review' : 'pending',
+    });
+  };
+
+  const legacy = parseCalendarTextLegacy(text, batchId, fileName);
+  legacy.staged.forEach((event) => {
+    addStagedEvent({
+      sourceRow: event.source_row,
+      rawSourceText: event.raw_source_text,
+      eventDate: event.event_date,
+      eventTitle: event.event_title,
+      startTime: event.start_time,
+      endTime: event.end_time,
+      sourceJobName: event.source_job_name,
+    });
+  });
+  errors.push(...legacy.errors);
+
+  const flattenedBlocks = splitFlattenedCalendarTextBlocks(lines);
+  flattenedBlocks.forEach((block) => {
+    const eventDate = extractCalendarDate(block.sourceJobName) || extractCalendarDate(block.eventTitle);
+    const hasUsefulSignal = block.eventTitle || block.sourceJobName || block.startTime || block.endTime;
+    if (!hasUsefulSignal) {
+      malformedBlocks.push(block.rawLines.join(' | ').slice(0, 250));
+      skippedReasons.push(`Line ${block.sourceRow}: block had no title, job, or time`);
+      return;
+    }
+
+    addStagedEvent({
+      sourceRow: block.sourceRow,
+      rawSourceText: block.rawLines.join('\n'),
+      eventDate,
+      eventTitle: block.eventTitle,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      sourceJobName: block.sourceJobName,
+    });
+  });
+
+  const diagnostics = buildDiagnostics(flattenedBlocks.length);
+
+  if (staged.length === 0) {
+    errors.push([
+      'Calendar TXT parser produced zero staged events.',
+      `Parser used: ${diagnostics.parser}`,
+      `Total lines: ${diagnostics.totalLines}`,
+      `Detected date patterns: ${detectedDatePatterns.join(' | ') || '(none)'}`,
+      `Detected time patterns: ${detectedTimePatterns.join(' | ') || '(none)'}`,
+      `First 20 lines:\n${diagnostics.first20Lines || '(none)'}`,
+      `Skipped reasons: ${diagnostics.skippedReasons.join(' | ') || '(none)'}`,
+    ].join('\n'));
+  }
+
+  return { staged, errors, diagnostics };
+}
+
+/**
+ * Parse a plain-text Buildertrend schedule/calendar export.
+ * Each line is: "DATE   EVENT TITLE (Job Name)"  or  "DATE TIME-TIME EVENT TITLE"
+ */
+function parseCalendarTextLegacy(text, batchId, fileName) {
   const staged = [];
   const errors = [];
 

@@ -29,7 +29,6 @@ import {
   matchEventsToJobs,
 } from '@/lib/btParsers';
 import { findBuildertrendImportedJobForLog, findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
-import { extractPdfTextPages } from '@/lib/btPdfText';
 import {
   importApprovedJobs,
   importApprovedDailyLogs,
@@ -490,8 +489,11 @@ export default function BTImport() {
       // Parse Calendar (same — match after DB insert)
       if (files.schedule_calendar) {
         const isPdf = files.schedule_calendar.type === 'application/pdf' || /\.pdf$/i.test(files.schedule_calendar.name);
+        const pdfTextPages = isPdf
+          ? await import('@/lib/btPdfText').then(module => module.extractPdfTextPages(files.schedule_calendar))
+          : null;
         const result = isPdf
-          ? parseCalendarPdfPages(await extractPdfTextPages(files.schedule_calendar), batch.id, files.schedule_calendar.name)
+          ? parseCalendarPdfPages(pdfTextPages, batch.id, files.schedule_calendar.name)
           : parseCalendarText(await readFileAsText(files.schedule_calendar), batch.id, files.schedule_calendar.name);
         liveJobsForMatching = liveJobsForMatching || await base44.entities.Job.list('-created_date');
         events = matchCalendarEventsToImportedJobs(result.staged, liveJobsForMatching);

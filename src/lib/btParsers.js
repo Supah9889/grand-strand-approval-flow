@@ -84,6 +84,10 @@ function stripDatePrefix(name) {
   return { clean: name.trim(), date: null };
 }
 
+function normalizeJobNameForMatch(name) {
+  return normalize(stripDatePrefix(name || '').clean || name || '');
+}
+
 // ─── Jobsite Rows (Excel) ──────────────────────────────────────────────────────
 
 /**
@@ -171,7 +175,7 @@ export function parseJobsiteRows(rows, batchId, fileName) {
     }
 
     const { clean: cleanName, date: receivedDate } = stripDatePrefix(rawName);
-    const normalizedName = normalize(cleanName || rawName);
+    const normalizedName = normalizeJobNameForMatch(rawName);
 
     const warnings = [];
     const flags = [];
@@ -308,7 +312,7 @@ function parseDailyLogTextLegacy(text, batchId, fileName) {
       raw_source_text: block.slice(0, 2000),
       log_date: logDate,
       source_job_name: jobName || '',
-      normalized_job_name: normalize(jobName || ''),
+      normalized_job_name: normalizeJobNameForMatch(jobName || ''),
       title: title || null,
       added_by: addedBy || null,
       log_notes: logNotes || null,
@@ -411,7 +415,7 @@ export function parseCalendarText(text, batchId, fileName) {
       start_time: startTime,
       end_time: endTime,
       source_job_name: sourceJobName,
-      normalized_job_name: normalize(sourceJobName),
+      normalized_job_name: normalizeJobNameForMatch(sourceJobName),
       event_category: eventCategory,
       is_non_production: isNonProd,
       is_office_event: isOffice,
@@ -584,7 +588,7 @@ export function parseDailyLogText(text, batchId, fileName) {
       raw_source_text: lines.join('\n').slice(0, 2000),
       log_date: logDate,
       source_job_name: jobName || '',
-      normalized_job_name: normalize(jobName || ''),
+      normalized_job_name: normalizeJobNameForMatch(jobName || ''),
       title: title || null,
       added_by: addedBy || null,
       log_notes: logNotes || null,

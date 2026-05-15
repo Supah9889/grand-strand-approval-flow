@@ -329,6 +329,10 @@ function buildDailyLogDiagnosticLines(diagnostics, logs) {
   ];
 }
 
+function emptyImportResult() {
+  return { imported: [], skipped: [], errors: [] };
+}
+
 const STEPS = { UPLOAD: 'upload', DRY_RUN: 'dry_run', CONFIRM: 'confirm', DONE: 'done' };
 
 export default function BTImport() {
@@ -611,11 +615,56 @@ export default function BTImport() {
   const handleConfirmImport = useCallback(async () => {
     setImporting(true);
     try {
+      if (!currentBatchId) {
+        throw new Error('No active import batch was found. Re-run the dry-run before confirming import.');
+      }
+
       await withRateLimitRetry(() => base44.entities.ImportBatch.update(currentBatchId, { import_status: 'in_progress' }));
 
-      const approvedJobs   = stagedJobs.filter(j => j.review_status === 'approved' && j.match_status !== 'already_imported');
-      const approvedLogs   = stagedLogs.filter(l => l.review_status === 'approved');
-      const approvedEvents = stagedEvents.filter(e => e.review_status === 'approved');
+      const [latestJobs, latestLogs, latestEvents] = await Promise.all([
+        base44.entities.StagedJob.filter({ import_batch_id: currentBatchId }),
+        base44.entities.StagedDailyLog.filter({ import_batch_id: currentBatchId }),
+        base44.entities.StagedCalendarEvent.filter({ import_batch_id: currentBatchId }),
+      ]);
+
+      setStagedJobs(latestJobs);
+      setStagedLogs(latestLogs);
+      setStagedEvents(latestEvents);
+
+      const approvedJobs   = latestJobs.filter(j => j.review_status === 'approved');
+      const approvedLogs   = latestLogs.filter(l => l.review_status === 'approved');
+      const approvedEvents = latestEvents.filter(e => e.review_status === 'approved');
+      const approvedCounts = {
+        jobs: approvedJobs.length,
+        logs: approvedLogs.length,
+        events: approvedEvents.length,
+      };
+      const totalApproved = approvedCounts.jobs + approvedCounts.logs + approvedCounts.events;
+
+      if (totalApproved === 0) {
+        const totalStaged = latestJobs.length + latestLogs.length + latestEvents.length;
+        const zeroEligibleReason = totalStaged === 0
+          ? 'No staged records were found for the current import batch. The batch may not match the records shown on screen.'
+          : 'No approved staged records were found for the current import batch. Approve at least one staged row before confirming import.';
+
+        await withRateLimitRetry(() => base44.entities.ImportBatch.update(currentBatchId, {
+          import_status: 'complete',
+          imported_count: 0,
+          skipped_count: 0,
+          error_count: 0,
+        }));
+
+        setImportResult({
+          zeroEligibleReason,
+          approvedCounts,
+          jobResult: emptyImportResult(),
+          logResult: emptyImportResult(),
+          eventResult: emptyImportResult(),
+        });
+        setStep(STEPS.DONE);
+        qc.invalidateQueries({ queryKey: ['import_batches'] });
+        return;
+      }
 
       // Import jobs first so logs/events can resolve job IDs
       const jobResult   = await importApprovedJobs(currentBatchId, approvedJobs, actorName);
@@ -638,7 +687,7 @@ export default function BTImport() {
         error_count: totalErrors,
       }));
 
-      setImportResult({ jobResult, logResult, eventResult });
+      setImportResult({ approvedCounts, jobResult, logResult, eventResult });
       setStep(STEPS.DONE);
       qc.invalidateQueries({ queryKey: ['import_batches'] });
     } catch (err) {
@@ -675,6 +724,12 @@ export default function BTImport() {
     stagedJobs.filter(j => j.review_status === 'approved').length +
     stagedLogs.filter(l => l.review_status === 'approved').length +
     stagedEvents.filter(e => e.review_status === 'approved').length;
+
+  const approvedCountByType = {
+    jobs: stagedJobs.filter(j => j.review_status === 'approved').length,
+    logs: stagedLogs.filter(l => l.review_status === 'approved').length,
+    events: stagedEvents.filter(e => e.review_status === 'approved').length,
+  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -817,7 +872,10 @@ export default function BTImport() {
                   Ready to import {approvedCount} approved record{approvedCount !== 1 ? 's' : ''}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Only approved records will create live entries. Skipped/pending records are ignored.
+                  Approved before import: {approvedCountByType.jobs} job{approvedCountByType.jobs !== 1 ? 's' : ''},
+                  {' '}{approvedCountByType.logs} log{approvedCountByType.logs !== 1 ? 's' : ''},
+                  {' '}{approvedCountByType.events} event{approvedCountByType.events !== 1 ? 's' : ''}.
+                  Skipped/pending records are ignored.
                 </p>
               </div>
               <Button
@@ -837,9 +895,25 @@ export default function BTImport() {
         {/* ── STEP: DONE ── */}
         {step === STEPS.DONE && importResult && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-              <CheckCircle2 className="w-4 h-4" /> Import complete
+            <div className={`flex items-center gap-2 text-sm font-semibold rounded-xl px-4 py-3 ${
+              importResult.zeroEligibleReason
+                ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                : 'text-green-700 bg-green-50 border border-green-200'
+            }`}>
+              {importResult.zeroEligibleReason
+                ? <AlertTriangle className="w-4 h-4" />
+                : <CheckCircle2 className="w-4 h-4" />
+              }
+              {importResult.zeroEligibleReason || 'Import complete'}
             </div>
+
+            {importResult.approvedCounts && (
+              <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                Approved at confirm: {importResult.approvedCounts.jobs} job{importResult.approvedCounts.jobs !== 1 ? 's' : ''},
+                {' '}{importResult.approvedCounts.logs} log{importResult.approvedCounts.logs !== 1 ? 's' : ''},
+                {' '}{importResult.approvedCounts.events} event{importResult.approvedCounts.events !== 1 ? 's' : ''}.
+              </div>
+            )}
 
             <ImportResultSection label="Jobs" result={importResult.jobResult} />
             <ImportResultSection label="Daily Logs" result={importResult.logResult} />
@@ -869,6 +943,15 @@ function ImportResultSection({ label, result }) {
       {errors.map((e, i) => (
         <div key={i} className="px-4 py-2 border-t border-border/60 text-xs flex gap-2 text-destructive">
           <span>!</span><span>{e.error}</span>
+        </div>
+      ))}
+      {skipped.map((s, i) => (
+        <div key={i} className="px-4 py-2 border-t border-border/60 text-xs flex gap-2 text-muted-foreground">
+          <span>Skipped</span>
+          <span>
+            {s.stagedId ? `staged ${s.stagedId}: ` : ''}
+            {s.reason || 'No reason provided'}
+          </span>
         </div>
       ))}
     </div>

@@ -94,7 +94,7 @@ export function normalizeBuildertrendMatchValue(value) {
     .trim();
 }
 
-function stripBuildertrendDatePrefix(value) {
+export function stripBuildertrendDatePrefix(value) {
   return String(value || '')
     .replace(/^\d{4}\s+\d{1,2}\/\d{1,2}\s+/, '')
     .replace(/^\d{1,2}[/-]\d{1,2}[/-]\d{4}\s+/, '')

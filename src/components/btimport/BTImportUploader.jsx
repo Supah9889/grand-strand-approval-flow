@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Upload, X, FileText, CheckCircle2 } from 'lucide-react';
 
 const FILE_TYPES = [
-  { key: 'jobsites',         label: 'Jobsites Export',      accept: '.xlsx,.xls,.csv', hint: 'Excel/CSV export from BT → Jobs list' },
-  { key: 'daily_logs',       label: 'Daily Logs Export',    accept: '.txt,.csv',       hint: 'Text export from BT → Daily Logs' },
-  { key: 'schedule_calendar',label: 'Schedule / Calendar',  accept: '.txt,.csv',       hint: 'Text export from BT → Schedule' },
+  { key: 'jobsites',          label: 'Jobsites Export',     accept: '.xlsx,.xls,.csv', hint: 'Excel/CSV export from BT - Jobs list' },
+  { key: 'daily_logs',        label: 'Daily Logs Export',   accept: '.txt,.csv',       hint: 'Text export from BT - Daily Logs' },
+  { key: 'schedule_calendar', label: 'Schedule / Calendar', accept: '.pdf,.txt,.csv',  hint: 'PDF or text export from BT - Schedule' },
 ];
 
 export default function BTImportUploader({ onFilesReady, loading }) {
@@ -17,7 +17,11 @@ export default function BTImportUploader({ onFilesReady, loading }) {
   };
 
   const removeFile = (key) => {
-    setFiles(prev => { const n = { ...prev }; delete n[key]; return n; });
+    setFiles(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   const canSubmit = Object.keys(files).length > 0 && !loading;
@@ -62,7 +66,7 @@ export default function BTImportUploader({ onFilesReady, loading }) {
         className="w-full h-11 gap-2"
       >
         <Upload className="w-4 h-4" />
-        {loading ? 'Parsing…' : `Parse & Stage ${Object.keys(files).length} file${Object.keys(files).length !== 1 ? 's' : ''}`}
+        {loading ? 'Parsing...' : `Parse & Stage ${Object.keys(files).length} file${Object.keys(files).length !== 1 ? 's' : ''}`}
       </Button>
     </div>
   );

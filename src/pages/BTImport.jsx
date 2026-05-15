@@ -24,10 +24,12 @@ import {
   parseJobsiteRows,
   parseDailyLogText,
   parseCalendarText,
+  parseCalendarPdfPages,
   matchLogsToJobs,
   matchEventsToJobs,
 } from '@/lib/btParsers';
 import { findBuildertrendImportedJobForLog, findExistingBuildertrendImportedJob } from '@/lib/jobHelpers';
+import { extractPdfTextPages } from '@/lib/btPdfText';
 import {
   importApprovedJobs,
   importApprovedDailyLogs,
@@ -311,6 +313,19 @@ function matchDailyLogsToImportedJobs(stagedLogs, liveJobs) {
   });
 }
 
+function matchCalendarEventsToImportedJobs(stagedEvents, liveJobs) {
+  return stagedEvents.map((event) => {
+    if (event.is_office_event) return event;
+    const match = findBuildertrendImportedJobForLog(event.source_job_name, liveJobs);
+    if (!match) return event;
+    return {
+      ...event,
+      match_status: 'matched_live',
+      matched_job_id: match.id || null,
+    };
+  });
+}
+
 function buildDailyLogDiagnosticLines(diagnostics, logs) {
   if (!diagnostics) return [];
   const matchedCount = logs.filter(log => log.match_status === 'matched_live').length;
@@ -326,6 +341,26 @@ function buildDailyLogDiagnosticLines(diagnostics, logs) {
     `  attachment review count:  ${attachmentReviewCount}`,
     `  first 5 parsed jobs:      ${logs.slice(0, 5).map(log => log.source_job_name || '(no job name)').join(' | ') || '(none)'}`,
     `  first 3 unmatched jobs:   ${unmatched.slice(0, 3).map(log => log.source_job_name || '(no job name)').join(' | ') || '(none)'}`,
+  ];
+}
+
+function buildCalendarDiagnosticLines(diagnostics, events) {
+  if (!diagnostics) return [];
+  const matchedCount = events.filter(event => event.match_status === 'matched_live' || event.match_status === 'matched_staged').length;
+  const unmatched = events.filter(event => event.match_status === 'unmatched' && !event.is_office_event);
+  const officeCount = events.filter(event => event.is_office_event).length;
+  return [
+    `[Calendar PDF diagnostics]`,
+    `  parser used:              ${diagnostics.parser}`,
+    `  calendar month/year:      ${[diagnostics.month, diagnostics.year].filter(Boolean).join(' ') || '(unknown)'}`,
+    `  total raw blocks found:   ${diagnostics.totalRawBlocks}`,
+    `  deduplicated events:      ${diagnostics.deduplicatedEvents}`,
+    `  duplicate blocks skipped: ${diagnostics.duplicateSkipped}`,
+    `  matched jobs:             ${matchedCount}`,
+    `  unmatched jobs:           ${unmatched.length}`,
+    `  office/internal review:   ${officeCount}`,
+    `  malformed blocks:         ${diagnostics.malformedBlocks}`,
+    `  first 10 parsed events:   ${diagnostics.first10Events?.join(' | ') || '(none)'}`,
   ];
 }
 
@@ -454,9 +489,13 @@ export default function BTImport() {
 
       // Parse Calendar (same — match after DB insert)
       if (files.schedule_calendar) {
-        const text = await readFileAsText(files.schedule_calendar);
-        const result = parseCalendarText(text, batch.id, files.schedule_calendar.name);
-        events = result.staged;
+        const isPdf = files.schedule_calendar.type === 'application/pdf' || /\.pdf$/i.test(files.schedule_calendar.name);
+        const result = isPdf
+          ? parseCalendarPdfPages(await extractPdfTextPages(files.schedule_calendar), batch.id, files.schedule_calendar.name)
+          : parseCalendarText(await readFileAsText(files.schedule_calendar), batch.id, files.schedule_calendar.name);
+        liveJobsForMatching = liveJobsForMatching || await base44.entities.Job.list('-created_date');
+        events = matchCalendarEventsToImportedJobs(result.staged, liveJobsForMatching);
+        if (isPdf) allErrors.push(...buildCalendarDiagnosticLines(result.diagnostics, events));
         allErrors.push(...result.errors.map(e => `[Calendar] ${e}`));
       }
 
@@ -551,6 +590,7 @@ export default function BTImport() {
           for (const event of batch) {
             await base44.entities.StagedCalendarEvent.update(event.id, {
               match_status: event.match_status,
+              matched_job_id: event.matched_job_id || null,
               matched_staged_job_id: event.matched_staged_job_id || null,
             });
           }

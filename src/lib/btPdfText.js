@@ -1,18 +1,42 @@
 async function loadPdfJs() {
   try {
-    return await import('pdfjs-dist');
+    const pdfjsLib = await import('pdfjs-dist');
+    if (pdfjsLib.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
+    }
+    return pdfjsLib;
   } catch (error) {
     console.error('[BTImport] Calendar PDF parser dependency failed to load:', error);
     throw new Error('Calendar PDF parser dependency could not load in this environment.');
   }
 }
 
+async function loadPdfDocument(pdfjsLib, data) {
+  try {
+    return await pdfjsLib.getDocument({ data: data.slice(0) }).promise;
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    if (!message.includes('GlobalWorkerOptions.workerSrc') && !message.toLowerCase().includes('worker')) {
+      throw error;
+    }
+
+    return await pdfjsLib.getDocument({ data: data.slice(0), disableWorker: true }).promise;
+  }
+}
+
 export async function extractPdfTextPages(file) {
   const pdfjsLib = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjsLib.getDocument({ data, disableWorker: true }).promise;
-  const pages = [];
+  let pdf;
 
+  try {
+    pdf = await loadPdfDocument(pdfjsLib, data);
+  } catch (error) {
+    console.error('[BTImport] Calendar PDF text extraction failed:', error);
+    throw new Error(error?.message || 'Calendar PDF parser failed while reading the PDF text layer.');
+  }
+
+  const pages = [];
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent({ includeMarkedContent: false });

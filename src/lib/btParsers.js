@@ -555,6 +555,48 @@ function splitFlattenedCalendarTextBlocks(lines) {
   return blocks;
 }
 
+function hasStructuredCalendarText(lines) {
+  const joined = lines.join('\n');
+  return /^Calendar Event\s+\d+\b/im.test(joined)
+    && /^Event Date:\s*/im.test(joined)
+    && /^Title:\s*/im.test(joined)
+    && /^Job:\s*/im.test(joined);
+}
+
+function splitStructuredCalendarTextBlocks(lines) {
+  const starts = [];
+  lines.forEach((line, index) => {
+    if (/^Calendar Event\s+\d+\b/i.test(line)) starts.push(index);
+  });
+
+  return starts.map((start, index) => {
+    const end = starts[index + 1] ?? lines.length;
+    return {
+      sourceRow: start + 1,
+      rawLines: lines.slice(start, end),
+    };
+  });
+}
+
+function getStructuredCalendarField(blockLines, label) {
+  const pattern = new RegExp(`^${label}:\\s*(.*)$`, 'i');
+  const match = blockLines.find(line => pattern.test(line))?.match(pattern);
+  return cleanCalendarText(match?.[1] || '');
+}
+
+function parseStructuredCalendarBlock(block) {
+  const eventDate = getStructuredCalendarField(block.rawLines, 'Event Date');
+  return {
+    sourceRow: block.sourceRow,
+    rawSourceText: block.rawLines.join('\n'),
+    eventDate,
+    eventTitle: getStructuredCalendarField(block.rawLines, 'Title'),
+    sourceJobName: getStructuredCalendarField(block.rawLines, 'Job'),
+    startTime: extractCalendarTime(getStructuredCalendarField(block.rawLines, 'Start Time')),
+    endTime: extractCalendarTime(getStructuredCalendarField(block.rawLines, 'End Time')),
+  };
+}
+
 function normalizePdfItems(items) {
   return (items || [])
     .map(item => ({
@@ -858,8 +900,8 @@ export function parseCalendarText(text, batchId, fileName) {
   const duplicateHashes = new Set();
   let duplicateSkipped = 0;
 
-  const buildDiagnostics = (totalRawBlocks = 0) => ({
-    parser: 'Buildertrend Calendar TXT flattened-block parser',
+  const buildDiagnostics = (totalRawBlocks = 0, parser = 'Buildertrend Calendar TXT flattened-block parser') => ({
+    parser,
     totalLines: lines.length,
     first20Lines: rawLines.slice(0, 20).map((line, index) => `${index + 1}: ${line}`).join('\n'),
     detectedDatePatterns,
@@ -950,6 +992,32 @@ export function parseCalendarText(text, batchId, fileName) {
       review_status: needsReview ? 'needs_review' : 'pending',
     });
   };
+
+  if (hasStructuredCalendarText(lines)) {
+    const structuredBlocks = splitStructuredCalendarTextBlocks(lines);
+    if (structuredBlocks.length > 0) {
+      structuredBlocks.forEach((block) => {
+        const parsed = parseStructuredCalendarBlock(block);
+        addStagedEvent(parsed);
+      });
+
+      const diagnostics = buildDiagnostics(
+        structuredBlocks.length,
+        'Buildertrend Calendar TXT structured-block parser'
+      );
+
+      if (staged.length === 0) {
+        errors.push([
+          'Calendar TXT structured parser produced zero staged events.',
+          `Parser used: ${diagnostics.parser}`,
+          `Total raw blocks found: ${diagnostics.totalRawBlocks}`,
+          `Invalid date skips: ${diagnostics.invalidEventSkips.map(skip => `${skip.reason} [${skip.detectedDateTokens.join(', ') || 'no date tokens'}]`).join(' | ') || '(none)'}`,
+        ].join('\n'));
+      }
+
+      return { staged, errors, diagnostics };
+    }
+  }
 
   const legacy = parseCalendarTextLegacy(text, batchId, fileName);
   legacy.staged.forEach((event) => {

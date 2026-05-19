@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Loader2, MapPin, Plus, Search, Archive } from 'lucide-react';
@@ -175,6 +175,7 @@ export default function JobContextSidebar() {
   const currentJobId = getCurrentJobId(location);
   const [searchText, setSearchText] = useState('');
   const [viewTab, setViewTab] = useState('active');
+  const jobListRef = useRef(null);
   const { data: jobs = [], isLoading, isError } = useWorkspaceJobs();
 
   const sortedJobs = useMemo(() => sortJobs(jobs), [jobs]);
@@ -205,9 +206,19 @@ export default function JobContextSidebar() {
   const currentJob = jobs.find(job => job.id === currentJobId);
   const canCreateJob = role === 'admin' || role === 'owner';
 
+  useEffect(() => {
+    if (jobListRef.current) {
+      jobListRef.current.scrollTop = 0;
+    }
+  }, [searchText, viewTab]);
+
+  const handleSearchChange = (event) => {
+    setSearchText(event.target.value);
+  };
+
   return (
-    <aside className="hidden w-80 shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
-      <div className="border-b border-border px-4 py-4">
+    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-80 shrink-0 self-start overflow-hidden border-r border-border bg-card lg:flex lg:flex-col">
+      <div className="shrink-0 border-b border-border bg-card px-4 py-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Job Workspace</p>
@@ -227,19 +238,19 @@ export default function JobContextSidebar() {
         <JobContextSummary job={currentJob} />
       </div>
 
-      <div className="border-b border-border px-4 py-3">
+      <div className="sticky top-0 z-10 shrink-0 border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchText}
-            onChange={event => setSearchText(event.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search jobs..."
             className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </label>
       </div>
 
-      <div className="px-4 py-2 space-y-2">
+      <div className="sticky top-[65px] z-10 shrink-0 space-y-2 border-b border-border bg-card/95 px-4 py-2 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
             {VIEW_TABS.map(tab => (
@@ -267,7 +278,7 @@ export default function JobContextSidebar() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-4">
+      <div ref={jobListRef} className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3 pb-4 pt-3">
         {isLoading && (
           <div className="flex items-center gap-2 px-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />

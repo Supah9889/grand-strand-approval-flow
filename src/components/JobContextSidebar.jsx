@@ -217,7 +217,7 @@ export default function JobContextSidebar() {
   };
 
   return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-80 shrink-0 self-start overflow-hidden border-r border-border bg-card lg:flex lg:flex-col">
+    <aside className="hidden h-full min-h-0 w-80 shrink-0 overflow-hidden border-r border-border bg-card lg:flex lg:flex-col">
       <div className="shrink-0 border-b border-border bg-card px-4 py-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -238,7 +238,7 @@ export default function JobContextSidebar() {
         <JobContextSummary job={currentJob} />
       </div>
 
-      <div className="sticky top-0 z-10 shrink-0 border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
+      <div className="shrink-0 border-b border-border bg-card px-4 py-3">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -250,7 +250,7 @@ export default function JobContextSidebar() {
         </label>
       </div>
 
-      <div className="sticky top-[65px] z-10 shrink-0 space-y-2 border-b border-border bg-card/95 px-4 py-2 backdrop-blur">
+      <div className="shrink-0 space-y-2 border-b border-border bg-card px-4 py-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
             {VIEW_TABS.map(tab => (

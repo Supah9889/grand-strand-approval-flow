@@ -24,21 +24,21 @@ export default function AppLayout({ children, title }) {
   const showJobWorkspace = !NO_JOB_WORKSPACE_PATHS.some(pattern => pattern.test(location.pathname));
 
   return (
-    <div className="app-shell flex flex-col">
+    <div className="app-shell flex h-full min-h-0 flex-col overflow-hidden">
       <AppTopBar onMenuOpen={() => setSidebarOpen(true)} title={title} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {showJobWorkspace ? (
-        <div className="flex flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
           <JobContextSidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <MobileJobContextBar />
-            <main className="app-main min-w-0">
+            <main className="app-main min-h-0 min-w-0 overflow-y-auto overscroll-contain">
               {children}
             </main>
           </div>
         </div>
       ) : (
-        <main className="app-main">
+        <main className="app-main min-h-0 overflow-y-auto overscroll-contain">
           {children}
         </main>
       )}

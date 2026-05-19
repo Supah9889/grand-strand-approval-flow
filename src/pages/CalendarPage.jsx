@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, Plus, ChevronLeft, ChevronRight, Calendar, List, AlignLeft,
   BarChart2, Search, Clock, BriefcaseBusiness, Building2, AlertTriangle,
+  Maximize2, Minimize2,
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -30,6 +31,7 @@ const VIEWS = [
 ];
 
 const MONTH_VISIBLE_LIMIT = 3;
+const WEEK_VISIBLE_LIMIT = 3;
 
 const SCHEDULE_CATEGORY_STYLES = {
   production: { label: 'Production', color: '#2563eb', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -106,6 +108,8 @@ export default function CalendarPage() {
   const [prefilledDate, setPrefilledDate] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [expandAllDays, setExpandAllDays] = useState(false);
+  const [expandedDays, setExpandedDays] = useState(() => new Set());
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterStaff, setFilterStaff] = useState('all');
@@ -160,6 +164,35 @@ export default function CalendarPage() {
 
   const getEventsForDay = (day) => eventsByDate.get(format(day, 'yyyy-MM-dd')) || [];
 
+  const isDayExpanded = (day) => expandAllDays || expandedDays.has(format(day, 'yyyy-MM-dd'));
+
+  const expandDay = (day) => {
+    const key = format(day, 'yyyy-MM-dd');
+    setExpandedDays(prev => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const collapseDay = (day) => {
+    const key = format(day, 'yyyy-MM-dd');
+    setExpandedDays(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  const handleExpandAllDays = () => {
+    setExpandAllDays(true);
+  };
+
+  const handleCollapseAllDays = () => {
+    setExpandAllDays(false);
+    setExpandedDays(new Set());
+  };
+
   const handleDayClick = (day) => {
     setSelectedDay(day);
   };
@@ -179,6 +212,35 @@ export default function CalendarPage() {
   const getLinkedJobLabel = (event) => {
     const job = jobs.find(j => j.id === event.job_id);
     return job?.address || job?.title || event.job_address || 'No linked job';
+  };
+
+  const DayCellEventCard = ({ event }) => {
+    const style = getScheduleStyle(event);
+    const timeRange = getEventTimeRange(event);
+    const unmatched = event.source_system === 'buildertrend' && !event.job_id;
+    const isImported = event.source_system === 'buildertrend';
+    const isInternal = style.category === 'office' || style.category === 'internal';
+    return (
+      <button
+        type="button"
+        onClick={(ev) => handleEventClick(ev, event)}
+        className="w-full rounded-md border border-white/20 px-1.5 py-1.5 text-left text-[11px] text-white shadow-sm transition-opacity hover:opacity-90"
+        style={{ backgroundColor: event.color || style.color }}
+      >
+        <span className="block truncate font-medium leading-tight">{event.title}</span>
+        <span className="mt-0.5 block truncate text-[10px] leading-tight opacity-90">
+          {timeRange.start ? `${timeRange.start}${timeRange.end ? `-${timeRange.end}` : ''}` : style.label}
+        </span>
+        <span className="mt-0.5 block truncate text-[10px] leading-tight opacity-90">{getLinkedJobLabel(event)}</span>
+        {(isImported || isInternal || unmatched) && (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {isImported && <span className="rounded bg-white/20 px-1 py-0.5 text-[9px] leading-none">BT</span>}
+            {isInternal && <span className="rounded bg-white/20 px-1 py-0.5 text-[9px] leading-none">Internal</span>}
+            {unmatched && <span className="rounded bg-white/20 px-1 py-0.5 text-[9px] leading-none">Unmatched</span>}
+          </span>
+        )}
+      </button>
+    );
   };
 
   // Filters bar
@@ -231,13 +293,14 @@ export default function CalendarPage() {
           {days.map(day => {
             const dayEvents = getEventsForDay(day);
             const inMonth = isSameMonth(day, current);
-            const visibleEvents = dayEvents.slice(0, MONTH_VISIBLE_LIMIT);
+            const expanded = isDayExpanded(day);
+            const visibleEvents = expanded ? dayEvents : dayEvents.slice(0, MONTH_VISIBLE_LIMIT);
             const overflowCount = Math.max(0, dayEvents.length - visibleEvents.length);
             return (
               <div
                 key={day.toISOString()}
                 onClick={() => handleDayClick(day)}
-                className={`bg-card min-h-[128px] p-2 transition-colors cursor-pointer hover:bg-secondary/30 ${!inMonth ? 'opacity-40' : ''}`}
+                className={`bg-card p-2 transition-all duration-200 cursor-pointer hover:bg-secondary/30 ${expanded ? 'min-h-[220px]' : 'min-h-[128px]'} ${!inMonth ? 'opacity-40' : ''}`}
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <p className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
@@ -247,35 +310,25 @@ export default function CalendarPage() {
                     <span className="text-[10px] font-medium text-muted-foreground">{dayEvents.length}</span>
                   )}
                 </div>
-                <div className="space-y-1 overflow-hidden">
-                  {visibleEvents.map(e => {
-                    const style = getScheduleStyle(e);
-                    const timeRange = getEventTimeRange(e);
-                    const unmatched = e.source_system === 'buildertrend' && !e.job_id;
-                    return (
-                      <button
-                        key={e.id}
-                        type="button"
-                        onClick={(ev) => handleEventClick(ev, e)}
-                        className="w-full rounded-md border border-white/20 px-1.5 py-1 text-left text-[11px] text-white shadow-sm transition-opacity hover:opacity-90"
-                        style={{ backgroundColor: e.color || style.color }}
-                      >
-                        <span className="block truncate font-medium">{e.title}</span>
-                        <span className="block truncate text-[10px] opacity-90">
-                          {timeRange.start ? `${timeRange.start}${timeRange.end ? `-${timeRange.end}` : ''}` : style.label}
-                          {unmatched ? ' · Unmatched' : ''}
-                        </span>
-                      </button>
-                    );
-                  })}
+                <div className={`space-y-1 transition-all duration-200 ${expanded ? 'overflow-visible' : 'overflow-hidden'}`}>
+                  {visibleEvents.map(e => <DayCellEventCard key={e.id} event={e} />)}
                 </div>
                 {overflowCount > 0 && (
                   <button
                     type="button"
-                    onClick={(ev) => { ev.stopPropagation(); setSelectedDay(day); }}
+                    onClick={(ev) => { ev.stopPropagation(); expandDay(day); }}
                     className="mt-1 w-full rounded-md border border-border bg-muted/40 px-1.5 py-1 text-left text-[11px] font-medium text-primary transition-colors hover:bg-muted"
                   >
                     +{overflowCount} more
+                  </button>
+                )}
+                {expanded && dayEvents.length > MONTH_VISIBLE_LIMIT && !expandAllDays && (
+                  <button
+                    type="button"
+                    onClick={(ev) => { ev.stopPropagation(); collapseDay(day); }}
+                    className="mt-1 w-full rounded-md border border-border bg-background px-1.5 py-1 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    Collapse
                   </button>
                 )}
               </div>
@@ -377,42 +430,37 @@ export default function CalendarPage() {
       <div className="grid grid-cols-7 gap-1">
         {days.map(day => {
           const dayEvents = getEventsForDay(day);
-          const visibleEvents = dayEvents.slice(0, 6);
+          const expanded = isDayExpanded(day);
+          const visibleEvents = expanded ? dayEvents : dayEvents.slice(0, WEEK_VISIBLE_LIMIT);
           const overflowCount = Math.max(0, dayEvents.length - visibleEvents.length);
           return (
             <div
               key={day.toISOString()}
               onClick={() => handleDayClick(day)}
-              className={`border border-border rounded-xl p-2 min-h-[190px] transition-colors cursor-pointer hover:bg-secondary/20 ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
+              className={`border border-border rounded-xl p-2 transition-all duration-200 cursor-pointer hover:bg-secondary/20 ${expanded ? 'min-h-[260px]' : 'min-h-[190px]'} ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
             >
               <div className={`mb-2 text-center text-xs font-medium ${isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                 <p>{format(day, 'EEE')}</p>
                 <p>{format(day, 'd')}</p>
               </div>
               <div className="space-y-1">
-                {visibleEvents.map(e => {
-                  const style = getScheduleStyle(e);
-                  const timeRange = getEventTimeRange(e);
-                  return (
-                    <button
-                      key={e.id}
-                      type="button"
-                      onClick={(ev) => handleEventClick(ev, e)}
-                      className="w-full rounded-md px-1.5 py-1 text-left text-[10px] leading-tight text-white shadow-sm transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: e.color || style.color }}
-                    >
-                      {timeRange.start && <span className="block opacity-85">{timeRange.start}</span>}
-                      <span className="block truncate">{e.title}</span>
-                    </button>
-                  );
-                })}
+                {visibleEvents.map(e => <DayCellEventCard key={e.id} event={e} />)}
                 {overflowCount > 0 && (
                   <button
                     type="button"
-                    onClick={(ev) => { ev.stopPropagation(); setSelectedDay(day); }}
+                    onClick={(ev) => { ev.stopPropagation(); expandDay(day); }}
                     className="w-full rounded-md border border-border bg-muted/40 px-1.5 py-1 text-left text-[10px] font-medium text-primary hover:bg-muted"
                   >
                     +{overflowCount} more
+                  </button>
+                )}
+                {expanded && dayEvents.length > WEEK_VISIBLE_LIMIT && !expandAllDays && (
+                  <button
+                    type="button"
+                    onClick={(ev) => { ev.stopPropagation(); collapseDay(day); }}
+                    className="w-full rounded-md border border-border bg-background px-1.5 py-1 text-left text-[10px] font-medium text-muted-foreground hover:bg-muted"
+                  >
+                    Collapse
                   </button>
                 )}
               </div>
@@ -562,6 +610,28 @@ export default function CalendarPage() {
               )}
               {!navTitle && <p className="px-3 text-sm font-semibold text-foreground">{view === 'agenda' ? 'All Events' : 'Timeline'}</p>}
             </div>
+            {(view === 'month' || view === 'week') && (
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+                <Button
+                  variant={expandAllDays ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 rounded-lg text-xs px-2.5 gap-1"
+                  onClick={handleExpandAllDays}
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Expand All</span>
+                </Button>
+                <Button
+                  variant={!expandAllDays && expandedDays.size === 0 ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 rounded-lg text-xs px-2.5 gap-1"
+                  onClick={handleCollapseAllDays}
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Collapse All</span>
+                </Button>
+              </div>
+            )}
             {VIEWS.map(v => {
               const Icon = v.icon;
               return (

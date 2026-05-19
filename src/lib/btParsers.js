@@ -388,23 +388,56 @@ function cleanCalendarText(value) {
     .trim();
 }
 
+function isValidIsoCalendarDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function normalizeCalendarDateParts(year, month, day) {
+  const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return isValidIsoCalendarDate(iso) ? iso : null;
+}
+
 function extractCalendarDate(value) {
   const text = String(value || '');
   const datePrefix = stripDatePrefix(text);
-  if (datePrefix.date) return datePrefix.date;
+  if (datePrefix.date && isValidIsoCalendarDate(datePrefix.date)) return datePrefix.date;
 
   const isoMatch = text.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
   if (isoMatch) {
-    return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-${String(isoMatch[3]).padStart(2, '0')}`;
+    const iso = normalizeCalendarDateParts(isoMatch[1], isoMatch[2], isoMatch[3]);
+    if (iso) return iso;
   }
 
   const slashMatch = text.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b/);
   if (slashMatch) {
     const year = slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3];
-    return `${year}-${String(slashMatch[1]).padStart(2, '0')}-${String(slashMatch[2]).padStart(2, '0')}`;
+    const iso = normalizeCalendarDateParts(year, slashMatch[1], slashMatch[2]);
+    if (iso) return iso;
   }
 
   return null;
+}
+
+function extractCalendarDateTokens(value) {
+  const text = String(value || '');
+  const tokens = [];
+  const patterns = [
+    /\b20\d{2}\s+\d{1,2}\/\d{1,2}\b/g,
+    /\b20\d{2}-\d{1,2}-\d{1,2}\b/g,
+    /\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/g,
+  ];
+  patterns.forEach((pattern) => {
+    const matches = text.match(pattern);
+    if (matches) tokens.push(...matches);
+  });
+  return [...new Set(tokens)];
 }
 
 function extractCalendarTime(value) {
@@ -820,6 +853,7 @@ export function parseCalendarText(text, batchId, fileName) {
   const detectedDatePatterns = lines.map(line => extractCalendarDate(line)).filter(Boolean).slice(0, 20);
   const detectedTimePatterns = lines.map(line => extractCalendarTime(line)).filter(Boolean).slice(0, 20);
   const skippedReasons = [];
+  const invalidEventSkips = [];
   const malformedBlocks = [];
   const duplicateHashes = new Set();
   let duplicateSkipped = 0;
@@ -834,7 +868,8 @@ export function parseCalendarText(text, batchId, fileName) {
     deduplicatedEvents: staged.length,
     duplicateSkipped,
     malformedBlocks: malformedBlocks.length,
-    skippedReasons: skippedReasons.slice(0, 20),
+    skippedReasons,
+    invalidEventSkips,
     first10Events: staged.slice(0, 10).map(event => `${event.event_date || '(date review)'} ${event.start_time || ''}-${event.end_time || ''} ${event.event_title} (${event.source_job_name || 'no job'})`.trim()),
   });
 
@@ -855,6 +890,22 @@ export function parseCalendarText(text, batchId, fileName) {
   }) => {
     const cleanTitle = cleanCalendarText(eventTitle) || cleanCalendarText(sourceJobName) || 'Untitled calendar event';
     const cleanJobName = cleanCalendarText(sourceJobName);
+    const rawText = String(rawSourceText || '').slice(0, 2000);
+    const dateTokens = extractCalendarDateTokens(`${cleanTitle}\n${cleanJobName}\n${rawText}`);
+    if (!isValidIsoCalendarDate(eventDate)) {
+      const reason = eventDate
+        ? `Invalid calendar date "${eventDate}"`
+        : 'Calendar date could not be inferred from TXT block';
+      invalidEventSkips.push({
+        sourceRow,
+        reason,
+        detectedDateTokens: dateTokens,
+        rawPreview: rawText.slice(0, 200),
+      });
+      skippedReasons.push(`Line ${sourceRow}: ${reason}`);
+      return;
+    }
+
     const duplicateHash = createCalendarDuplicateHash({
       eventTitle: cleanTitle,
       eventDate,
@@ -872,16 +923,15 @@ export function parseCalendarText(text, batchId, fileName) {
     const classification = classifyCalendarEvent(cleanTitle, cleanJobName);
     const warnings = [];
     if (classification.isOffice) warnings.push('Office/internal calendar item - requires review');
-    if (!eventDate) warnings.push('Calendar date could not be inferred from TXT block');
     if (!cleanJobName) warnings.push('Job reference missing from TXT block');
     if (!startTime || !endTime) warnings.push('Calendar time range incomplete');
-    const needsReview = classification.isOffice || !eventDate || !cleanJobName || !startTime || !endTime;
+    const needsReview = classification.isOffice || !cleanJobName || !startTime || !endTime;
 
     staged.push({
       import_batch_id: batchId,
       source_file_name: fileName,
       source_row: sourceRow,
-      raw_source_text: String(rawSourceText || '').slice(0, 2000),
+      raw_source_text: rawText,
       event_date: eventDate,
       event_title: cleanTitle,
       start_time: startTime,
@@ -947,6 +997,7 @@ export function parseCalendarText(text, batchId, fileName) {
       `Detected time patterns: ${detectedTimePatterns.join(' | ') || '(none)'}`,
       `First 20 lines:\n${diagnostics.first20Lines || '(none)'}`,
       `Skipped reasons: ${diagnostics.skippedReasons.join(' | ') || '(none)'}`,
+      `Invalid date skips: ${diagnostics.invalidEventSkips.map(skip => `${skip.reason} [${skip.detectedDateTokens.join(', ') || 'no date tokens'}]`).join(' | ') || '(none)'}`,
     ].join('\n'));
   }
 

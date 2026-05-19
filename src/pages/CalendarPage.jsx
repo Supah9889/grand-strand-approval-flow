@@ -3,10 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Loader2, Plus, ChevronLeft, ChevronRight, Calendar, List, AlignLeft, BarChart2, Search } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
+  Loader2, Plus, ChevronLeft, ChevronRight, Calendar, List, AlignLeft,
+  BarChart2, Search, Clock, BriefcaseBusiness, Building2, AlertTriangle,
+} from 'lucide-react';
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks,
   isToday, isSameMonth, parseISO,
 } from 'date-fns';
@@ -15,7 +21,6 @@ import CalendarEventModal from '../components/CalendarEventModal';
 import CalendarEventDetail from '../components/CalendarEventDetail';
 import { EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG, getEventColor, formatEventTime } from '@/lib/calendarHelpers';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
-import { toast } from 'sonner';
 
 const VIEWS = [
   { key: 'month',    label: 'Month',    icon: Calendar },
@@ -24,12 +29,83 @@ const VIEWS = [
   { key: 'timeline', label: 'Timeline', icon: BarChart2 },
 ];
 
+const MONTH_VISIBLE_LIMIT = 3;
+
+const SCHEDULE_CATEGORY_STYLES = {
+  production: { label: 'Production', color: '#2563eb', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
+  office: { label: 'Office/Admin', color: '#64748b', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+  estimate: { label: 'Estimate/Tour', color: '#0f766e', badge: 'bg-teal-100 text-teal-700 border-teal-200' },
+  internal: { label: 'Internal', color: '#9333ea', badge: 'bg-purple-100 text-purple-700 border-purple-200' },
+  other: { label: 'Other', color: '#d97706', badge: 'bg-amber-100 text-amber-700 border-amber-200' },
+};
+
+function getEventDateKey(event) {
+  return event.start_date ? event.start_date.split('T')[0] : '';
+}
+
+function getImportedTimeRange(event) {
+  const notes = String(event.internal_notes || '');
+  const match = notes.match(/Time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)(?:\s*[–-]\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M))?/i);
+  if (!match) return null;
+  return {
+    start: match[1].replace(/\s+/g, ' ').toUpperCase(),
+    end: match[2]?.replace(/\s+/g, ' ').toUpperCase() || null,
+  };
+}
+
+function getEventTimeRange(event) {
+  const imported = getImportedTimeRange(event);
+  if (imported) return imported;
+  return {
+    start: formatEventTime(event.start_date),
+    end: formatEventTime(event.end_date),
+  };
+}
+
+function timeToMinutes(value) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  if (!match) return 24 * 60;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const ampm = match[3].toUpperCase();
+  if (ampm === 'PM' && hour !== 12) hour += 12;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+  return hour * 60 + minute;
+}
+
+function sortEventsForDisplay(a, b) {
+  const aDate = getEventDateKey(a);
+  const bDate = getEventDateKey(b);
+  if (aDate !== bDate) return aDate.localeCompare(bDate);
+  const aTime = getEventTimeRange(a).start;
+  const bTime = getEventTimeRange(b).start;
+  return timeToMinutes(aTime) - timeToMinutes(bTime) || String(a.title || '').localeCompare(String(b.title || ''));
+}
+
+function getScheduleCategory(event) {
+  const title = String(event.title || '').toLowerCase();
+  const address = String(event.job_address || '').toLowerCase();
+  const type = event.event_type || 'other';
+  if (/birthday|lease|holiday|reminder|internal/.test(title)) return 'internal';
+  if (type === 'meeting' || /office|admin|grand stand office/.test(`${title} ${address}`)) return 'office';
+  if (type === 'estimate_appointment' || /estimate|tour/.test(title)) return 'estimate';
+  if (['job_visit', 'work_block', 'warranty_appointment'].includes(type)) return 'production';
+  return 'other';
+}
+
+function getScheduleStyle(event) {
+  const category = getScheduleCategory(event);
+  const style = SCHEDULE_CATEGORY_STYLES[category] || SCHEDULE_CATEGORY_STYLES.other;
+  return { ...style, category };
+}
+
 export default function CalendarPage() {
   const [view, setView] = useState('month');
   const [current, setCurrent] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterStaff, setFilterStaff] = useState('all');
@@ -70,14 +146,25 @@ export default function CalendarPage() {
     return l;
   }, [events, filterType, filterStatus, filterStaff, search]);
 
-  const getEventsForDay = (day) =>
-    filteredEvents.filter(e => e.start_date && isSameDay(parseISO(e.start_date.split('T')[0]), day));
+  const eventsByDate = useMemo(() => {
+    const grouped = new Map();
+    filteredEvents.forEach((event) => {
+      const key = getEventDateKey(event);
+      if (!key) return;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(event);
+    });
+    grouped.forEach((items, key) => grouped.set(key, [...items].sort(sortEventsForDisplay)));
+    return grouped;
+  }, [filteredEvents]);
+
+  const getEventsForDay = (day) => eventsByDate.get(format(day, 'yyyy-MM-dd')) || [];
 
   const handleDayClick = (day) => {
-    if (!canManageSchedule) {
-      toast.info('Please contact the office to update the schedule.');
-      return;
-    }
+    setSelectedDay(day);
+  };
+
+  const handleAddForDay = (day) => {
     setPrefilledDate(format(day, 'yyyy-MM-dd'));
     setShowModal(true);
   };
@@ -88,6 +175,11 @@ export default function CalendarPage() {
   };
 
   const selectedJob = selectedEvent ? jobs.find(j => j.id === selectedEvent.job_id) : null;
+
+  const getLinkedJobLabel = (event) => {
+    const job = jobs.find(j => j.id === event.job_id);
+    return job?.address || job?.title || event.job_address || 'No linked job';
+  };
 
   // Filters bar
   const FiltersBar = () => (
@@ -139,30 +231,53 @@ export default function CalendarPage() {
           {days.map(day => {
             const dayEvents = getEventsForDay(day);
             const inMonth = isSameMonth(day, current);
+            const visibleEvents = dayEvents.slice(0, MONTH_VISIBLE_LIMIT);
+            const overflowCount = Math.max(0, dayEvents.length - visibleEvents.length);
             return (
               <div
                 key={day.toISOString()}
                 onClick={() => handleDayClick(day)}
-                className={`bg-card min-h-[92px] p-2 transition-colors ${canManageSchedule ? 'cursor-pointer hover:bg-secondary/30' : 'cursor-default'} ${!inMonth ? 'opacity-40' : ''}`}
+                className={`bg-card min-h-[128px] p-2 transition-colors cursor-pointer hover:bg-secondary/30 ${!inMonth ? 'opacity-40' : ''}`}
               >
-                <p className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-0.5 ${
-                  isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
-                }`}>{format(day, 'd')}</p>
-                {dayEvents.slice(0, 2).map(e => {
-                  const color = getEventColor(e);
-                  return (
-                    <div
-                      key={e.id}
-                      onClick={(ev) => handleEventClick(ev, e)}
-                      className="text-xs px-1.5 py-1 rounded-md mb-1 text-white truncate cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-0.5 shadow-sm"
-                      style={{ backgroundColor: color }}
-                    >
-                      <span className="text-[10px] shrink-0">{EVENT_TYPE_CONFIG[e.event_type]?.icon || ''}</span>
-                      <span className="truncate">{e.title}</span>
-                    </div>
-                  );
-                })}
-                {dayEvents.length > 2 && <p className="text-xs text-muted-foreground">+{dayEvents.length - 2}</p>}
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <p className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
+                    isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                  }`}>{format(day, 'd')}</p>
+                  {dayEvents.length > 0 && (
+                    <span className="text-[10px] font-medium text-muted-foreground">{dayEvents.length}</span>
+                  )}
+                </div>
+                <div className="space-y-1 overflow-hidden">
+                  {visibleEvents.map(e => {
+                    const style = getScheduleStyle(e);
+                    const timeRange = getEventTimeRange(e);
+                    const unmatched = e.source_system === 'buildertrend' && !e.job_id;
+                    return (
+                      <button
+                        key={e.id}
+                        type="button"
+                        onClick={(ev) => handleEventClick(ev, e)}
+                        className="w-full rounded-md border border-white/20 px-1.5 py-1 text-left text-[11px] text-white shadow-sm transition-opacity hover:opacity-90"
+                        style={{ backgroundColor: e.color || style.color }}
+                      >
+                        <span className="block truncate font-medium">{e.title}</span>
+                        <span className="block truncate text-[10px] opacity-90">
+                          {timeRange.start ? `${timeRange.start}${timeRange.end ? `-${timeRange.end}` : ''}` : style.label}
+                          {unmatched ? ' · Unmatched' : ''}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {overflowCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(ev) => { ev.stopPropagation(); setSelectedDay(day); }}
+                    className="mt-1 w-full rounded-md border border-border bg-muted/40 px-1.5 py-1 text-left text-[11px] font-medium text-primary transition-colors hover:bg-muted"
+                  >
+                    +{overflowCount} more
+                  </button>
+                )}
               </div>
             );
           })}
@@ -172,37 +287,134 @@ export default function CalendarPage() {
   };
 
   // ── WEEK VIEW ──
+  const EventSummaryCard = ({ event, compact = false }) => {
+    const style = getScheduleStyle(event);
+    const timeRange = getEventTimeRange(event);
+    const status = EVENT_STATUS_CONFIG[event.status] || EVENT_STATUS_CONFIG.scheduled;
+    const unmatched = event.source_system === 'buildertrend' && !event.job_id;
+    const jobLabel = getLinkedJobLabel(event);
+    return (
+      <button
+        type="button"
+        onClick={() => setSelectedEvent(event)}
+        className={`w-full rounded-lg border border-border bg-card text-left transition-colors hover:border-primary/40 hover:bg-muted/30 ${compact ? 'p-2' : 'p-3'}`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-1 self-stretch rounded-full shrink-0" style={{ backgroundColor: event.color || style.color }} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant="outline" className={`text-[10px] ${style.badge}`}>{style.label}</Badge>
+              <Badge variant="outline" className={`text-[10px] ${status.color}`}>{status.label}</Badge>
+              {unmatched && (
+                <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
+                  <AlertTriangle className="mr-1 h-3 w-3" /> Unmatched
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 truncate text-sm font-semibold text-foreground">{event.title}</p>
+            <div className="mt-1 grid gap-1 text-xs text-muted-foreground">
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                {timeRange.start ? `${timeRange.start}${timeRange.end ? ` - ${timeRange.end}` : ''}` : 'No time set'}
+              </span>
+              <span className="inline-flex min-w-0 items-center gap-1">
+                {style.category === 'office' || style.category === 'internal'
+                  ? <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  : <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0" />}
+                <span className="truncate">{jobLabel}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </button>
+    );
+  };
+
+  const renderDayDrawer = () => {
+    const dayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
+    return (
+      <Sheet open={!!selectedDay} onOpenChange={(open) => { if (!open) setSelectedDay(null); }}>
+        <SheetContent side="right" className="w-full p-0 sm:max-w-xl">
+          <div className="flex h-full flex-col">
+            <SheetHeader className="border-b border-border px-5 py-4 pr-12">
+              <SheetTitle>{selectedDay ? format(selectedDay, 'EEEE, MMMM d, yyyy') : 'Schedule'}</SheetTitle>
+              <SheetDescription>
+                {dayEvents.length} scheduled item{dayEvents.length !== 1 ? 's' : ''}.
+              </SheetDescription>
+            </SheetHeader>
+            <ScrollArea className="flex-1">
+              <div className="space-y-3 px-5 py-4">
+                {dayEvents.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                    No events scheduled for this day.
+                  </p>
+                ) : (
+                  dayEvents.map(event => <EventSummaryCard key={event.id} event={event} />)
+                )}
+              </div>
+            </ScrollArea>
+            <div className="border-t border-border px-5 py-3">
+              {canManageSchedule ? (
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => selectedDay && handleAddForDay(selectedDay)}
+                >
+                  <Plus className="h-4 w-4" /> Add event
+                </Button>
+              ) : (
+                <p className="text-center text-xs text-muted-foreground">Please contact the office to update the schedule.</p>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  };
+
   const renderWeek = () => {
     const days = eachDayOfInterval({ start: startOfWeek(current), end: endOfWeek(current) });
     return (
       <div className="grid grid-cols-7 gap-1">
         {days.map(day => {
           const dayEvents = getEventsForDay(day);
+          const visibleEvents = dayEvents.slice(0, 6);
+          const overflowCount = Math.max(0, dayEvents.length - visibleEvents.length);
           return (
             <div
               key={day.toISOString()}
               onClick={() => handleDayClick(day)}
-              className={`border border-border rounded-xl p-2 min-h-[150px] transition-colors ${canManageSchedule ? 'cursor-pointer hover:bg-secondary/20' : 'cursor-default'} ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
+              className={`border border-border rounded-xl p-2 min-h-[190px] transition-colors cursor-pointer hover:bg-secondary/20 ${isToday(day) ? 'border-primary/60 bg-secondary/30' : 'bg-card'}`}
             >
-              <p className={`text-xs font-medium mb-1.5 text-center ${isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                {format(day, 'EEE')}<br />{format(day, 'd')}
-              </p>
-              <div className="space-y-0.5">
-                {dayEvents.map(e => {
-                  const color = getEventColor(e);
-                  const timeStr = e.start_date?.includes('T') ? formatEventTime(e.start_date) : null;
+              <div className={`mb-2 text-center text-xs font-medium ${isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                <p>{format(day, 'EEE')}</p>
+                <p>{format(day, 'd')}</p>
+              </div>
+              <div className="space-y-1">
+                {visibleEvents.map(e => {
+                  const style = getScheduleStyle(e);
+                  const timeRange = getEventTimeRange(e);
                   return (
-                    <div
+                    <button
                       key={e.id}
+                      type="button"
                       onClick={(ev) => handleEventClick(ev, e)}
-                      className="text-[10px] px-1.5 py-1 rounded-md text-white leading-tight cursor-pointer hover:opacity-80 shadow-sm"
-                      style={{ backgroundColor: color }}
+                      className="w-full rounded-md px-1.5 py-1 text-left text-[10px] leading-tight text-white shadow-sm transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: e.color || style.color }}
                     >
-                      {timeStr && <span className="opacity-80">{timeStr}<br /></span>}
-                      <span className="truncate block">{e.title}</span>
-                    </div>
+                      {timeRange.start && <span className="block opacity-85">{timeRange.start}</span>}
+                      <span className="block truncate">{e.title}</span>
+                    </button>
                   );
                 })}
+                {overflowCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(ev) => { ev.stopPropagation(); setSelectedDay(day); }}
+                    className="w-full rounded-md border border-border bg-muted/40 px-1.5 py-1 text-left text-[10px] font-medium text-primary hover:bg-muted"
+                  >
+                    +{overflowCount} more
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -215,7 +427,7 @@ export default function CalendarPage() {
   const renderAgenda = () => {
     const upcoming = [...filteredEvents]
       .filter(e => e.start_date)
-      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+      .sort(sortEventsForDisplay);
     if (upcoming.length === 0) return <p className="text-sm text-muted-foreground text-center py-12">No events found.</p>;
     return (
       <div className="space-y-2">
@@ -423,6 +635,8 @@ export default function CalendarPage() {
         onClose={() => setSelectedEvent(null)}
         canManageSchedule={canManageSchedule}
       />
+
+      {renderDayDrawer()}
     </AppLayout>
   );
 }

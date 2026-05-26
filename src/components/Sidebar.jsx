@@ -6,7 +6,7 @@ import {
   FileText, Building2, Receipt, CalendarDays, Users,
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
-  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database
+  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -72,6 +72,7 @@ const NAV_GROUPS = [
       { label: 'Audit Log',       to: '/audit-log',       icon: ScrollText },
       { label: 'Admin Overview',  to: '/admin-overview',  icon: LayoutDashboard },
       { label: 'BT Import',       to: '/bt-import',       icon: Database },
+      { label: 'QB Connection',   to: '/qb-connection',   icon: Link2 },
       { label: 'Admin Mode',      to: '/admin',           icon: ShieldAlert },
     ],
   },

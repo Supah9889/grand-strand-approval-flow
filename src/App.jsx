@@ -67,6 +67,7 @@ const BTImport = lazy(() => import('./pages/BTImport'));
 const GlobalSearch = lazy(() => import('./pages/GlobalSearch'));
 const NewJobPage = lazy(() => import('./pages/NewJobPage'));
 const MobileSettings = lazy(() => import('./pages/MobileSettings'));
+const QBConnection = lazy(() => import('./pages/QBConnection'));
 
 // Loading fallback
 function RouteLoader() {
@@ -243,6 +244,7 @@ const AuthenticatedApp = () => {
               <Route path="/templates" element={adminOnly(<DocumentTemplates />)} />
               <Route path="/custom-fields" element={adminOnly(<CustomFields />)} />
               <Route path="/audit-log" element={adminOnly(<AuditLogPage />)} />
+              <Route path="/qb-connection" element={adminOnly(<QBConnection />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

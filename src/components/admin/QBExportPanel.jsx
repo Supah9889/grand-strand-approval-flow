@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Loader2, Download, Database, History, Filter, FileText } from 'lucide-react';
+import { Loader2, Download, Database, History, Filter, FileText, Link2 } from 'lucide-react';
+import QBConnectPanel from './QBConnectPanel';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -206,8 +207,11 @@ export default function QBExportPanel() {
         </div>
       </div>
 
-      <Tabs defaultValue="export">
-        <TabsList className="w-full grid grid-cols-2 rounded-xl h-9 mb-4">
+      <Tabs defaultValue="connect">
+        <TabsList className="w-full grid grid-cols-3 rounded-xl h-9 mb-4">
+          <TabsTrigger value="connect" className="rounded-lg text-xs gap-1.5">
+            <Link2 className="w-3.5 h-3.5" /> Connect
+          </TabsTrigger>
           <TabsTrigger value="export" className="rounded-lg text-xs gap-1.5">
             <Download className="w-3.5 h-3.5" /> Export
           </TabsTrigger>
@@ -215,6 +219,11 @@ export default function QBExportPanel() {
             <History className="w-3.5 h-3.5" /> History ({batches.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* ── CONNECT TAB ── */}
+        <TabsContent value="connect" className="mt-0">
+          <QBConnectPanel />
+        </TabsContent>
 
         {/* ── EXPORT TAB ── */}
         <TabsContent value="export" className="mt-0 space-y-4">

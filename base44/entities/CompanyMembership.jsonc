@@ -30,9 +30,60 @@
       ],
       "default": "field_technician"
     },
+    "permission_group": {
+      "type": "string",
+      "enum": [
+        "full_admin",
+        "owner",
+        "operations_admin",
+        "estimator",
+        "field_technician",
+        "office_support",
+        "vendor",
+        "nexus_reviewer",
+        "jesus_reviewer",
+        "financial_viewer",
+        "financial_manager"
+      ],
+      "description": "High-level permission group \u2014 drives feature gate decisions"
+    },
     "is_active": {
       "type": "boolean",
       "default": true
+    },
+    "can_view_financials": {
+      "type": "boolean",
+      "default": false,
+      "description": "Allow access to invoice amounts, estimate totals, claim values, payment status, insurance settlements"
+    },
+    "can_edit_financials": {
+      "type": "boolean",
+      "default": false,
+      "description": "Allow editing of financial records (requires can_view_financials)"
+    },
+    "can_approve_nexus": {
+      "type": "boolean",
+      "default": false,
+      "description": "Can approve or reject Nexus items"
+    },
+    "can_review_subcontract_notes": {
+      "type": "boolean",
+      "default": false,
+      "description": "Can review GSCP subcontract notes before they are visible to origin company"
+    },
+    "can_manage_users": {
+      "type": "boolean",
+      "default": false,
+      "description": "Can add/remove company members and assign roles"
+    },
+    "can_view_assigned_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Restricts view to records explicitly assigned to this user (vendors, limited field techs)"
+    },
+    "reviewer_assignment": {
+      "type": "string",
+      "description": "Freetext or employee name indicating what this member is assigned to review"
     },
     "notes": {
       "type": "string"

@@ -87,6 +87,7 @@ const EquipmentPage = lazy(() => import('./pages/EquipmentPage'));
 const GSCPField = lazy(() => import('./pages/GSCPField'));
 const SubcontractReview = lazy(() => import('./pages/SubcontractReview'));
 const SubcontractVisibility = lazy(() => import('./pages/SubcontractVisibility'));
+const AccessManagement = lazy(() => import('./pages/AccessManagement'));
 
 // Loading fallback
 function RouteLoader() {
@@ -283,6 +284,7 @@ const AuthenticatedApp = () => {
               <Route path="/gscp-field" element={<GSCPField />} />
               <Route path="/subcontract-review" element={<SubcontractReview />} />
               <Route path="/subcontracts" element={<SubcontractVisibility />} />
+              <Route path="/access-management" element={adminOnly(<AccessManagement />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

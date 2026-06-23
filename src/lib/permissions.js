@@ -13,9 +13,13 @@
  *   owner | operations_admin | estimator | field_technician |
  *   office_support | vendor | nexus_reviewer
  *
- * Jesus reviewer is modeled as operations_admin on the GSCP company with
- *   subcontract_reviewer=true on the Employee record, OR simply as
- *   the designated assigned_reviewer_name on the WorkOrder.
+ * Permission groups (CompanyMembership.permission_group):
+ *   full_admin | owner | operations_admin | estimator | field_technician |
+ *   office_support | vendor | nexus_reviewer | jesus_reviewer |
+ *   financial_viewer | financial_manager
+ *
+ * Jesus reviewer: operations_admin on GSCP with can_review_subcontract_notes=true
+ *   OR assigned as assigned_reviewer_name on a WorkOrder.
  */
 
 import { getSession, getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
@@ -59,9 +63,19 @@ export function isAdminSession() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Get the current employee's membership in the current company.
+ */
+export function getCurrentMembership(memberships = []) {
+  const employee = getSessionEmployee();
+  const company = getCurrentCompany();
+  if (!employee || !company) return null;
+  return memberships.find(
+    m => m.employee_id === employee.id && m.company_id === company.id && m.is_active !== false
+  ) || null;
+}
+
+/**
  * Get the current employee's role within a company.
- * Falls back to reading from the employee object stored in the session.
- * memberships param is optional — pass if you've already loaded them.
  */
 export function getEmployeeRole(memberships = []) {
   const employee = getSessionEmployee();
@@ -71,7 +85,6 @@ export function getEmployeeRole(memberships = []) {
   const membership = memberships.find(
     m => m.employee_id === employee.id && m.company_id === company.id && m.is_active !== false
   );
-  // Fall back to the role stored on the employee entity itself
   return membership?.role || employee.role || null;
 }
 
@@ -80,14 +93,24 @@ export function getEmployeeRole(memberships = []) {
  * in the current company. Owner/admin sessions bypass role checks.
  */
 export function hasRole(roles, memberships = []) {
-  if (isAdminSession()) return true; // owner/admin bypass
+  if (isAdminSession()) return true;
   const empRole = getEmployeeRole(memberships);
   if (!empRole) return false;
   return roles.includes(empRole);
 }
 
+/**
+ * Check if the current membership has a given permission group.
+ */
+export function hasPermissionGroup(groups, memberships = []) {
+  if (isAdminSession()) return true;
+  const m = getCurrentMembership(memberships);
+  if (!m?.permission_group) return false;
+  return groups.includes(m.permission_group);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Feature-level permission checks
+// Feature-level permission checks — operational
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Can create/edit/delete jobs */
@@ -142,9 +165,11 @@ export function canManageRestoration(memberships = []) {
   return hasRole(['owner','operations_admin','field_technician'], memberships);
 }
 
-/** Can submit/review Nexus items */
+/** Can approve Nexus items — also respects membership flag */
 export function canApproveNexus(memberships = []) {
   if (isAdminSession()) return true;
+  const m = getCurrentMembership(memberships);
+  if (m?.can_approve_nexus === true) return true;
   return hasRole(['owner','operations_admin','nexus_reviewer'], memberships);
 }
 
@@ -159,13 +184,13 @@ export function canManageXactimate(memberships = []) {
   return hasRole(['owner','operations_admin','estimator'], memberships);
 }
 
-/** Can review subcontract notes (Jesus role) */
+/** Can review subcontract notes — also respects membership flag */
 export function canReviewSubcontractNote(memberships = []) {
   if (isAdminSession()) return true;
+  const m = getCurrentMembership(memberships);
+  if (m?.can_review_subcontract_notes === true) return true;
   const employee = getSessionEmployee();
-  if (!employee) return false;
-  // Anyone flagged as subcontract_reviewer, or operations_admin
-  if (employee.subcontract_reviewer === true) return true;
+  if (employee?.subcontract_reviewer === true) return true;
   return hasRole(['owner','operations_admin'], memberships);
 }
 
@@ -176,34 +201,109 @@ export function canViewSubcontractOrigin(memberships = []) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Record-level visibility
+// Financial visibility permission checks
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Can the current user view a given record?
- * record must have company_id.
- * Pass the active company object.
+ * Can view financial data: invoice amounts, estimate totals, claim values,
+ * customer balances, payment status, insurance settlement amounts.
  */
+export function canViewFinancials(memberships = []) {
+  if (isOwnerSession()) return true;
+  if (isAdminSession()) return true;
+  const m = getCurrentMembership(memberships);
+  if (m?.can_view_financials === true) return true;
+  if (m?.can_edit_financials === true) return true; // edit implies view
+  return hasPermissionGroup(['full_admin','owner','financial_viewer','financial_manager'], memberships);
+}
+
+/**
+ * Can edit financial records (create invoices, update estimates, process payments).
+ */
+export function canEditFinancials(memberships = []) {
+  if (isOwnerSession()) return true;
+  if (isAdminSession()) return true;
+  const m = getCurrentMembership(memberships);
+  if (m?.can_edit_financials === true) return true;
+  return hasPermissionGroup(['full_admin','owner','financial_manager'], memberships);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Access management permission checks
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Can manage company memberships (add/remove members, assign roles).
+ * Owners and full admins always can; operations_admins only if their
+ * membership explicitly grants it.
+ */
+export function canManageAccess(memberships = []) {
+  if (isOwnerSession()) return true;
+  if (isAdminSession()) return true; // admin session = owner or admin override code
+  const m = getCurrentMembership(memberships);
+  return m?.can_manage_users === true;
+}
+
+/** Alias — manage company memberships */
+export function canManageCompanyMemberships(memberships = []) {
+  return canManageAccess(memberships);
+}
+
+/**
+ * Can assign reviewer roles to work orders or Nexus items.
+ */
+export function canAssignReviewer(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin'], memberships);
+}
+
+/**
+ * Can deactivate / remove a user from the company.
+ */
+export function canDeactivateUser(memberships = []) {
+  return canManageAccess(memberships);
+}
+
+/**
+ * Restricts user to viewing only records explicitly assigned to them.
+ * True for vendors and members where can_view_assigned_only is set.
+ */
+export function canViewAssignedOnly(memberships = []) {
+  if (isAdminSession()) return false; // admins are never restricted
+  const m = getCurrentMembership(memberships);
+  if (m?.can_view_assigned_only === true) return true;
+  // Vendors and pure field_techs default to assigned-only
+  const role = getEmployeeRole(memberships);
+  return role === 'vendor';
+}
+
+/**
+ * Can view cross-company subcontract records (origin or performing side).
+ */
+export function canViewCrossCompanySubcontract(memberships = []) {
+  if (isAdminSession()) return true;
+  const m = getCurrentMembership(memberships);
+  if (m?.can_review_subcontract_notes === true) return true;
+  return hasRole(['owner','operations_admin','office_support'], memberships);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Record-level visibility
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function canViewRecord(record, company, memberships = []) {
   if (!record) return false;
-  if (isOwnerSession()) return true; // owner sees all
+  if (isOwnerSession()) return true;
   if (!company) return false;
-  // Same company
   if (record.company_id === company.id) return true;
-  // Subcontract: performing company can see the WO
   if (record.performing_company_id === company.id) return true;
-  // Subcontract: origin company can see approved notes
   if (record.origin_company_id === company.id && record.visible_to_origin === true) return true;
   return false;
 }
 
-/**
- * Can the current user edit a given record?
- */
 export function canEditRecord(record, company, memberships = []) {
   if (!canViewRecord(record, company, memberships)) return false;
   if (isAdminSession()) return true;
-  // Field techs can edit their own time entries + work documentation
   const employee = getSessionEmployee();
   if (!employee) return false;
   if (record.employee_id === employee.id) return true;
@@ -212,23 +312,14 @@ export function canEditRecord(record, company, memberships = []) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Query filter helpers — use these to build entity filter objects
+// Query filter helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Returns the base filter for company-scoped queries.
- * If no company is selected, returns null (caller should block the query).
- */
 export function companyFilter(company) {
   if (!company?.id) return null;
   return { company_id: company.id };
 }
 
-/**
- * Build a time-entry filter respecting role:
- * - admin/owner/operations_admin: all entries for company
- * - field_technician: own entries only
- */
 export function timeEntryFilter(company, memberships = []) {
   const base = companyFilter(company);
   if (!base) return null;
@@ -238,16 +329,12 @@ export function timeEntryFilter(company, memberships = []) {
   return { ...base, employee_id: employee.id };
 }
 
-/**
- * Build a work-order filter for field technicians (assigned only).
- */
 export function workOrderFilter(company, memberships = []) {
   const base = companyFilter(company);
   if (!base) return null;
   if (canManageWorkOrders(memberships)) return base;
-  // Field tech / vendor: only assigned
   const employee = getSessionEmployee();
-  if (!employee) return base; // no filtering without employee
+  if (!employee) return base;
   return base; // Further filtering done in UI by checking assigned_employee_ids
 }
 
@@ -255,12 +342,139 @@ export function workOrderFilter(company, memberships = []) {
 // getUserCompanyMemberships — for use in hooks
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Utility to fetch memberships for current employee from a pre-loaded list.
- * Since memberships are loaded once in the hook, this is synchronous.
- */
 export function getUserCompanyMemberships(allMemberships = []) {
   const employee = getSessionEmployee();
   if (!employee) return [];
   return allMemberships.filter(m => m.employee_id === employee.id);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Permission group definitions (for UI display)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PERMISSION_GROUPS = [
+  {
+    value: 'full_admin',
+    label: 'Full Admin',
+    description: 'Full access to all features including global access management',
+    color: 'bg-slate-800 text-white',
+    defaultFinancialView: true,
+    defaultFinancialEdit: true,
+    defaultManageUsers: true,
+  },
+  {
+    value: 'owner',
+    label: 'Owner',
+    description: 'Company owner — full operational and financial access',
+    color: 'bg-amber-100 text-amber-800',
+    defaultFinancialView: true,
+    defaultFinancialEdit: true,
+    defaultManageUsers: true,
+  },
+  {
+    value: 'operations_admin',
+    label: 'Operations Admin',
+    description: 'Manages jobs, work orders, scheduling, and operations',
+    color: 'bg-primary/10 text-primary',
+    defaultFinancialView: false,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'estimator',
+    label: 'Estimator',
+    description: 'Creates and manages estimates; may view financial summaries',
+    color: 'bg-cyan-100 text-cyan-800',
+    defaultFinancialView: true,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'field_technician',
+    label: 'Field Technician',
+    description: 'Field work only — can clock in/out and document restoration',
+    color: 'bg-green-100 text-green-800',
+    defaultFinancialView: false,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'office_support',
+    label: 'Office Support',
+    description: 'Administrative support — scheduling, CRM, communications',
+    color: 'bg-purple-100 text-purple-800',
+    defaultFinancialView: false,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'vendor',
+    label: 'Vendor',
+    description: 'External vendor — views only assigned work orders',
+    color: 'bg-orange-100 text-orange-800',
+    defaultFinancialView: false,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'nexus_reviewer',
+    label: 'Nexus Reviewer',
+    description: 'Reviews and approves Nexus intelligence items',
+    color: 'bg-indigo-100 text-indigo-800',
+    defaultFinancialView: false,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'jesus_reviewer',
+    label: 'Jesus Reviewer',
+    description: 'Reviews GSCP subcontract notes before DH visibility',
+    color: 'bg-rose-100 text-rose-800',
+    defaultFinancialView: false,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+    defaultReviewSubcontract: true,
+  },
+  {
+    value: 'financial_viewer',
+    label: 'Financial Viewer',
+    description: 'Can view financial data but cannot edit',
+    color: 'bg-emerald-100 text-emerald-800',
+    defaultFinancialView: true,
+    defaultFinancialEdit: false,
+    defaultManageUsers: false,
+  },
+  {
+    value: 'financial_manager',
+    label: 'Financial Manager',
+    description: 'Full financial read and write access',
+    color: 'bg-teal-100 text-teal-800',
+    defaultFinancialView: true,
+    defaultFinancialEdit: true,
+    defaultManageUsers: false,
+  },
+];
+
+/**
+ * getRoleDefaults — returns default permission flags for a given employee role string.
+ * Used by PermissionSwitchboard to compute effective permissions before overrides.
+ */
+export function getRoleDefaults(role) {
+  const defaults = {
+    share_files_externally: false,
+  };
+  if (role === 'admin') {
+    defaults.share_files_externally = true;
+  }
+  return defaults;
+}
+
+export const ROLE_TO_PERMISSION_GROUP = {
+  owner: 'owner',
+  operations_admin: 'operations_admin',
+  estimator: 'estimator',
+  field_technician: 'field_technician',
+  office_support: 'office_support',
+  vendor: 'vendor',
+  nexus_reviewer: 'nexus_reviewer',
+};

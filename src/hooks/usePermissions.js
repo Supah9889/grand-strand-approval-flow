@@ -2,10 +2,7 @@
  * usePermissions — React hook providing permission context
  *
  * Usage:
- *   const { company, canManageJobs, canViewRecord, ... } = usePermissions();
- *
- * Loads CompanyMembership for the current employee once per session and
- * provides pre-bound permission check functions.
+ *   const { company, canManageJobs, canViewFinancials, ... } = usePermissions();
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -17,6 +14,9 @@ import {
   canManageWorkOrders, canViewWorkOrders, canManageTimeEntries, canViewAllTimeEntries,
   canManageRestoration, canApproveNexus, canSubmitNexus, canManageXactimate,
   canReviewSubcontractNote, canViewSubcontractOrigin, canViewRecord, canEditRecord,
+  canViewFinancials, canEditFinancials,
+  canManageAccess, canManageCompanyMemberships, canAssignReviewer,
+  canDeactivateUser, canViewAssignedOnly, canViewCrossCompanySubcontract,
   getUserCompanyMemberships, hasRole, isAdminSession, isOwnerSession,
   timeEntryFilter, companyFilter,
 } from '@/lib/permissions';
@@ -32,7 +32,7 @@ export function usePermissions() {
       ? base44.entities.CompanyMembership.filter({ employee_id: employee.id, is_active: true })
       : Promise.resolve([]),
     enabled: !!employee,
-    staleTime: 5 * 60 * 1000, // 5 min cache
+    staleTime: 5 * 60 * 1000,
   });
 
   const myMemberships = getUserCompanyMemberships(memberships);
@@ -49,7 +49,7 @@ export function usePermissions() {
     isAdmin: isAdminSession(),
     hasCompany: !!company,
 
-    // Feature checks (pre-bound to loaded memberships)
+    // Operational permissions
     canManageJobs: canManageJobs(myMemberships),
     canViewJobs: canViewJobs(myMemberships),
     canManageCRM: canManageCRM(myMemberships),
@@ -64,6 +64,18 @@ export function usePermissions() {
     canManageXactimate: canManageXactimate(myMemberships),
     canReviewSubcontractNote: canReviewSubcontractNote(myMemberships),
     canViewSubcontractOrigin: canViewSubcontractOrigin(myMemberships),
+
+    // Financial permissions
+    canViewFinancials: canViewFinancials(myMemberships),
+    canEditFinancials: canEditFinancials(myMemberships),
+
+    // Access management permissions
+    canManageAccess: canManageAccess(myMemberships),
+    canManageCompanyMemberships: canManageCompanyMemberships(myMemberships),
+    canAssignReviewer: canAssignReviewer(myMemberships),
+    canDeactivateUser: canDeactivateUser(myMemberships),
+    canViewAssignedOnly: canViewAssignedOnly(myMemberships),
+    canViewCrossCompanySubcontract: canViewCrossCompanySubcontract(myMemberships),
 
     // Record-level checks (pass record)
     canViewRecord: (record) => canViewRecord(record, company, myMemberships),

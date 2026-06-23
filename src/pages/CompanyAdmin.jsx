@@ -5,7 +5,8 @@ import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Building2, Users, Code2, Edit2, CheckCircle2, Loader2 } from 'lucide-react';
+import { Plus, Building2, Users, Code2, Edit2, Loader2, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import CompanyForm from '@/components/company/CompanyForm';
 import CostCodeManager from '@/components/company/CompanyCostCodeManager';
 import MembershipManager from '@/components/company/MembershipManager';
@@ -13,6 +14,7 @@ import { isAdmin } from '@/lib/adminAuth';
 
 export default function CompanyAdmin() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [tab, setTab] = useState('companies');
   const [editTarget, setEditTarget] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -40,11 +42,16 @@ export default function CompanyAdmin() {
             <h1 className="app-page-title">Company Administration</h1>
             <p className="app-page-subtitle">Manage companies, memberships, and cost codes</p>
           </div>
-          {tab === 'companies' && (
-            <Button size="sm" onClick={() => { setEditTarget(null); setShowForm(true); }}>
-              <Plus className="w-4 h-4" /> New Company
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/access-management')}>
+              <Shield className="w-4 h-4" /> Access
             </Button>
-          )}
+            {tab === 'companies' && (
+              <Button size="sm" onClick={() => { setEditTarget(null); setShowForm(true); }}>
+                <Plus className="w-4 h-4" /> New Company
+              </Button>
+            )}
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>

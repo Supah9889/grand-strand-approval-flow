@@ -96,8 +96,9 @@ const NAV_GROUPS = [
       { label: 'Admin Overview',  to: '/admin-overview',  icon: LayoutDashboard },
       { label: 'BT Import',       to: '/bt-import',       icon: Database },
       { label: 'QB Connection',   to: '/qb-connection',   icon: Link2 },
-      { label: 'Company Admin',   to: '/company-admin',   icon: Building2 },
-      { label: 'Admin Mode',      to: '/admin',           icon: ShieldAlert },
+      { label: 'Company Admin',     to: '/company-admin',      icon: Building2 },
+      { label: 'Access Management', to: '/access-management',  icon: ShieldCheck },
+      { label: 'Admin Mode',        to: '/admin',              icon: ShieldAlert },
       ],
       },
       {

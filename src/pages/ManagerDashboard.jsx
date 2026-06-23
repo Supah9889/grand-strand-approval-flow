@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  Briefcase, Clock, AlertCircle, CheckSquare, Brain, Calendar,
-  ChevronRight, Loader2, Users
+  Briefcase, Clock, Brain, ChevronRight, Loader2, Users, Shield
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
+import { isAdmin } from '@/lib/adminAuth';
+import { canManageWorkOrders, canViewAllTimeEntries, canApproveNexus, getCurrentCompany } from '@/lib/permissions';
 
 const todayISO = new Date().toISOString().split('T')[0];
 
 function getActiveCompany() {
-  try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
+  return getCurrentCompany();
 }
 
 const OP_STATUS_LABELS = {
@@ -104,6 +105,20 @@ export default function ManagerDashboard() {
 
   const activeJobs = useMemo(() => jobs.filter(j => ['in_progress', 'scheduled', 'needs_scheduling', 'new'].includes(j.op_status)), [jobs]);
   const unassignedWOs = useMemo(() => workOrders.filter(w => w.status === 'draft' || !w.assigned_employee_ids || w.assigned_employee_ids === '[]'), [workOrders]);
+
+  if (!isAdmin()) {
+    return (
+      <AppLayout title="Manager Dashboard">
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+          <div className="text-center">
+            <Shield className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm font-semibold">Operations access required</p>
+            <p className="text-xs text-muted-foreground mt-1">Contact an admin to request access.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (loadingJobs) return (
     <AppLayout title="Manager Dashboard">

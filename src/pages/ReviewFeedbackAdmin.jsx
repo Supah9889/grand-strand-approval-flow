@@ -67,12 +67,17 @@ export default function ReviewFeedbackAdmin() {
   const updateStatus = useMutation({
     mutationFn: ({ id, status, response_note }) =>
       base44.entities.ReviewFeedback.update(id, { status, ...(response_note ? { response_note } : {}) }),
-    onSuccess: (rec, { status }) => {
+    onSuccess: (rec, { status, response_note }) => {
       logAudit('review_feedback_status_changed', 'ReviewFeedback', rec.id, {
         new_status: status,
         reviewer_name: rec.reviewer_name,
         section: rec.section,
       });
+      // Also stamp reviewed_by / reviewed_at
+      base44.entities.ReviewFeedback.update(rec.id, {
+        reviewed_by: user?.full_name || 'Admin',
+        reviewed_at: new Date().toISOString(),
+      }).catch(() => {});
       qc.invalidateQueries(['review-feedback', company?.id]);
     },
   });

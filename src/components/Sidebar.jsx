@@ -143,6 +143,7 @@ const NAV_GROUPS = [
           { label: 'Review Script',      to: '/review-script',      icon: ClipboardCheck },
           { label: 'Review Feedback',    to: '/review-feedback',    icon: MessageSquare },
           { label: 'Review Decisions',   to: '/review-decisions',   icon: CheckSquare },
+          { label: 'Edge Case Tests',    to: '/edge-case-tests',    icon: ClipboardCheck },
         ],
       },
       ];

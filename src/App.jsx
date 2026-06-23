@@ -105,6 +105,7 @@ const DemoDataPage = lazy(() => import('./pages/DemoDataPage'));
 const ReviewFeedbackAdmin = lazy(() => import('./pages/ReviewFeedbackAdmin'));
 const ReviewScript = lazy(() => import('./pages/ReviewScript'));
 const ReviewDecisions = lazy(() => import('./pages/ReviewDecisions'));
+const EdgeCaseTests = lazy(() => import('./pages/EdgeCaseTests'));
 
 // Loading fallback
 function RouteLoader() {
@@ -319,6 +320,7 @@ const AuthenticatedApp = () => {
               <Route path="/review-feedback" element={adminOnly(<ReviewFeedbackAdmin />)} />
               <Route path="/review-script" element={adminOnly(<ReviewScript />)} />
               <Route path="/review-decisions" element={adminOnly(<ReviewDecisions />)} />
+              <Route path="/edge-case-tests" element={adminOnly(<EdgeCaseTests />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

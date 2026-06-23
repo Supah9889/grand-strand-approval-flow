@@ -1,0 +1,43 @@
+{
+  "name": "EdgeCaseTestRun",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "test_key": {
+      "type": "string",
+      "description": "Unique key for the test case"
+    },
+    "section": {
+      "type": "string"
+    },
+    "test_name": {
+      "type": "string"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "not_tested",
+        "pass",
+        "fail",
+        "blocked"
+      ],
+      "default": "not_tested"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "last_tested_by": {
+      "type": "string"
+    },
+    "last_tested_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "test_key",
+    "test_name"
+  ]
+}

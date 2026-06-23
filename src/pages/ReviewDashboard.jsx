@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { getCurrentCompany } from '@/lib/permissions';
@@ -9,7 +9,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, ArrowRight, Clock,
   Hammer, ShieldCheck, FileText, BarChart3, Users, Brain,
   Database, MessageSquare, Loader2, ChevronDown, ChevronRight,
-  Zap, ExternalLink, Send
+  Zap, ExternalLink, Send, Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -237,6 +237,89 @@ const QUICK_LINKS = [
   { label: 'Audit Log', to: '/audit-log', color: 'bg-slate-50 border-slate-200 text-slate-700' },
 ];
 
+function ReadinessScore({ feedbacks, checklists, legacyRecords, edgeRuns }) {
+  const score = useMemo(() => {
+    let points = 0;
+    let maxPoints = 0;
+
+    // 1. Rollout checklist progress (25 pts)
+    maxPoints += 25;
+    const activeChecklist = checklists?.find(c => c.status !== 'archived');
+    if (activeChecklist) {
+      const pct = activeChecklist.progress_percent || 0;
+      points += Math.round((pct / 100) * 25);
+    }
+
+    // 2. Migration records (20 pts)
+    maxPoints += 20;
+    const total = legacyRecords?.length || 0;
+    const converted = legacyRecords?.filter(r => r.migration_status === 'converted' || r.migration_status === 'linked').length || 0;
+    if (total > 0) points += Math.round((converted / total) * 20);
+    else points += 10; // no legacy records = migration not needed yet
+
+    // 3. No critical unresolved feedback (20 pts)
+    maxPoints += 20;
+    const unresolvedHigh = feedbacks?.filter(f => (f.priority === 'high' || f.priority === 'critical') && (f.status === 'new' || f.status === 'reviewed')).length || 0;
+    if (unresolvedHigh === 0) points += 20;
+    else if (unresolvedHigh <= 2) points += 10;
+
+    // 4. Edge case pass rate (20 pts)
+    maxPoints += 20;
+    const passed = edgeRuns?.filter(r => r.result === 'pass').length || 0;
+    const failed = edgeRuns?.filter(r => r.result === 'fail').length || 0;
+    const tested = passed + failed + (edgeRuns?.filter(r => r.result === 'blocked').length || 0);
+    if (tested > 0) {
+      const rate = passed / tested;
+      points += Math.round(rate * 20);
+    }
+
+    // 5. Known limitations — partial deduction if many
+    maxPoints += 15;
+    const knownLimCount = 9; // static count from our known limitations page
+    if (knownLimCount <= 3) points += 15;
+    else if (knownLimCount <= 6) points += 10;
+    else points += 5;
+
+    const pct = Math.round((points / maxPoints) * 100);
+    if (pct >= 80) return { label: 'Ready', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2, pct };
+    if (pct >= 60) return { label: 'Mostly Ready', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: AlertTriangle, pct };
+    if (pct >= 35) return { label: 'Needs Work', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: AlertTriangle, pct };
+    return { label: 'Not Ready', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle, pct };
+  }, [feedbacks, checklists, legacyRecords, edgeRuns]);
+
+  const ScoreIcon = score.icon;
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Activity className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-semibold text-foreground">Pre-Review Readiness Score</p>
+        <span className={`ml-auto text-xs font-bold px-3 py-1 rounded-full border ${score.color}`}>
+          {score.label}
+        </span>
+      </div>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Score</span>
+          <span className="font-bold text-foreground">{score.pct}%</span>
+        </div>
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${score.pct >= 80 ? 'bg-green-500' : score.pct >= 60 ? 'bg-blue-500' : score.pct >= 35 ? 'bg-orange-500' : 'bg-red-500'}`}
+            style={{ width: `${score.pct}%` }} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+        <Link to="/rollout-checklist" className="hover:text-primary flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Rollout Checklist</Link>
+        <Link to="/migration-dashboard" className="hover:text-primary flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Migration Progress</Link>
+        <Link to="/review-feedback" className="hover:text-primary flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Feedback Triage</Link>
+        <Link to="/edge-case-tests" className="hover:text-primary flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Edge Case Tests</Link>
+        <Link to="/known-limitations" className="hover:text-primary flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Known Limitations</Link>
+        <Link to="/review-decisions" className="hover:text-primary flex items-center gap-1"><ArrowRight className="w-3 h-3" /> Review Decisions</Link>
+      </div>
+    </div>
+  );
+}
+
 export default function ReviewDashboard() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -249,6 +332,24 @@ export default function ReviewDashboard() {
   const { data: feedbacks = [] } = useQuery({
     queryKey: ['review-feedback', company?.id],
     queryFn: () => base44.entities.ReviewFeedback.filter({ company_id: company?.id }, '-created_date', 100),
+    enabled: !!company?.id,
+  });
+
+  const { data: checklists = [] } = useQuery({
+    queryKey: ['rollout-checklists', company?.id],
+    queryFn: () => base44.entities.RolloutChecklist.filter({ company_id: company?.id }, '-created_date', 10),
+    enabled: !!company?.id,
+  });
+
+  const { data: legacyRecords = [] } = useQuery({
+    queryKey: ['legacy-records-summary', company?.id],
+    queryFn: () => base44.entities.LegacyJobRecord.filter({ company_id: company?.id }, '-created_date', 500),
+    enabled: !!company?.id,
+  });
+
+  const { data: edgeRuns = [] } = useQuery({
+    queryKey: ['edge-case-runs', company?.id],
+    queryFn: () => base44.entities.EdgeCaseTestRun.filter({ company_id: company?.id }, '-updated_date', 500),
     enabled: !!company?.id,
   });
 
@@ -331,6 +432,9 @@ export default function ReviewDashboard() {
             ))}
           </div>
         </div>
+
+        {/* Readiness Score */}
+        <ReadinessScore feedbacks={feedbacks} checklists={checklists} legacyRecords={legacyRecords} edgeRuns={edgeRuns} />
 
         {/* Section cards */}
         <div>

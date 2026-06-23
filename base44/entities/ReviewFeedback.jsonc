@@ -38,8 +38,26 @@
       ],
       "default": "new"
     },
+    "response_note": {
+      "type": "string",
+      "description": "Internal response note (not visible to reviewer)"
+    },
+    "nexus_item_id": {
+      "type": "string",
+      "description": "NexusItem ID if sent to Nexus"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
     "created_at": {
       "type": "string"
+    },
+    "is_demo": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [

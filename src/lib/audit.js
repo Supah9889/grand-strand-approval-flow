@@ -661,6 +661,34 @@ export const audit = {
         { module: 'xactimate', record_id: id, is_sensitive: true, ...opts }),
   },
 
+  // ── ESX SAMPLE TESTING ───────────────────────────────────────
+  esxSample: {
+    uploaded: (id, actor, fileName, opts = {}) =>
+      logAudit(id, 'esx_sample_uploaded', actor,
+        `${actor} uploaded ESX sample: ${fileName}.`,
+        { module: 'esx', record_id: id, source: 'import', ...opts }),
+
+    parsed: (id, actor, fileName, lineCount, opts = {}) =>
+      logAudit(id, 'esx_sample_parsed', actor,
+        `${actor} parsed ESX sample "${fileName}": ${lineCount} line items extracted.`,
+        { module: 'esx', record_id: id, ...opts }),
+
+    mappingApproved: (id, actor, fileName, opts = {}) =>
+      logAudit(id, 'esx_sample_mapping_approved', actor,
+        `${actor} approved field mapping for ESX sample: ${fileName}.`,
+        { module: 'esx', record_id: id, is_sensitive: true, ...opts }),
+
+    archived: (id, actor, fileName, opts = {}) =>
+      logAudit(id, 'esx_sample_archived', actor,
+        `${actor} archived ESX sample: ${fileName}.`,
+        { module: 'esx', record_id: id, ...opts }),
+
+    parserFailed: (id, actor, fileName, reason, opts = {}) =>
+      logAudit(id, 'esx_parser_failed', actor,
+        `${actor} ESX sample parser failed: ${fileName}${reason ? ` — ${reason}` : ''}.`,
+        { module: 'esx', record_id: id, reason, ...opts }),
+  },
+
   // ── ESX DRAFT WORK ORDERS ────────────────────────────────────
   esxDraft: {
     generated: (id, actor, title, importId, opts = {}) =>
@@ -856,6 +884,12 @@ export const ACTION_LABELS = {
   xactimate_import_approved:        { label: 'Xactimate Import Approved',         color: 'text-green-600' },
   xactimate_import_rejected:        { label: 'Xactimate Import Rejected',         color: 'text-destructive' },
   xactimate_import_generated_records: { label: 'Xactimate Records Generated',    color: 'text-primary' },
+
+  esx_sample_uploaded:              { label: 'ESX Sample Uploaded',              color: 'text-primary' },
+  esx_sample_parsed:                { label: 'ESX Sample Parsed',                color: 'text-primary' },
+  esx_sample_mapping_approved:      { label: 'ESX Sample Mapping Approved',      color: 'text-green-600' },
+  esx_sample_archived:              { label: 'ESX Sample Archived',              color: 'text-amber-600' },
+  esx_parser_failed:                { label: 'ESX Parser Failed',                color: 'text-destructive' },
 
   esx_draft_work_order_generated:   { label: 'ESX Draft Generated',             color: 'text-primary' },
   esx_draft_work_order_approved:    { label: 'ESX Draft Approved',              color: 'text-green-600' },

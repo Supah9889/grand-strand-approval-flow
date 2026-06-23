@@ -145,6 +145,7 @@ const NAV_GROUPS = [
           { label: 'Review Decisions',   to: '/review-decisions',   icon: CheckSquare },
           { label: 'Edge Case Tests',    to: '/edge-case-tests',    icon: ClipboardCheck },
           { label: 'ESX Draft WO Queue', to: '/esx-draft-work-orders', icon: ClipboardCheck },
+          { label: 'ESX Sample Testing', to: '/esx-sample-tests', icon: FileBarChart2 },
         ],
       },
       ];

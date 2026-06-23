@@ -1,0 +1,82 @@
+{
+  "name": "ESXSampleTest",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "xactimate_import_id": {
+      "type": "string",
+      "description": "Reference to XactimateImport entity"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original ESX file name"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Uploaded file URL for reference"
+    },
+    "uploaded_by": {
+      "type": "string"
+    },
+    "uploaded_at": {
+      "type": "string"
+    },
+    "parser_status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "parsed",
+        "needs_review",
+        "mapping_approved",
+        "parser_failed",
+        "archived"
+      ],
+      "default": "uploaded"
+    },
+    "readable_fields": {
+      "type": "string",
+      "description": "JSON array of successfully extracted field names: [\"field1\", \"field2\", ...]"
+    },
+    "unreadable_fields": {
+      "type": "string",
+      "description": "JSON array of fields that could not be extracted: [\"encrypted_field\", ...]"
+    },
+    "extracted_line_items": {
+      "type": "string",
+      "description": "JSON array of parsed line items with available fields"
+    },
+    "extraction_notes": {
+      "type": "string",
+      "description": "Notes from parser about what was readable, warnings about unreadable sections"
+    },
+    "classifier_result_summary": {
+      "type": "string",
+      "description": "JSON summary of classifier suggestions based on extracted items"
+    },
+    "reviewer_notes": {
+      "type": "string"
+    },
+    "approved_mapping_changes": {
+      "type": "string",
+      "description": "JSON object of reviewer-confirmed field mappings for future classifier tuning"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "company_id",
+    "file_name",
+    "xactimate_import_id"
+  ]
+}

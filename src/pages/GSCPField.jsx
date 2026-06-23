@@ -10,14 +10,12 @@ import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 import usePermissions from '@/hooks/usePermissions';
 import { filterAssignedRecords, AssignedOnlyBanner, SubcontractPendingNotice } from '@/lib/financialGuards.jsx';
+import { getSessionEmployee } from '@/lib/adminAuth';
 
 const todayISO = new Date().toISOString().split('T')[0];
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
-}
-function getSessionEmployee() {
-  try { return JSON.parse(sessionStorage.getItem('session_employee')); } catch { return null; }
 }
 
 // Bottom sheet for adding a note or photo to a subcontract work order

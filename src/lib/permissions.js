@@ -460,13 +460,67 @@ export const PERMISSION_GROUPS = [
  * Used by PermissionSwitchboard to compute effective permissions before overrides.
  */
 export function getRoleDefaults(role) {
-  const defaults = {
-    share_files_externally: false,
-  };
-  if (role === 'admin') {
-    defaults.share_files_externally = true;
-  }
-  return defaults;
+  const base = ROLE_PERMISSION_DEFAULTS[role] || ROLE_PERMISSION_DEFAULTS.staff;
+  return { ...base };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy EmployeePermissions page support
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PERMISSION_CATEGORIES = [
+  'Jobs & Scheduling',
+  'Financial',
+  'Operations',
+  'Admin',
+];
+
+export const PERMISSIONS = {
+  view_jobs:            { label: 'View Jobs',            category: 'Jobs & Scheduling' },
+  manage_jobs:          { label: 'Manage Jobs',          category: 'Jobs & Scheduling' },
+  manage_schedule:      { label: 'Manage Schedule',      category: 'Jobs & Scheduling' },
+  view_work_orders:     { label: 'View Work Orders',     category: 'Jobs & Scheduling' },
+  manage_work_orders:   { label: 'Manage Work Orders',   category: 'Jobs & Scheduling' },
+  view_financials:      { label: 'View Financials',      category: 'Financial' },
+  edit_financials:      { label: 'Edit Financials',      category: 'Financial' },
+  manage_invoices:      { label: 'Manage Invoices',      category: 'Financial' },
+  manage_expenses:      { label: 'Manage Expenses',      category: 'Financial' },
+  manage_time_entries:  { label: 'Manage Time Entries',  category: 'Operations' },
+  view_all_time:        { label: 'View All Time Entries',category: 'Operations' },
+  manage_crm:           { label: 'Manage CRM',           category: 'Operations' },
+  manage_restoration:   { label: 'Manage Restoration',   category: 'Operations' },
+  submit_nexus:         { label: 'Submit to Nexus',      category: 'Operations' },
+  approve_nexus:        { label: 'Approve Nexus Items',  category: 'Admin' },
+  manage_users:         { label: 'Manage Users',         category: 'Admin' },
+  manage_access:        { label: 'Manage Access',        category: 'Admin' },
+  review_subcontracts:  { label: 'Review Subcontracts',  category: 'Admin' },
+};
+
+const ROLE_PERMISSION_DEFAULTS = {
+  owner: Object.fromEntries(Object.keys(PERMISSIONS).map(k => [k, true])),
+  admin: {
+    view_jobs: true, manage_jobs: true, manage_schedule: true,
+    view_work_orders: true, manage_work_orders: true,
+    view_financials: true, edit_financials: true, manage_invoices: true, manage_expenses: true,
+    manage_time_entries: true, view_all_time: true, manage_crm: true,
+    manage_restoration: true, submit_nexus: true,
+    approve_nexus: false, manage_users: false, manage_access: false, review_subcontracts: false,
+  },
+  staff: {
+    view_jobs: true, manage_jobs: false, manage_schedule: false,
+    view_work_orders: true, manage_work_orders: false,
+    view_financials: false, edit_financials: false, manage_invoices: false, manage_expenses: false,
+    manage_time_entries: false, view_all_time: false, manage_crm: false,
+    manage_restoration: true, submit_nexus: true,
+    approve_nexus: false, manage_users: false, manage_access: false, review_subcontracts: false,
+  },
+};
+
+export function resolvePermissions({ role, storedRolePerms, employeeOverrides }) {
+  const defaults = ROLE_PERMISSION_DEFAULTS[role] || ROLE_PERMISSION_DEFAULTS.staff;
+  const base = storedRolePerms ? { ...defaults, ...storedRolePerms } : defaults;
+  if (!employeeOverrides) return base;
+  return { ...base, ...employeeOverrides };
 }
 
 export const ROLE_TO_PERMISSION_GROUP = {

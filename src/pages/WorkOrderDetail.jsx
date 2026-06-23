@@ -11,12 +11,10 @@ import AppLayout from '@/components/AppLayout';
 import WorkOrderModal from '@/components/workorders/WorkOrderModal';
 import usePermissions from '@/hooks/usePermissions';
 import { canViewWorkOrder, NoAccessRecord } from '@/lib/financialGuards.jsx';
+import { getSessionEmployee } from '@/lib/adminAuth';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
-}
-function getSessionEmployee() {
-  try { return JSON.parse(sessionStorage.getItem('session_employee')); } catch { return null; }
 }
 
 const STATUS_STYLES = {

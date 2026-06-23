@@ -54,12 +54,14 @@ export default function WorkOrders() {
 
         <div className="flex items-center justify-between">
           <h1 className="text-base font-semibold text-foreground">Work Orders</h1>
-          <button
-            onClick={() => { setEditWO(null); setShowModal(true); }}
-            className="flex items-center gap-1.5 h-9 px-3 bg-primary text-primary-foreground text-sm font-semibold rounded-xl"
-          >
-            <Plus className="w-4 h-4" /> New
-          </button>
+          {canManageWorkOrders && (
+            <button
+              onClick={() => { setEditWO(null); setShowModal(true); }}
+              className="flex items-center gap-1.5 h-9 px-3 bg-primary text-primary-foreground text-sm font-semibold rounded-xl"
+            >
+              <Plus className="w-4 h-4" /> New
+            </button>
+          )}
         </div>
 
         {/* Status tabs */}
@@ -106,7 +108,7 @@ export default function WorkOrders() {
         )}
       </div>
 
-      {showModal && (
+      {showModal && canManageWorkOrders && (
         <WorkOrderModal
           workOrder={editWO}
           company={company}

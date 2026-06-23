@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CheckCircle2, XCircle, Clock, Brain, ChevronRight, Plus, AlertTriangle, Loader2 } from 'lucide-react';
-import { getActiveCompany } from './CompanySelect';
+import { getCurrentCompany as getActiveCompany } from '@/lib/permissions';
 import { getSession } from '@/lib/adminAuth';
 import NexusItemModal from '@/components/nexus/NexusItemModal';
 import NexusSubmitModal from '@/components/nexus/NexusSubmitModal';

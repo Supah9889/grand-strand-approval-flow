@@ -125,8 +125,10 @@ const NAV_GROUPS = [
         label: 'Legacy Migration',
         adminOnly: true,
         items: [
-          { label: 'Legacy Imports', to: '/legacy-imports', icon: Database },
-          { label: 'Legacy Records', to: '/legacy-records', icon: Archive },
+          { label: 'Migration Dashboard',     to: '/migration-dashboard',       icon: BarChart3 },
+          { label: 'Export Checklist',        to: '/proven-jobs-checklist',     icon: ClipboardCheck },
+          { label: 'Legacy Imports',          to: '/legacy-imports',            icon: Database },
+          { label: 'Legacy Records',          to: '/legacy-records',            icon: Archive },
         ],
       },
       ];

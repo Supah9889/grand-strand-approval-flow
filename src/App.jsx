@@ -92,6 +92,8 @@ const AccessTests = lazy(() => import('./pages/AccessTests'));
 const TemplatesHub = lazy(() => import('./pages/TemplatesHub'));
 const LegacyImports = lazy(() => import('./pages/LegacyImports'));
 const LegacyRecords = lazy(() => import('./pages/LegacyRecords'));
+const MigrationDashboard = lazy(() => import('./pages/MigrationDashboard'));
+const ProvenJobsChecklist = lazy(() => import('./pages/ProvenJobsChecklist'));
 const JobTemplatesPage = lazy(() => import('./pages/JobTemplatesPage'));
 const WorkOrderTemplatesPage = lazy(() => import('./pages/WorkOrderTemplatesPage'));
 const DocumentationRequirementsPage = lazy(() => import('./pages/DocumentationRequirementsPage'));
@@ -299,6 +301,8 @@ const AuthenticatedApp = () => {
               <Route path="/documentation-requirements" element={<DocumentationRequirementsPage />} />
               <Route path="/legacy-imports" element={adminOnly(<LegacyImports />)} />
               <Route path="/legacy-records" element={adminOnly(<LegacyRecords />)} />
+              <Route path="/migration-dashboard" element={adminOnly(<MigrationDashboard />)} />
+              <Route path="/proven-jobs-checklist" element={adminOnly(<ProvenJobsChecklist />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

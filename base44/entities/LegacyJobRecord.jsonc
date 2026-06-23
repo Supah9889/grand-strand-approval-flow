@@ -44,6 +44,10 @@
     "close_date": {
       "type": "string"
     },
+    "source_reference": {
+      "type": "string",
+      "description": "Reference number or identifier from source system"
+    },
     "raw_data": {
       "type": "string",
       "description": "Original raw JSON/CSV row"
@@ -77,6 +81,34 @@
       "type": "string"
     },
     "converted_at": {
+      "type": "string"
+    },
+    "duplicate_of_id": {
+      "type": "string",
+      "description": "ID of the record this is a duplicate of"
+    },
+    "cutover_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "preparing",
+        "ready_for_cutover",
+        "cutover_complete",
+        "blocked"
+      ],
+      "default": "not_started"
+    },
+    "cutover_checklist": {
+      "type": "string",
+      "description": "JSON object of checklist item keys to boolean"
+    },
+    "cutover_notes": {
+      "type": "string"
+    },
+    "cutover_by": {
+      "type": "string"
+    },
+    "cutover_at": {
       "type": "string"
     }
   },

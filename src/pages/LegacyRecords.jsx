@@ -5,9 +5,11 @@ import { useAuth } from '@/lib/AuthContext';
 import { getCurrentCompany } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, RefreshCw, Send, Archive, Copy, Link2, ArrowRight } from 'lucide-react';
+import { Loader2, Search, RefreshCw, Send, Archive, Copy, Link2, ArrowRight, Plus, Scissors } from 'lucide-react';
 import LegacyStatusBadge from '@/components/legacy/LegacyStatusBadge';
 import LegacyJobConvertModal from '@/components/legacy/LegacyJobConvertModal';
+import LegacyManualEntryModal from '@/components/legacy/LegacyManualEntryModal';
+import LegacyCutoverModal from '@/components/legacy/LegacyCutoverModal';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 
@@ -40,6 +42,8 @@ export default function LegacyRecords() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [convertRecord, setConvertRecord] = useState(null);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [cutoverRecord, setCutoverRecord] = useState(null);
 
   const { data: records = [], isLoading, refetch } = useRecords(tab, company?.id);
 
@@ -111,6 +115,11 @@ export default function LegacyRecords() {
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="w-4 h-4" />
             </Button>
+            {tab === 'jobs' && (
+              <Button size="sm" onClick={() => setShowManualEntry(true)}>
+                <Plus className="w-4 h-4" /> Add Legacy Job Manually
+              </Button>
+            )}
           </div>
         </div>
 
@@ -168,6 +177,7 @@ export default function LegacyRecords() {
                 record={rec}
                 onUpdateStatus={(migration_status) => updateStatus.mutate({ id: rec.id, migration_status })}
                 onConvert={tab === 'jobs' ? () => setConvertRecord(rec) : undefined}
+                onCutover={tab === 'jobs' ? () => setCutoverRecord(rec) : undefined}
                 onSendNexus={tab === 'notes' ? () => sendToNexus.mutate(rec) : undefined}
                 isMutating={updateStatus.isPending || sendToNexus.isPending}
               />
@@ -186,11 +196,30 @@ export default function LegacyRecords() {
           }}
         />
       )}
+      {showManualEntry && (
+        <LegacyManualEntryModal
+          onClose={() => setShowManualEntry(false)}
+          onCreated={() => {
+            setShowManualEntry(false);
+            qc.invalidateQueries(['legacy-records', tab]);
+          }}
+        />
+      )}
+      {cutoverRecord && (
+        <LegacyCutoverModal
+          record={cutoverRecord}
+          onClose={() => setCutoverRecord(null)}
+          onSaved={() => {
+            setCutoverRecord(null);
+            qc.invalidateQueries(['legacy-records', tab]);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
 
-function RecordRow({ tab, record: rec, onUpdateStatus, onConvert, onSendNexus, isMutating }) {
+function RecordRow({ tab, record: rec, onUpdateStatus, onConvert, onCutover, onSendNexus, isMutating }) {
   const [expanded, setExpanded] = useState(false);
 
   const title = rec.job_name || rec.name || rec.address || rec.document_name || `Note #${rec.id?.slice(-6)}`;
@@ -215,6 +244,12 @@ function RecordRow({ tab, record: rec, onUpdateStatus, onConvert, onSendNexus, i
           {tab === 'jobs' && rec.migration_status !== 'converted' && (
             <Button size="sm" onClick={onConvert} disabled={isMutating}>
               <ArrowRight className="w-3 h-3" /> Convert
+            </Button>
+          )}
+          {tab === 'jobs' && (
+            <Button size="sm" variant="outline" onClick={onCutover} disabled={isMutating}
+              title="Prepare for Cutover">
+              <Scissors className="w-3 h-3" /> Cutover
             </Button>
           )}
           {tab === 'notes' && !rec.nexus_item_id && rec.migration_status !== 'archived' && (

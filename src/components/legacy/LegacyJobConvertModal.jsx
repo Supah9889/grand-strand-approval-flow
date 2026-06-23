@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { getCurrentCompany, canViewFinancials, canEditFinancials } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
 import { Button } from '@/components/ui/button';
-import { X, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Loader2, AlertTriangle, Copy } from 'lucide-react';
+import { findDuplicateCandidates } from '@/lib/legacyDuplicates';
 
 export default function LegacyJobConvertModal({ record, onClose, onConverted }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const company = getCurrentCompany();
 
-  const [step, setStep] = useState('review'); // review | confirm
+  const [step, setStep] = useState('review'); // review | confirm | duplicate_warning
   const [form, setForm] = useState({
     customer_name: record.customer_name || '',
     property_address: record.property_address || '',
@@ -22,8 +23,19 @@ export default function LegacyJobConvertModal({ record, onClose, onConverted }) 
     internal_notes: record.notes || '',
   });
   const [error, setError] = useState(null);
+  const [dupDismissed, setDupDismissed] = useState(false);
 
   const canFinancials = canViewFinancials() && canEditFinancials();
+
+  // Fetch sibling records for duplicate detection
+  const { data: siblingRecords = [] } = useQuery({
+    queryKey: ['legacy-jobs-all', company?.id],
+    queryFn: () => base44.entities.LegacyJobRecord.filter({ company_id: company?.id }, '-created_date', 500),
+    enabled: !!company?.id,
+  });
+
+  const dupCandidates = findDuplicateCandidates(record, siblingRecords).filter(c => c.score >= 60);
+  const hasDups = dupCandidates.length > 0 && !dupDismissed;
 
   const convert = useMutation({
     mutationFn: async () => {
@@ -118,6 +130,35 @@ export default function LegacyJobConvertModal({ record, onClose, onConverted }) 
         </div>
 
         <div className="p-4 space-y-4">
+          {/* Duplicate Warning */}
+          {hasDups && (
+            <div className="flex gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+              <Copy className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-red-800">Possible Duplicate Detected</p>
+                <p className="text-xs text-red-700 mt-0.5">{dupCandidates.length} record{dupCandidates.length !== 1 ? 's' : ''} may already represent this job:</p>
+                <ul className="mt-1 space-y-0.5">
+                  {dupCandidates.slice(0, 3).map(({ record: dup, reasons }) => (
+                    <li key={dup.id} className="text-[11px] text-red-700">
+                      <strong>{dup.job_name || dup.customer_name || dup.property_address}</strong> — {reasons.join(', ')}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="mt-2 text-[11px] underline text-red-700 hover:text-red-800"
+                  onClick={() => {
+                    logAudit('legacy_duplicate_flagged', 'LegacyJobRecord', record.id, {
+                      duplicate_candidates: dupCandidates.map(c => c.record.id),
+                    });
+                    setDupDismissed(true);
+                  }}
+                >
+                  I've reviewed these — proceed anyway
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Safety Warning */}
           <div className="flex gap-2 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
             <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
@@ -166,7 +207,7 @@ export default function LegacyJobConvertModal({ record, onClose, onConverted }) 
 
         <div className="flex gap-2 justify-end p-4 border-t border-border">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={() => convert.mutate()} disabled={convert.isPending}>
+          <Button size="sm" onClick={() => convert.mutate()} disabled={convert.isPending || hasDups}>
             {convert.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
             Convert to New Job
           </Button>

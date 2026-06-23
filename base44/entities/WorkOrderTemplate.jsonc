@@ -1,0 +1,69 @@
+{
+  "name": "WorkOrderTemplate",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "service_line": {
+      "type": "string",
+      "enum": [
+        "water_mitigation",
+        "mold_mitigation",
+        "air_sample_testing",
+        "reconstruction",
+        "emergency_response",
+        "interior_painting",
+        "exterior_painting",
+        "drywall",
+        "insulation",
+        "cabinet_painting",
+        "epoxy_garage_floor",
+        "other"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "Default work order title when applied"
+    },
+    "description": {
+      "type": "string"
+    },
+    "default_scope": {
+      "type": "string"
+    },
+    "default_cost_code": {
+      "type": "string"
+    },
+    "required_photos": {
+      "type": "boolean",
+      "default": false
+    },
+    "required_notes": {
+      "type": "boolean",
+      "default": false
+    },
+    "completion_checklist": {
+      "type": "string",
+      "description": "JSON array of {item: string} checklist items"
+    },
+    "required_documentation": {
+      "type": "string",
+      "description": "JSON array of {label, requirement_type, description} required doc items"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "title"
+  ]
+}

@@ -8,7 +8,7 @@ import {
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
   Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck,
-  Droplets, Droplet, Wind, FlaskConical, Cpu
+  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -90,7 +90,8 @@ const NAV_GROUPS = [
       { label: 'Emp. Permissions',to: '/employee-permissions', icon: ShieldCheck },
       { label: 'Expenses',        to: '/expenses',        icon: Receipt },
       { label: 'Custom Fields',   to: '/custom-fields',   icon: Settings2 },
-      { label: 'Document Templates', to: '/templates',    icon: FileText },
+      { label: 'Doc. Templates',      to: '/document-templates', icon: FileText },
+      { label: 'Field Templates',     to: '/templates',    icon: LayoutTemplate },
       { label: 'Portal Access',   to: '/portal-manager',  icon: Globe },
       { label: 'Audit Log',       to: '/audit-log',       icon: ScrollText },
       { label: 'Admin Overview',  to: '/admin-overview',  icon: LayoutDashboard },

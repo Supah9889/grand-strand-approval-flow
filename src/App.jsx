@@ -89,6 +89,10 @@ const SubcontractReview = lazy(() => import('./pages/SubcontractReview'));
 const SubcontractVisibility = lazy(() => import('./pages/SubcontractVisibility'));
 const AccessManagement = lazy(() => import('./pages/AccessManagement'));
 const AccessTests = lazy(() => import('./pages/AccessTests'));
+const TemplatesHub = lazy(() => import('./pages/TemplatesHub'));
+const JobTemplatesPage = lazy(() => import('./pages/JobTemplatesPage'));
+const WorkOrderTemplatesPage = lazy(() => import('./pages/WorkOrderTemplatesPage'));
+const DocumentationRequirementsPage = lazy(() => import('./pages/DocumentationRequirementsPage'));
 
 // Loading fallback
 function RouteLoader() {
@@ -262,7 +266,7 @@ const AuthenticatedApp = () => {
               <Route path="/employees" element={adminOnly(<EmployeeManager />)} />
               <Route path="/employee-permissions" element={adminOnly(<EmployeePermissions />)} />
               <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/templates" element={adminOnly(<DocumentTemplates />)} />
+              <Route path="/document-templates" element={adminOnly(<DocumentTemplates />)} />
               <Route path="/custom-fields" element={adminOnly(<CustomFields />)} />
               <Route path="/audit-log" element={adminOnly(<AuditLogPage />)} />
               <Route path="/qb-connection" element={adminOnly(<QBConnection />)} />
@@ -287,6 +291,10 @@ const AuthenticatedApp = () => {
               <Route path="/subcontracts" element={<SubcontractVisibility />} />
               <Route path="/access-management" element={adminOnly(<AccessManagement />)} />
               <Route path="/access-tests" element={adminOnly(<AccessTests />)} />
+              <Route path="/templates" element={<TemplatesHub />} />
+              <Route path="/job-templates" element={<JobTemplatesPage />} />
+              <Route path="/work-order-templates" element={<WorkOrderTemplatesPage />} />
+              <Route path="/documentation-requirements" element={<DocumentationRequirementsPage />} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

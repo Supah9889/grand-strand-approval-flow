@@ -5,6 +5,7 @@ import { X, Plus, Trash2, Loader2, Building2 } from 'lucide-react';
 import { audit } from '@/lib/audit';
 import { getSession } from '@/lib/adminAuth';
 import { toast } from 'sonner';
+import TemplateSelector from '@/components/templates/TemplateSelector';
 
 const STATUSES = ['draft', 'assigned', 'in_progress', 'waiting', 'complete', 'approved', 'cancelled'];
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
@@ -101,7 +102,22 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
       <div className="w-full sm:max-w-lg bg-card rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold">{isEdit ? 'Edit Work Order' : 'New Work Order'}</p>
-          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+          <div className="flex items-center gap-2">
+            {!isEdit && (
+              <TemplateSelector type="work_order" onApply={tpl => {
+                if (tpl.title) set('title', tpl.title);
+                if (tpl.default_scope) set('scope', tpl.default_scope);
+                if (tpl.default_cost_code) set('cost_code', tpl.default_cost_code);
+                if (tpl.required_photos) set('required_photos', true);
+                if (tpl.required_notes) set('required_notes', true);
+                if (tpl.completion_checklist) {
+                  try { setChecklistItems(JSON.parse(tpl.completion_checklist)); } catch {}
+                }
+                toast.success(`Template "${tpl.name}" applied`);
+              }} />
+            )}
+            <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+          </div>
         </div>
 
         <div className="space-y-3">

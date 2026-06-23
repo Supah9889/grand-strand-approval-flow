@@ -1,0 +1,58 @@
+{
+  "name": "DocumentationRequirement",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "service_line": {
+      "type": "string"
+    },
+    "job_type": {
+      "type": "string"
+    },
+    "requirement_type": {
+      "type": "string",
+      "enum": [
+        "photo",
+        "note",
+        "moisture_reading",
+        "drying_log",
+        "air_sample",
+        "equipment_assignment",
+        "customer_signature",
+        "manager_review"
+      ],
+      "default": "photo"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "required_for_status": {
+      "type": "string",
+      "description": "Job or WO status that requires this to be complete, e.g. complete, closed"
+    },
+    "applies_to_room": {
+      "type": "boolean",
+      "default": false
+    },
+    "applies_to_work_order": {
+      "type": "boolean",
+      "default": false
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "title",
+    "requirement_type"
+  ]
+}

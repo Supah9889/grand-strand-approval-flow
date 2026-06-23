@@ -831,6 +831,11 @@ export const ACTION_LABELS = {
   expense_restored:                 { label: 'Expense Restored',                  color: 'text-primary' },
   duplicate_override:               { label: 'Duplicate Warning Overridden',      color: 'text-amber-600' },
 
+  template_created:                 { label: 'Template Created',                  color: 'text-primary' },
+  template_updated:                 { label: 'Template Updated',                  color: 'text-foreground' },
+  template_applied:                 { label: 'Template Applied',                  color: 'text-primary' },
+  documentation_requirement_completed: { label: 'Documentation Completed',        color: 'text-green-600' },
+
   override_action:                  { label: 'Admin Override',                    color: 'text-destructive' },
   admin_override:                   { label: 'Admin Override',                    color: 'text-destructive' },
   permission_change:                { label: 'Permission Changed',                color: 'text-destructive' },

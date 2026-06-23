@@ -14,6 +14,7 @@ import { canViewWorkOrder, NoAccessRecord } from '@/lib/financialGuards.jsx';
 import { getSessionEmployee, getSession } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
+import DocumentationChecklist from '@/components/templates/DocumentationChecklist';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -181,6 +182,19 @@ export default function WorkOrderDetail() {
             )}
           </div>
         )}
+
+        {/* Documentation checklist from template */}
+        {(() => {
+          const docs = (() => { try { return JSON.parse(wo.required_documentation || '[]'); } catch { return []; } })();
+          if (!docs.length) return null;
+          const photos = (() => { try { return JSON.parse(wo.photos || '[]'); } catch { return []; } })();
+          return (
+            <DocumentationChecklist
+              requirements={docs}
+              context={{ photos, notes: wo.completion_notes ? [wo.completion_notes] : [] }}
+            />
+          );
+        })()}
 
         {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">

@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
+import { NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 import RoomForm from '@/components/restoration/RoomForm';
 import MoistureReadingForm from '@/components/restoration/MoistureReadingForm';
 import DryingLogForm from '@/components/restoration/DryingLogForm';
@@ -105,6 +107,7 @@ export default function JobDocumentation() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const employee = getSessionEmployee();
+  const { canManageRestoration, canSubmitNexus } = usePermissions();
   const [tab, setTab] = useState('rooms');
   const [showForm, setShowForm] = useState(null); // 'room'|'moisture'|'drying'|'sample'
   const [showNexus, setShowNexus] = useState(false);
@@ -153,6 +156,12 @@ export default function JobDocumentation() {
 
   const FORM_PROPS = { job, company, employee, rooms, onClose: () => setShowForm(null), onSaved };
 
+  if (!canManageRestoration) return (
+    <AppLayout title="Job Documentation">
+      <NoAccessState message="You do not have permission to access job documentation." />
+    </AppLayout>
+  );
+
   return (
     <AppLayout title="Job Documentation">
       <div className="max-w-lg mx-auto px-4 py-4 pb-32 space-y-4">
@@ -164,10 +173,12 @@ export default function JobDocumentation() {
             <h1 className="text-sm font-semibold truncate">{job?.address || 'Loading...'}</h1>
             <p className="text-xs text-muted-foreground">{job?.customer_name}</p>
           </div>
-          <button onClick={() => setShowNexus(true)}
-            className="flex items-center gap-1.5 h-8 px-3 bg-purple-100 text-purple-700 text-xs font-semibold rounded-xl hover:bg-purple-200">
-            <Send className="w-3.5 h-3.5" /> Nexus
-          </button>
+          {canSubmitNexus && (
+            <button onClick={() => setShowNexus(true)}
+              className="flex items-center gap-1.5 h-8 px-3 bg-purple-100 text-purple-700 text-xs font-semibold rounded-xl hover:bg-purple-200">
+              <Send className="w-3.5 h-3.5" /> Nexus
+            </button>
+          )}
         </div>
 
         {/* Tab bar */}

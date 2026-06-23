@@ -6,6 +6,8 @@ import {
   Building2, CheckCircle2, Clock, Eye, Send, Loader2,
   ChevronRight, AlertTriangle
 } from 'lucide-react';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 
@@ -118,6 +120,8 @@ function WODetailSheet({ wo, notes, timeEntries, onClose }) {
 export default function SubcontractVisibility() {
   const navigate = useNavigate();
   const company = getActiveCompany();
+  const { canViewSubcontractOrigin } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to view subcontracts.');
   const [selectedWo, setSelectedWo] = useState(null);
   const [filter, setFilter] = useState('all');
 
@@ -158,6 +162,13 @@ export default function SubcontractVisibility() {
 
   const activeCount = workOrders.filter(wo => ['in_progress','needs_review','accepted'].includes(wo.subcontract_status)).length;
   const needsReviewCount = workOrders.filter(wo => wo.subcontract_status === 'needs_review').length;
+
+  if (companyGuard) return <AppLayout title="Subcontracts">{companyGuard}</AppLayout>;
+  if (!canViewSubcontractOrigin) return (
+    <AppLayout title="Subcontracts">
+      <NoAccessState message="You do not have permission to view subcontract records for this company." />
+    </AppLayout>
+  );
 
   return (
     <AppLayout title="Subcontracts">

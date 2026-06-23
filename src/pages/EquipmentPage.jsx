@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Cpu, Plus, Loader2, X, ChevronRight } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -113,6 +115,8 @@ export default function EquipmentPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const company = getActiveCompany();
+  const { canManageRestoration } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to manage equipment.');
   const [filter, setFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editEq, setEditEq] = useState(null);
@@ -132,6 +136,9 @@ export default function EquipmentPage() {
   });
 
   const filtered = filter === 'all' ? equipment : equipment.filter(e => e.status === filter);
+
+  if (companyGuard) return <AppLayout title="Equipment">{companyGuard}</AppLayout>;
+  if (!canManageRestoration) return <AppLayout title="Equipment"><NoAccessState message="You do not have permission to manage equipment." /></AppLayout>;
 
   return (
     <AppLayout title="Equipment">

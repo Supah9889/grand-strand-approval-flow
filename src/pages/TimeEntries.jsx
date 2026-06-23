@@ -14,6 +14,7 @@ import AppLayout from '../components/AppLayout';
 import { getInternalRole, getSessionEmployee, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import AdminManualEntryForm from '../components/timeclock/AdminManualEntryForm';
 import { toast } from 'sonner';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const COST_CODES = ['Carpentry Labor/Sub','Drywall Labor/Sub','Other Labor/Sub','Paint Expenses','Painting Labor/Sub'];
 
@@ -40,20 +41,28 @@ export default function TimeEntries() {
   const [showManual, setShowManual] = useState(false);
   const [empCodeFilter, setEmpCodeFilter] = useState('');
 
-  const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['time-entries', isAdmin ? 'all' : sessionEmployee?.id || 'unmatched'],
-    queryFn: async () => {
-      if (isAdmin) return base44.entities.TimeEntry.list('-clock_in', 500);
-      if (!sessionEmployee?.id) return [];
+  const activeCompany = getCurrentCompany();
 
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ['time-entries', isAdmin ? activeCompany?.id || 'all' : sessionEmployee?.id || 'unmatched'],
+    queryFn: async () => {
+      if (isAdmin) {
+        // Scope to active company when selected
+        return activeCompany
+          ? base44.entities.TimeEntry.filter({ company_id: activeCompany.id }, '-clock_in', 500)
+          : base44.entities.TimeEntry.list('-clock_in', 500);
+      }
+      if (!sessionEmployee?.id) return [];
       const employeeEntries = await base44.entities.TimeEntry.filter({ employee_id: sessionEmployee.id }, '-clock_in', 500);
       if (employeeEntries.length || !sessionEmployee.employee_code) return employeeEntries;
       return base44.entities.TimeEntry.filter({ employee_code: sessionEmployee.employee_code }, '-clock_in', 500);
     },
   });
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['jobs', activeCompany?.id],
+    queryFn: () => activeCompany
+      ? base44.entities.Job.filter({ company_id: activeCompany.id }, '-created_date', 200)
+      : base44.entities.Job.list('-created_date', 200),
   });
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { FlaskConical, Loader2, AlertTriangle, Send } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
+import { useCompanyGuard } from '@/components/CompanyGuard';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -19,6 +20,7 @@ const RESULT_STYLES = {
 export default function AirSamplesPage() {
   const navigate = useNavigate();
   const company = getActiveCompany();
+  const companyGuard = useCompanyGuard('Select a company to view air sample tests.');
   const [filter, setFilter] = useState('all');
 
   const { data: samples = [], isLoading } = useQuery({
@@ -29,6 +31,8 @@ export default function AirSamplesPage() {
   });
 
   const filtered = filter === 'all' ? samples : samples.filter(s => s.result_status === filter);
+
+  if (companyGuard) return <AppLayout title="Air Samples">{companyGuard}</AppLayout>;
 
   return (
     <AppLayout title="Air Samples">

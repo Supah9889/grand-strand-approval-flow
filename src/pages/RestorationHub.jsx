@@ -7,6 +7,8 @@ import {
   ChevronRight, Loader2, CheckCircle2, Clock, XCircle
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -66,6 +68,8 @@ function JobDocCard({ job, readings, dryingLogs, airSamples, navigate }) {
 export default function RestorationHub() {
   const navigate = useNavigate();
   const company = getActiveCompany();
+  const { canManageRestoration } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to access Restoration documentation.');
 
   const cid = company?.id;
 
@@ -113,6 +117,13 @@ export default function RestorationHub() {
   const todayISO = new Date().toISOString().split('T')[0];
   const jobsWithLogsToday = new Set(dryingLogs.filter(d => d.log_date === todayISO).map(d => d.job_id));
   const jobsMissingLogs = activeJobs.filter(j => !jobsWithLogsToday.has(j.id));
+
+  if (companyGuard) return <AppLayout title="Restoration Hub">{companyGuard}</AppLayout>;
+  if (!canManageRestoration) return (
+    <AppLayout title="Restoration Hub">
+      <NoAccessState message="You do not have permission to access restoration documentation." />
+    </AppLayout>
+  );
 
   if (isLoading) return (
     <AppLayout title="Restoration Hub">

@@ -5,6 +5,8 @@ import { base44 } from '@/api/base44Client';
 import { Droplets, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
+import { useCompanyGuard } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -13,6 +15,7 @@ function getActiveCompany() {
 export default function MoistureReadingsPage() {
   const navigate = useNavigate();
   const company = getActiveCompany();
+  const companyGuard = useCompanyGuard('Select a company to view moisture readings.');
   const [filter, setFilter] = useState('all');
 
   const { data: readings = [], isLoading } = useQuery({
@@ -23,6 +26,8 @@ export default function MoistureReadingsPage() {
   });
 
   const filtered = filter === 'wet' ? readings.filter(r => !r.is_dry) : filter === 'dry' ? readings.filter(r => r.is_dry) : readings;
+
+  if (companyGuard) return <AppLayout title="Moisture Readings">{companyGuard}</AppLayout>;
 
   return (
     <AppLayout title="Moisture Readings">

@@ -9,6 +9,8 @@ import {
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 import { getSession } from '@/lib/adminAuth';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -140,6 +142,8 @@ export default function SubcontractReview() {
   const company = getActiveCompany();
   const session = getSession();
   const reviewer = session?.employee?.name || 'Reviewer';
+  const { canReviewSubcontractNote } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to access the review queue.');
   const [tab, setTab] = useState('pending');
   const [reviewTarget, setReviewTarget] = useState(null);
 
@@ -170,6 +174,13 @@ export default function SubcontractReview() {
       : Promise.resolve([]),
     enabled: !!company,
   });
+
+  if (companyGuard) return <AppLayout title="Subcontract Review">{companyGuard}</AppLayout>;
+  if (!canReviewSubcontractNote) return (
+    <AppLayout title="Subcontract Review">
+      <NoAccessState message="You do not have permission to review subcontract notes." />
+    </AppLayout>
+  );
 
   return (
     <AppLayout title="Subcontract Review">

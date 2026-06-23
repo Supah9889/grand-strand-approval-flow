@@ -10,6 +10,8 @@ import { getActiveCompany } from './CompanySelect';
 import { getSession } from '@/lib/adminAuth';
 import NexusItemModal from '@/components/nexus/NexusItemModal';
 import NexusSubmitModal from '@/components/nexus/NexusSubmitModal';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 const CATEGORY_COLORS = {
   customer_insight:    'bg-blue-100 text-blue-700',
@@ -33,6 +35,8 @@ export default function NexusInbox() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const session = getSession();
+  const { canApproveNexus, canSubmitNexus } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to view the Nexus Inbox.');
   const [tab, setTab] = useState('pending');
   const [reviewTarget, setReviewTarget] = useState(null);
   const [showSubmit, setShowSubmit] = useState(false);
@@ -71,6 +75,13 @@ export default function NexusInbox() {
 
   const tabItems = tab === 'pending' ? pending : tab === 'approved' ? approved : rejected;
 
+  if (companyGuard) return <AppLayout title="Nexus Inbox">{companyGuard}</AppLayout>;
+  if (!canSubmitNexus && !canApproveNexus) return (
+    <AppLayout title="Nexus Inbox">
+      <NoAccessState message="You do not have permission to access the Nexus Inbox." />
+    </AppLayout>
+  );
+
   return (
     <AppLayout title="Nexus Inbox">
       <div className="app-page space-y-4">
@@ -83,9 +94,11 @@ export default function NexusInbox() {
               {company?.name} · Human approval required before information becomes company knowledge
             </p>
           </div>
-          <Button size="sm" onClick={() => setShowSubmit(true)}>
-            <Plus className="w-4 h-4" /> Submit Item
-          </Button>
+          {canSubmitNexus && (
+            <Button size="sm" onClick={() => setShowSubmit(true)}>
+              <Plus className="w-4 h-4" /> Submit Item
+            </Button>
+          )}
         </div>
 
         {/* Stats row */}
@@ -139,7 +152,7 @@ export default function NexusInbox() {
                     </div>
                   </div>
 
-                  {t === 'pending' && (
+                  {t === 'pending' && canApproveNexus && (
                     <div className="flex gap-2 pt-1 border-t border-border/60">
                       <Button
                         size="sm"
@@ -186,7 +199,7 @@ export default function NexusInbox() {
           onReject={(reason) => { rejectMutation.mutate({ id: reviewTarget.id, reason }); setReviewTarget(null); }}
         />
       )}
-      {showSubmit && (
+      {showSubmit && canSubmitNexus && (
         <NexusSubmitModal
           company={company}
           session={session}

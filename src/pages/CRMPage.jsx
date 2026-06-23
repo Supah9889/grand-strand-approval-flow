@@ -10,6 +10,8 @@ import { Plus, Search, Phone, Mail, MapPin, User, Building2, ChevronRight } from
 import { getActiveCompany } from './CompanySelect';
 import CustomerForm from '@/components/crm/CustomerForm';
 import PropertyForm from '@/components/crm/PropertyForm';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 const TYPE_COLORS = {
   homeowner: 'bg-blue-100 text-blue-700',
@@ -24,6 +26,8 @@ const TYPE_COLORS = {
 export default function CRMPage() {
   const qc = useQueryClient();
   const company = getActiveCompany();
+  const { canManageCRM } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to access the CRM.');
   const [tab, setTab] = useState('customers');
   const [search, setSearch] = useState('');
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -62,19 +66,23 @@ export default function CRMPage() {
     p.customer_name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  if (companyGuard) return <AppLayout title="CRM">{companyGuard}</AppLayout>;
+
   return (
     <AppLayout title="CRM">
       <div className="app-page space-y-4">
         <div className="app-page-header">
           <div>
             <h1 className="app-page-title">CRM</h1>
-            <p className="app-page-subtitle">{company?.name || 'All Companies'} · Customers & Properties</p>
+            <p className="app-page-subtitle">{company?.name} · Customers & Properties</p>
           </div>
           <div className="app-page-actions">
-            <Button size="sm" onClick={() => { setEditTarget(null); tab === 'customers' ? setShowCustomerForm(true) : setShowPropertyForm(true); }}>
-              <Plus className="w-4 h-4" />
-              Add {tab === 'customers' ? 'Customer' : 'Property'}
-            </Button>
+            {canManageCRM && (
+              <Button size="sm" onClick={() => { setEditTarget(null); tab === 'customers' ? setShowCustomerForm(true) : setShowPropertyForm(true); }}>
+                <Plus className="w-4 h-4" />
+                Add {tab === 'customers' ? 'Customer' : 'Property'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -155,7 +163,7 @@ export default function CRMPage() {
         </Tabs>
       </div>
 
-      {showCustomerForm && (
+      {showCustomerForm && canManageCRM && (
         <CustomerForm
           company={company}
           initial={editTarget}
@@ -163,7 +171,7 @@ export default function CRMPage() {
           onSaved={() => { qc.invalidateQueries({ queryKey: ['customers', company?.id] }); setShowCustomerForm(false); setEditTarget(null); }}
         />
       )}
-      {showPropertyForm && (
+      {showPropertyForm && canManageCRM && (
         <PropertyForm
           company={company}
           customers={customers}

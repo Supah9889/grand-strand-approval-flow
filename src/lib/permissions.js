@@ -1,125 +1,266 @@
 /**
- * Central permission system.
+ * permissions.js — Centralized permission and company-scope helpers
  *
- * Role-level defaults are stored in RolePermission entity (one record per role).
- * Employee-level overrides are stored on Employee.allowed_cost_codes style JSON
- * in a new field: employee.permission_overrides = JSON { key: true|false }
+ * Architecture:
+ *  - Session role (owner/admin/staff) is the primary gate — set by adminAuth.js
+ *  - Employee role (from CompanyMembership) drives fine-grained feature access
+ *  - Active company (from sessionStorage 'active_company') scopes all queries
  *
- * Usage:
- *   import { PERMISSIONS, PERMISSION_CATEGORIES, getRoleDefaults } from '@/lib/permissions';
- *   // At runtime, use the usePermissions() hook or hasPermission() from the hook
+ * Role hierarchy (internal session roles):
+ *   owner  > admin > staff
+ *
+ * Employee roles (CompanyMembership.role):
+ *   owner | operations_admin | estimator | field_technician |
+ *   office_support | vendor | nexus_reviewer
+ *
+ * Jesus reviewer is modeled as operations_admin on the GSCP company with
+ *   subcontract_reviewer=true on the Employee record, OR simply as
+ *   the designated assigned_reviewer_name on the WorkOrder.
  */
 
-export const PERMISSIONS = {
-  // Dashboard / Reports
-  view_dashboard:          { label: 'View Dashboard',           category: 'Dashboard / Reports', adminDefault: true,  staffDefault: true  },
-  view_reports:            { label: 'View Reports',             category: 'Dashboard / Reports', adminDefault: true,  staffDefault: false },
-  run_exports:             { label: 'Run Exports',              category: 'Dashboard / Reports', adminDefault: true,  staffDefault: false },
-  view_exports:            { label: 'View Exports',             category: 'Dashboard / Reports', adminDefault: true,  staffDefault: false },
-  view_audit_log:          { label: 'View Audit Log',           category: 'Dashboard / Reports', adminDefault: true,  staffDefault: false },
+import { getSession, getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
 
-  // Employee Management
-  view_employees:          { label: 'View Employees',           category: 'Employee Management', adminDefault: true,  staffDefault: false },
-  edit_employees:          { label: 'Edit Employees',           category: 'Employee Management', adminDefault: true,  staffDefault: false },
-  delete_employees:        { label: 'Delete Employees',         category: 'Employee Management', adminDefault: false, staffDefault: false },
-  view_employee_perms:     { label: 'View Employee Permissions',category: 'Employee Management', adminDefault: true,  staffDefault: false },
-  edit_employee_perms:     { label: 'Edit Employee Permissions',category: 'Employee Management', adminDefault: false, staffDefault: false },
-  view_sensitive_emp_data: { label: 'View Sensitive Employee Data', category: 'Employee Management', adminDefault: true, staffDefault: false },
+// ─────────────────────────────────────────────────────────────────────────────
+// Company helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Admin Controls
-  access_admin_controls:   { label: 'Access Admin Controls',   category: 'Admin Controls',      adminDefault: true,  staffDefault: false },
-  manage_cost_codes:       { label: 'Manage Cost Codes',        category: 'Admin Controls',      adminDefault: true,  staffDefault: false },
-  manage_templates:        { label: 'Manage Agreement Templates', category: 'Admin Controls',    adminDefault: true,  staffDefault: false },
-  manage_custom_fields:    { label: 'Manage Custom Fields',     category: 'Admin Controls',      adminDefault: true,  staffDefault: false },
-  manage_portal_access:    { label: 'Manage Portal Access',     category: 'Admin Controls',      adminDefault: true,  staffDefault: false },
-  manage_approved_emails:  { label: 'Manage Approved Emails',   category: 'Admin Controls',      adminDefault: true,  staffDefault: false },
+const COMPANY_KEY = 'active_company';
 
-  // Time / Payroll
-  view_time_entries:       { label: 'View Time Entries',        category: 'Time / Payroll',      adminDefault: true,  staffDefault: true  },
-  manage_time_entries:     { label: 'Manage Time Entries',      category: 'Time / Payroll',      adminDefault: true,  staffDefault: false },
-  use_time_clock:          { label: 'Use Time Clock',           category: 'Time / Payroll',      adminDefault: true,  staffDefault: true  },
+export function getCurrentCompany() {
+  try {
+    const raw = sessionStorage.getItem(COMPANY_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
-  // Accounting / Costs
-  view_financials:         { label: 'View Financials',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_invoices:         { label: 'Manage Invoices',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_bills:            { label: 'Manage Bills',             category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_payments:         { label: 'Manage Payments',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  delete_payments:         { label: 'Delete Logged Payments',   category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  view_cost_inbox:         { label: 'View Cost Inbox',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_cost_inbox:       { label: 'Manage Cost Inbox',        category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_expenses:         { label: 'Manage Expenses',          category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_vendors:          { label: 'Manage Vendors',           category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  manage_purchase_orders:  { label: 'Manage Purchase Orders',   category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
-  view_job_budgets:        { label: 'View Job Budgets',         category: 'Accounting / Costs',  adminDefault: true,  staffDefault: false },
+export function requireCompany() {
+  return getCurrentCompany();
+}
 
-  // Documents
-  manage_estimates:        { label: 'Manage Estimates',         category: 'Documents',           adminDefault: true,  staffDefault: false },
-  manage_change_orders:    { label: 'Manage Change Orders',     category: 'Documents',           adminDefault: true,  staffDefault: false },
-  view_documents:          { label: 'View Documents',           category: 'Documents',           adminDefault: true,  staffDefault: true  },
+// ─────────────────────────────────────────────────────────────────────────────
+// Session role helpers (thin wrappers — source of truth is adminAuth)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // File Sharing
-  share_files_externally:  { label: 'Share Documents with Clients/Vendors', category: 'Document Sharing', adminDefault: true,  staffDefault: false },
-  delete_job_files:        { label: 'Delete Job Documents',                  category: 'Document Sharing', adminDefault: true,  staffDefault: false },
+export function getSessionRole() {
+  return getInternalRole(); // 'owner' | 'admin' | 'staff' | null
+}
 
-  // Tasks / Coordination
-  view_tasks:              { label: 'View Tasks',               category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  manage_tasks:            { label: 'Manage Tasks',             category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  view_calendar:           { label: 'View Schedule',            category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  view_daily_logs:         { label: 'View Daily Logs',          category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  manage_daily_logs:       { label: 'Manage Daily Logs',        category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  manage_warranty:         { label: 'Manage Warranty',          category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-  view_job_files:          { label: 'View Job Documents',       category: 'Tasks / Coordination', adminDefault: true, staffDefault: true  },
-};
+export function isOwnerSession() {
+  return getInternalRole() === 'owner';
+}
 
-/** All unique category names in display order */
-export const PERMISSION_CATEGORIES = [
-  'Dashboard / Reports',
-  'Employee Management',
-  'Admin Controls',
-  'Time / Payroll',
-  'Accounting / Costs',
-  'Documents',
-  'Document Sharing',
-  'Tasks / Coordination',
-];
+export function isAdminSession() {
+  const r = getInternalRole();
+  return r === 'admin' || r === 'owner';
+}
 
-/** Build the default permission map for a given role */
-export function getRoleDefaults(role) {
-  if (role === 'owner') {
-    // Owner gets everything
-    return Object.fromEntries(Object.keys(PERMISSIONS).map(k => [k, true]));
-  }
-  if (role === 'admin') {
-    return Object.fromEntries(Object.entries(PERMISSIONS).map(([k, v]) => [k, v.adminDefault]));
-  }
-  // staff / field
-  return Object.fromEntries(Object.entries(PERMISSIONS).map(([k, v]) => [k, v.staffDefault]));
+// ─────────────────────────────────────────────────────────────────────────────
+// Employee role helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Get the current employee's role within a company.
+ * Falls back to reading from the employee object stored in the session.
+ * memberships param is optional — pass if you've already loaded them.
+ */
+export function getEmployeeRole(memberships = []) {
+  const employee = getSessionEmployee();
+  if (!employee) return null;
+  const company = getCurrentCompany();
+  if (!company) return null;
+  const membership = memberships.find(
+    m => m.employee_id === employee.id && m.company_id === company.id && m.is_active !== false
+  );
+  // Fall back to the role stored on the employee entity itself
+  return membership?.role || employee.role || null;
 }
 
 /**
- * Merge role defaults with stored role permissions (from DB) and optional employee overrides.
- * Returns a flat { key: boolean } map.
+ * Convenience: check if the current employee has one of the given roles
+ * in the current company. Owner/admin sessions bypass role checks.
  */
-export function resolvePermissions({ role, storedRolePerms, employeeOverrides }) {
-  if (role === 'owner') {
-    return Object.fromEntries(Object.keys(PERMISSIONS).map(k => [k, true]));
-  }
-  const defaults = getRoleDefaults(role);
-  const merged = { ...defaults };
+export function hasRole(roles, memberships = []) {
+  if (isAdminSession()) return true; // owner/admin bypass
+  const empRole = getEmployeeRole(memberships);
+  if (!empRole) return false;
+  return roles.includes(empRole);
+}
 
-  // Apply stored role-level customizations from DB
-  if (storedRolePerms) {
-    Object.entries(storedRolePerms).forEach(([k, v]) => {
-      if (k in PERMISSIONS) merged[k] = !!v;
-    });
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature-level permission checks
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Apply employee-specific overrides (can add OR remove permissions)
-  if (employeeOverrides) {
-    Object.entries(employeeOverrides).forEach(([k, v]) => {
-      if (k in PERMISSIONS) merged[k] = !!v;
-    });
-  }
+/** Can create/edit/delete jobs */
+export function canManageJobs(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin'], memberships);
+}
 
-  return merged;
+/** Can view jobs (field techs can see assigned ones — UI filters further) */
+export function canViewJobs(memberships = []) {
+  return isAdminSession() || hasRole(['owner','operations_admin','estimator','field_technician','office_support'], memberships);
+}
+
+/** Can manage CRM (customers, properties) */
+export function canManageCRM(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','estimator','office_support'], memberships);
+}
+
+/** Can manage scheduling */
+export function canManageSchedule(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','office_support'], memberships);
+}
+
+/** Can manage work orders */
+export function canManageWorkOrders(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin'], memberships);
+}
+
+/** Can view work orders (field techs/vendors see assigned ones) */
+export function canViewWorkOrders(memberships = []) {
+  return isAdminSession() || hasRole(['owner','operations_admin','field_technician','vendor','office_support'], memberships);
+}
+
+/** Can manage time entries */
+export function canManageTimeEntries(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin'], memberships);
+}
+
+/** Can view all time entries (own entries always visible) */
+export function canViewAllTimeEntries(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','office_support'], memberships);
+}
+
+/** Can manage restoration documentation */
+export function canManageRestoration(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','field_technician'], memberships);
+}
+
+/** Can submit/review Nexus items */
+export function canApproveNexus(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','nexus_reviewer'], memberships);
+}
+
+export function canSubmitNexus(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','field_technician','nexus_reviewer'], memberships);
+}
+
+/** Can manage Xactimate imports */
+export function canManageXactimate(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','estimator'], memberships);
+}
+
+/** Can review subcontract notes (Jesus role) */
+export function canReviewSubcontractNote(memberships = []) {
+  if (isAdminSession()) return true;
+  const employee = getSessionEmployee();
+  if (!employee) return false;
+  // Anyone flagged as subcontract_reviewer, or operations_admin
+  if (employee.subcontract_reviewer === true) return true;
+  return hasRole(['owner','operations_admin'], memberships);
+}
+
+/** Can see DH-side subcontract visibility page */
+export function canViewSubcontractOrigin(memberships = []) {
+  if (isAdminSession()) return true;
+  return hasRole(['owner','operations_admin','office_support'], memberships);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Record-level visibility
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Can the current user view a given record?
+ * record must have company_id.
+ * Pass the active company object.
+ */
+export function canViewRecord(record, company, memberships = []) {
+  if (!record) return false;
+  if (isOwnerSession()) return true; // owner sees all
+  if (!company) return false;
+  // Same company
+  if (record.company_id === company.id) return true;
+  // Subcontract: performing company can see the WO
+  if (record.performing_company_id === company.id) return true;
+  // Subcontract: origin company can see approved notes
+  if (record.origin_company_id === company.id && record.visible_to_origin === true) return true;
+  return false;
+}
+
+/**
+ * Can the current user edit a given record?
+ */
+export function canEditRecord(record, company, memberships = []) {
+  if (!canViewRecord(record, company, memberships)) return false;
+  if (isAdminSession()) return true;
+  // Field techs can edit their own time entries + work documentation
+  const employee = getSessionEmployee();
+  if (!employee) return false;
+  if (record.employee_id === employee.id) return true;
+  if (record.created_by_id === employee.id) return true;
+  return hasRole(['owner','operations_admin'], memberships);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Query filter helpers — use these to build entity filter objects
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the base filter for company-scoped queries.
+ * If no company is selected, returns null (caller should block the query).
+ */
+export function companyFilter(company) {
+  if (!company?.id) return null;
+  return { company_id: company.id };
+}
+
+/**
+ * Build a time-entry filter respecting role:
+ * - admin/owner/operations_admin: all entries for company
+ * - field_technician: own entries only
+ */
+export function timeEntryFilter(company, memberships = []) {
+  const base = companyFilter(company);
+  if (!base) return null;
+  if (canViewAllTimeEntries(memberships)) return base;
+  const employee = getSessionEmployee();
+  if (!employee) return null;
+  return { ...base, employee_id: employee.id };
+}
+
+/**
+ * Build a work-order filter for field technicians (assigned only).
+ */
+export function workOrderFilter(company, memberships = []) {
+  const base = companyFilter(company);
+  if (!base) return null;
+  if (canManageWorkOrders(memberships)) return base;
+  // Field tech / vendor: only assigned
+  const employee = getSessionEmployee();
+  if (!employee) return base; // no filtering without employee
+  return base; // Further filtering done in UI by checking assigned_employee_ids
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getUserCompanyMemberships — for use in hooks
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Utility to fetch memberships for current employee from a pre-loaded list.
+ * Since memberships are loaded once in the hook, this is synchronous.
+ */
+export function getUserCompanyMemberships(allMemberships = []) {
+  const employee = getSessionEmployee();
+  if (!employee) return [];
+  return allMemberships.filter(m => m.employee_id === employee.id);
 }

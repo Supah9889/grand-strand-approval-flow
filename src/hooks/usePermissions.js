@@ -1,54 +1,78 @@
 /**
- * usePermissions — resolves effective permissions for the current session.
+ * usePermissions — React hook providing permission context
  *
- * Pulls the RolePermission record for the current role from the DB,
- * then merges in any employee-level overrides if the user logged in via employee code.
+ * Usage:
+ *   const { company, canManageJobs, canViewRecord, ... } = usePermissions();
  *
- * Returns { permissions, hasPermission, loading }
+ * Loads CompanyMembership for the current employee once per session and
+ * provides pre-bound permission check functions.
  */
+
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
-import { resolvePermissions, getRoleDefaults } from '@/lib/permissions';
+import { getSessionEmployee, getInternalRole } from '@/lib/adminAuth';
+import {
+  getCurrentCompany,
+  canManageJobs, canViewJobs, canManageCRM, canManageSchedule,
+  canManageWorkOrders, canViewWorkOrders, canManageTimeEntries, canViewAllTimeEntries,
+  canManageRestoration, canApproveNexus, canSubmitNexus, canManageXactimate,
+  canReviewSubcontractNote, canViewSubcontractOrigin, canViewRecord, canEditRecord,
+  getUserCompanyMemberships, hasRole, isAdminSession, isOwnerSession,
+  timeEntryFilter, companyFilter,
+} from '@/lib/permissions';
 
 export function usePermissions() {
-  const role = getInternalRole();
-  const sessionEmployee = getSessionEmployee();
+  const company = getCurrentCompany();
+  const employee = getSessionEmployee();
+  const sessionRole = getInternalRole();
 
-  const { data: rolePermRecords = [], isLoading } = useQuery({
-    queryKey: ['role-permissions', role],
-    queryFn: () => base44.entities.RolePermission.filter({ role }),
-    enabled: !!role && role !== 'owner',
-    staleTime: 60_000,
+  const { data: memberships = [] } = useQuery({
+    queryKey: ['company-memberships', employee?.id],
+    queryFn: () => employee
+      ? base44.entities.CompanyMembership.filter({ employee_id: employee.id, is_active: true })
+      : Promise.resolve([]),
+    enabled: !!employee,
+    staleTime: 5 * 60 * 1000, // 5 min cache
   });
 
-  // Owner always gets everything, no DB needed
-  if (role === 'owner') {
-    const permissions = resolvePermissions({ role: 'owner' });
-    return {
-      permissions,
-      hasPermission: () => true,
-      loading: false,
-    };
-  }
-
-  if (isLoading) {
-    return { permissions: {}, hasPermission: () => false, loading: true };
-  }
-
-  const storedRolePerms = rolePermRecords[0]
-    ? (() => { try { return JSON.parse(rolePermRecords[0].permissions || '{}'); } catch { return {}; } })()
-    : null;
-
-  const employeeOverrides = sessionEmployee?.permission_overrides
-    ? (() => { try { return JSON.parse(sessionEmployee.permission_overrides); } catch { return null; } })()
-    : null;
-
-  const permissions = resolvePermissions({ role, storedRolePerms, employeeOverrides });
+  const myMemberships = getUserCompanyMemberships(memberships);
 
   return {
-    permissions,
-    hasPermission: (key) => !!permissions[key],
-    loading: false,
+    // Context
+    company,
+    employee,
+    sessionRole,
+    memberships: myMemberships,
+
+    // Flags
+    isOwner: isOwnerSession(),
+    isAdmin: isAdminSession(),
+    hasCompany: !!company,
+
+    // Feature checks (pre-bound to loaded memberships)
+    canManageJobs: canManageJobs(myMemberships),
+    canViewJobs: canViewJobs(myMemberships),
+    canManageCRM: canManageCRM(myMemberships),
+    canManageSchedule: canManageSchedule(myMemberships),
+    canManageWorkOrders: canManageWorkOrders(myMemberships),
+    canViewWorkOrders: canViewWorkOrders(myMemberships),
+    canManageTimeEntries: canManageTimeEntries(myMemberships),
+    canViewAllTimeEntries: canViewAllTimeEntries(myMemberships),
+    canManageRestoration: canManageRestoration(myMemberships),
+    canApproveNexus: canApproveNexus(myMemberships),
+    canSubmitNexus: canSubmitNexus(myMemberships),
+    canManageXactimate: canManageXactimate(myMemberships),
+    canReviewSubcontractNote: canReviewSubcontractNote(myMemberships),
+    canViewSubcontractOrigin: canViewSubcontractOrigin(myMemberships),
+
+    // Record-level checks (pass record)
+    canViewRecord: (record) => canViewRecord(record, company, myMemberships),
+    canEditRecord: (record) => canEditRecord(record, company, myMemberships),
+
+    // Filter builders
+    companyFilter: () => companyFilter(company),
+    timeEntryFilter: () => timeEntryFilter(company, myMemberships),
   };
 }
+
+export default usePermissions;

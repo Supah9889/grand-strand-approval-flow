@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Paperclip, Upload, Loader2, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePermissions } from '@/hooks/usePermissions';
+import { isAdminSession } from '@/lib/permissions';
 
 const DOC_ACCEPT = 'application/pdf,image/png,image/jpeg,image/jpg';
 
@@ -53,8 +53,7 @@ export default function AttachmentUpload({
   allowedTypes = DOC_ACCEPT,
 }) {
   const queryClient = useQueryClient();
-  const { hasPermission } = usePermissions();
-  const canShareExternally = hasPermission('share_files_externally');
+  const canShareExternally = isAdminSession();
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [category, setCategory] = useState(defaultCategory);

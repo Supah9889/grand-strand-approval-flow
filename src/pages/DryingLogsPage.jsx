@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Wind, Loader2, Send } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
+import { useCompanyGuard } from '@/components/CompanyGuard';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -12,6 +13,7 @@ function getActiveCompany() {
 export default function DryingLogsPage() {
   const navigate = useNavigate();
   const company = getActiveCompany();
+  const companyGuard = useCompanyGuard('Select a company to view drying logs.');
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['all-drying', company?.id],
@@ -19,6 +21,8 @@ export default function DryingLogsPage() {
       ? base44.entities.DryingLog.filter({ company_id: company.id }, '-log_date', 300)
       : base44.entities.DryingLog.list('-log_date', 300),
   });
+
+  if (companyGuard) return <AppLayout title="Drying Logs">{companyGuard}</AppLayout>;
 
   return (
     <AppLayout title="Drying Logs">

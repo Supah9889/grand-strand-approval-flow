@@ -9,6 +9,8 @@ import { Upload, FileText, CheckCircle2, AlertTriangle, Clock, Eye, Loader2, Che
 import { getActiveCompany } from './CompanySelect';
 import { getSession } from '@/lib/adminAuth';
 import XactimateReviewModal from '@/components/xactimate/XactimateReviewModal';
+import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
+import usePermissions from '@/hooks/usePermissions';
 
 const STATUS_MAP = {
   uploaded:     { label: 'Uploaded',      color: 'bg-blue-100 text-blue-700' },
@@ -23,6 +25,8 @@ export default function XactimateImportPage() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const session = getSession();
+  const { canManageXactimate } = usePermissions();
+  const companyGuard = useCompanyGuard('Select a company to access Xactimate imports.');
   const fileRef = useRef();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -65,6 +69,13 @@ export default function XactimateImportPage() {
 
   const pending = imports.filter(i => ['uploaded', 'needs_review'].includes(i.status));
   const completed = imports.filter(i => ['approved', 'imported', 'rejected'].includes(i.status));
+
+  if (companyGuard) return <AppLayout title="Xactimate Imports">{companyGuard}</AppLayout>;
+  if (!canManageXactimate) return (
+    <AppLayout title="Xactimate Imports">
+      <NoAccessState message="You do not have permission to access Xactimate imports." />
+    </AppLayout>
+  );
 
   return (
     <AppLayout title="Xactimate Imports">

@@ -1,0 +1,76 @@
+{
+  "name": "MoistureReading",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "room_id": {
+      "type": "string"
+    },
+    "room_name": {
+      "type": "string"
+    },
+    "material": {
+      "type": "string",
+      "enum": [
+        "drywall",
+        "stud",
+        "subfloor",
+        "flooring",
+        "trim",
+        "cabinet",
+        "ceiling",
+        "concrete",
+        "other"
+      ],
+      "default": "drywall"
+    },
+    "reading_value": {
+      "type": "number",
+      "description": "Moisture % or WME"
+    },
+    "reading_type": {
+      "type": "string",
+      "enum": [
+        "pin",
+        "pinless",
+        "relative",
+        "thermal"
+      ],
+      "default": "pin"
+    },
+    "equipment_used": {
+      "type": "string"
+    },
+    "taken_by": {
+      "type": "string"
+    },
+    "taken_at": {
+      "type": "string",
+      "description": "ISO datetime"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_dry": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "company_id",
+    "job_id",
+    "material",
+    "reading_value"
+  ]
+}

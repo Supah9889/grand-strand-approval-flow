@@ -1,0 +1,62 @@
+{
+  "name": "DryingLog",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "room_id": {
+      "type": "string"
+    },
+    "room_name": {
+      "type": "string"
+    },
+    "log_date": {
+      "type": "string",
+      "description": "ISO date YYYY-MM-DD"
+    },
+    "temperature": {
+      "type": "number",
+      "description": "\u00b0F"
+    },
+    "relative_humidity": {
+      "type": "number",
+      "description": "%"
+    },
+    "gpp": {
+      "type": "number",
+      "description": "Grains per pound"
+    },
+    "moisture_notes": {
+      "type": "string"
+    },
+    "equipment_running": {
+      "type": "string",
+      "description": "List of equipment running"
+    },
+    "technician": {
+      "type": "string"
+    },
+    "nexus_submitted": {
+      "type": "boolean",
+      "default": false
+    },
+    "nexus_item_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "job_id",
+    "log_date"
+  ]
+}

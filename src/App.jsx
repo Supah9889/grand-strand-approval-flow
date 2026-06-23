@@ -78,6 +78,12 @@ const ManagerDashboard = lazy(() => import('./pages/ManagerDashboard'));
 const WorkOrders = lazy(() => import('./pages/WorkOrders'));
 const WorkOrderDetail = lazy(() => import('./pages/WorkOrderDetail'));
 const FieldSchedule = lazy(() => import('./pages/FieldSchedule'));
+const RestorationHub = lazy(() => import('./pages/RestorationHub'));
+const JobDocumentation = lazy(() => import('./pages/JobDocumentation'));
+const MoistureReadingsPage = lazy(() => import('./pages/MoistureReadingsPage'));
+const DryingLogsPage = lazy(() => import('./pages/DryingLogsPage'));
+const AirSamplesPage = lazy(() => import('./pages/AirSamplesPage'));
+const EquipmentPage = lazy(() => import('./pages/EquipmentPage'));
 
 // Loading fallback
 function RouteLoader() {
@@ -265,6 +271,12 @@ const AuthenticatedApp = () => {
               <Route path="/work-orders" element={<WorkOrders />} />
               <Route path="/work-orders/:id" element={<WorkOrderDetail />} />
               <Route path="/field-schedule" element={<FieldSchedule />} />
+              <Route path="/restoration" element={<RestorationHub />} />
+              <Route path="/jobs/:id/documentation" element={<JobDocumentation />} />
+              <Route path="/moisture-readings" element={<MoistureReadingsPage />} />
+              <Route path="/drying-logs" element={<DryingLogsPage />} />
+              <Route path="/air-samples" element={<AirSamplesPage />} />
+              <Route path="/equipment" element={<EquipmentPage />} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

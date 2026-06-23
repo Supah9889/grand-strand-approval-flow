@@ -1,0 +1,63 @@
+{
+  "name": "Room",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "floor_area": {
+      "type": "string",
+      "description": "e.g. Main Floor, Basement, Second Floor"
+    },
+    "room_type": {
+      "type": "string",
+      "enum": [
+        "kitchen",
+        "bathroom",
+        "bedroom",
+        "living_room",
+        "hallway",
+        "garage",
+        "crawlspace",
+        "attic",
+        "utility_room",
+        "other"
+      ],
+      "default": "other"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "drying",
+        "clear",
+        "complete"
+      ],
+      "default": "active"
+    },
+    "photos": {
+      "type": "string",
+      "description": "JSON array of photo URLs"
+    }
+  },
+  "required": [
+    "company_id",
+    "job_id",
+    "name"
+  ]
+}

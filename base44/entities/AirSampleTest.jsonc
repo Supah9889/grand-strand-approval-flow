@@ -1,0 +1,79 @@
+{
+  "name": "AirSampleTest",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "property_id": {
+      "type": "string"
+    },
+    "room_id": {
+      "type": "string"
+    },
+    "room_name": {
+      "type": "string"
+    },
+    "sample_type": {
+      "type": "string",
+      "enum": [
+        "indoor_air",
+        "outdoor_control",
+        "surface_sample",
+        "clearance_test"
+      ],
+      "default": "indoor_air"
+    },
+    "lab": {
+      "type": "string"
+    },
+    "sample_date": {
+      "type": "string",
+      "description": "ISO date"
+    },
+    "result_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "passed",
+        "failed",
+        "needs_review"
+      ],
+      "default": "pending"
+    },
+    "result_summary": {
+      "type": "string"
+    },
+    "document_url": {
+      "type": "string"
+    },
+    "document_name": {
+      "type": "string"
+    },
+    "technician": {
+      "type": "string"
+    },
+    "nexus_submitted": {
+      "type": "boolean",
+      "default": false
+    },
+    "nexus_item_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "job_id",
+    "sample_type",
+    "sample_date"
+  ]
+}

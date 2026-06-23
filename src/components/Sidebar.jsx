@@ -7,7 +7,8 @@ import {
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
-  Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck
+  Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck,
+  Droplets, Droplet, Wind, FlaskConical, Cpu
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -91,12 +92,23 @@ const NAV_GROUPS = [
       ],
       },
       {
-      label: 'Nexus',
-      adminOnly: false,
-      items: [
-      { label: 'Nexus Inbox',  to: '/nexus',      icon: Brain },
-      { label: 'Xactimate',    to: '/xactimate',  icon: FileBarChart2 },
-      ],
+        label: 'Restoration',
+        adminOnly: false,
+        items: [
+          { label: 'Restoration Hub',   to: '/restoration',        icon: Droplets },
+          { label: 'Moisture Readings', to: '/moisture-readings',  icon: Droplet },
+          { label: 'Drying Logs',       to: '/drying-logs',        icon: Wind },
+          { label: 'Air Samples',       to: '/air-samples',        icon: FlaskConical },
+          { label: 'Equipment',         to: '/equipment',          icon: Cpu },
+        ],
+      },
+      {
+        label: 'Nexus',
+        adminOnly: false,
+        items: [
+          { label: 'Nexus Inbox',  to: '/nexus',      icon: Brain },
+          { label: 'Xactimate',    to: '/xactimate',  icon: FileBarChart2 },
+        ],
       },
       ];
 

@@ -1,0 +1,61 @@
+{
+  "name": "RestorationEquipment",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "equipment_type": {
+      "type": "string",
+      "enum": [
+        "dehumidifier",
+        "air_mover",
+        "hepa_scrubber",
+        "moisture_meter",
+        "thermal_camera",
+        "containment",
+        "other"
+      ],
+      "default": "dehumidifier"
+    },
+    "serial_number": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "deployed",
+        "maintenance",
+        "retired"
+      ],
+      "default": "available"
+    },
+    "current_job_id": {
+      "type": "string"
+    },
+    "current_job_address": {
+      "type": "string"
+    },
+    "current_room_id": {
+      "type": "string"
+    },
+    "current_room_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "name",
+    "equipment_type"
+  ]
+}

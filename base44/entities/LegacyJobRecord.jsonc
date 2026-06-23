@@ -1,0 +1,87 @@
+{
+  "name": "LegacyJobRecord",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "legacy_import_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "default": "Proven Jobs"
+    },
+    "legacy_id": {
+      "type": "string",
+      "description": "Original ID in source system"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "property_address": {
+      "type": "string"
+    },
+    "job_name": {
+      "type": "string"
+    },
+    "job_status": {
+      "type": "string"
+    },
+    "service_line": {
+      "type": "string"
+    },
+    "assigned_people": {
+      "type": "string",
+      "description": "Freetext or JSON array"
+    },
+    "start_date": {
+      "type": "string"
+    },
+    "close_date": {
+      "type": "string"
+    },
+    "raw_data": {
+      "type": "string",
+      "description": "Original raw JSON/CSV row"
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "linked_customer_id": {
+      "type": "string"
+    },
+    "linked_property_id": {
+      "type": "string"
+    },
+    "migration_status": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "needs_review",
+        "linked",
+        "converted",
+        "archived",
+        "duplicate",
+        "error"
+      ],
+      "default": "imported"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "converted_by": {
+      "type": "string"
+    },
+    "converted_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "source_system"
+  ]
+}

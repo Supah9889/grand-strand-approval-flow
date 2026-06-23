@@ -90,6 +90,8 @@ const SubcontractVisibility = lazy(() => import('./pages/SubcontractVisibility')
 const AccessManagement = lazy(() => import('./pages/AccessManagement'));
 const AccessTests = lazy(() => import('./pages/AccessTests'));
 const TemplatesHub = lazy(() => import('./pages/TemplatesHub'));
+const LegacyImports = lazy(() => import('./pages/LegacyImports'));
+const LegacyRecords = lazy(() => import('./pages/LegacyRecords'));
 const JobTemplatesPage = lazy(() => import('./pages/JobTemplatesPage'));
 const WorkOrderTemplatesPage = lazy(() => import('./pages/WorkOrderTemplatesPage'));
 const DocumentationRequirementsPage = lazy(() => import('./pages/DocumentationRequirementsPage'));
@@ -295,6 +297,8 @@ const AuthenticatedApp = () => {
               <Route path="/job-templates" element={<JobTemplatesPage />} />
               <Route path="/work-order-templates" element={<WorkOrderTemplatesPage />} />
               <Route path="/documentation-requirements" element={<DocumentationRequirementsPage />} />
+              <Route path="/legacy-imports" element={adminOnly(<LegacyImports />)} />
+              <Route path="/legacy-records" element={adminOnly(<LegacyRecords />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

@@ -1,0 +1,57 @@
+{
+  "name": "LegacyCustomerRecord",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "legacy_import_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "default": "Proven Jobs"
+    },
+    "legacy_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "raw_data": {
+      "type": "string"
+    },
+    "linked_customer_id": {
+      "type": "string"
+    },
+    "migration_status": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "needs_review",
+        "linked",
+        "converted",
+        "archived",
+        "duplicate",
+        "error"
+      ],
+      "default": "imported"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "source_system"
+  ]
+}

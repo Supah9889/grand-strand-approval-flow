@@ -1,0 +1,61 @@
+{
+  "name": "LegacyDocumentRecord",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "legacy_import_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "default": "Proven Jobs"
+    },
+    "legacy_job_id": {
+      "type": "string"
+    },
+    "document_name": {
+      "type": "string"
+    },
+    "document_type": {
+      "type": "string"
+    },
+    "original_file": {
+      "type": "string",
+      "description": "File URL if available"
+    },
+    "original_file_name": {
+      "type": "string"
+    },
+    "raw_data": {
+      "type": "string"
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "migration_status": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "needs_review",
+        "linked",
+        "converted",
+        "archived",
+        "duplicate",
+        "error"
+      ],
+      "default": "imported"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "source_system"
+  ]
+}

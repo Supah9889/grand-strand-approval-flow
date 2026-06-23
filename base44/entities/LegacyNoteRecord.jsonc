@@ -1,0 +1,64 @@
+{
+  "name": "LegacyNoteRecord",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "legacy_import_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "default": "Proven Jobs"
+    },
+    "legacy_job_id": {
+      "type": "string"
+    },
+    "note_text": {
+      "type": "string"
+    },
+    "note_type": {
+      "type": "string"
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "created_at_original": {
+      "type": "string",
+      "description": "Original timestamp from source system"
+    },
+    "raw_data": {
+      "type": "string"
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "nexus_item_id": {
+      "type": "string"
+    },
+    "migration_status": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "needs_review",
+        "linked",
+        "converted",
+        "archived",
+        "duplicate",
+        "error"
+      ],
+      "default": "imported"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "source_system"
+  ]
+}

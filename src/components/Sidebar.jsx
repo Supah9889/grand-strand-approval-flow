@@ -8,7 +8,7 @@ import {
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
   Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck,
-  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate
+  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate, Archive
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -119,6 +119,14 @@ const NAV_GROUPS = [
         items: [
           { label: 'Nexus Inbox',  to: '/nexus',      icon: Brain },
           { label: 'Xactimate',    to: '/xactimate',  icon: FileBarChart2 },
+        ],
+      },
+      {
+        label: 'Legacy Migration',
+        adminOnly: true,
+        items: [
+          { label: 'Legacy Imports', to: '/legacy-imports', icon: Database },
+          { label: 'Legacy Records', to: '/legacy-records', icon: Archive },
         ],
       },
       ];

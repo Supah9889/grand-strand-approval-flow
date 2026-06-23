@@ -839,6 +839,13 @@ export const ACTION_LABELS = {
   job_note_added:                   { label: 'Job Note Added',                    color: 'text-foreground' },
   documentation_requirement_completed: { label: 'Documentation Completed',        color: 'text-green-600' },
 
+  legacy_import_uploaded:           { label: 'Legacy Import Uploaded',            color: 'text-primary' },
+  legacy_record_linked:             { label: 'Legacy Record Linked',              color: 'text-purple-600' },
+  legacy_job_converted:             { label: 'Legacy Job Converted',              color: 'text-green-600' },
+  legacy_record_archived:           { label: 'Legacy Record Archived',            color: 'text-amber-600' },
+  legacy_record_marked_duplicate:   { label: 'Legacy Record: Duplicate',          color: 'text-yellow-600' },
+  legacy_record_sent_to_nexus:      { label: 'Legacy Record Sent to Nexus',       color: 'text-purple-600' },
+
   override_action:                  { label: 'Admin Override',                    color: 'text-destructive' },
   admin_override:                   { label: 'Admin Override',                    color: 'text-destructive' },
   permission_change:                { label: 'Permission Changed',                color: 'text-destructive' },

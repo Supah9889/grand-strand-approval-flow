@@ -9,6 +9,7 @@ import {
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 import { getSession } from '@/lib/adminAuth';
+import { logAudit } from '@/lib/audit';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
 import usePermissions from '@/hooks/usePermissions';
 
@@ -41,6 +42,9 @@ function ReviewActionSheet({ note, reviewer, onClose, onSaved }) {
       review_note: reviewNote,
       visible_to_origin: visibleToOrigin,
     });
+    logAudit(note.id, `subcontract_note_${action}`, reviewer || 'Reviewer',
+      `${reviewer} ${action} subcontract note for WO: ${note.work_order_title || note.work_order_id}`,
+      { module: 'subcontract', record_id: note.id, job_id: note.job_id, old_value: note.review_status, new_value: action, is_sensitive: true });
 
     if (action === 'approved' && note.work_order_id) {
       const wo = await base44.entities.WorkOrder.get(note.work_order_id).catch(() => null);

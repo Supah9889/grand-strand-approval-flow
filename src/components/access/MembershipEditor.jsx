@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { X, Loader2, DollarSign, Shield, Eye, CheckCircle2 } from 'lucide-react';
 import { PERMISSION_GROUPS, ROLE_TO_PERMISSION_GROUP } from '@/lib/permissions';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/audit';
+import { getSession } from '@/lib/adminAuth';
 
 const ROLES = [
   'owner','operations_admin','estimator','field_technician',
@@ -100,11 +102,18 @@ export default function MembershipEditor({ initial = {}, companies = [], employe
       company_slug: company?.slug || form.company_slug,
       employee_name: employee?.name || form.employee_name,
     };
+    const actor = getSession()?.employee?.name || 'Admin';
     if (isEdit) {
       await base44.entities.CompanyMembership.update(initial.id, payload);
+      logAudit(initial.id, 'company_membership_updated', actor,
+        `${actor} updated membership for ${payload.employee_name} in ${payload.company_name} — role: ${payload.role}, group: ${payload.permission_group}`,
+        { module: 'employee', record_id: initial.id, is_sensitive: true, old_value: initial.role, new_value: payload.role });
       toast.success('Membership updated');
     } else {
-      await base44.entities.CompanyMembership.create(payload);
+      const created = await base44.entities.CompanyMembership.create(payload);
+      logAudit(created?.id || 'new', 'company_membership_created', actor,
+        `${actor} added ${payload.employee_name} to ${payload.company_name} as ${payload.role}`,
+        { module: 'employee', is_sensitive: true, new_value: payload.role });
       toast.success('Member added');
     }
     setSaving(false);

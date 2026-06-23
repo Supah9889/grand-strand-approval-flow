@@ -312,7 +312,7 @@ export default function FieldDashboard() {
         <section>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today's Schedule</h2>
-            <button onClick={() => navigate('/calendar')} className="text-xs text-primary hover:underline">View all</button>
+            <button onClick={() => navigate('/field-schedule')} className="text-xs text-primary hover:underline">View all</button>
           </div>
           {visibleScheduleEvents.length === 0 ? (
             <p className="text-xs text-muted-foreground py-3 text-center">No events scheduled today</p>

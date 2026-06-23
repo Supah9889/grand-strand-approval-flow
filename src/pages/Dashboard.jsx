@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
-import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { isAdmin as getIsAdmin, getSessionEmployee } from '@/lib/adminAuth';
+import { getCurrentCompany, canViewAssignedOnly } from '@/lib/permissions';
 import DashQuickSearch from '../components/dashboard/DashQuickSearch';
 import DashTodaySchedule from '../components/dashboard/DashTodaySchedule';
 import DashRecentActivity from '../components/dashboard/DashRecentActivity';
@@ -16,7 +17,7 @@ import DashNeedsAttention from '../components/dashboard/DashNeedsAttention';
 import DashFinancialFollowUp from '../components/dashboard/DashFinancialFollowUp';
 import { isBuildertrendImportedJob, requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
-// Company/context filter options mapped to job_group values
+// Company/context filter options mapped to job_group values (admin only)
 const COMPANY_FILTERS = [
   { key: 'all',      label: 'All' },
   { key: 'painting', label: 'Grand Strand' },
@@ -30,6 +31,23 @@ function matchesCompany(item, filter) {
   if (filter === 'carpentry') return ['carpentry','drywall','water_mitigation','builder_vendor','warranty'].includes(item.job_group);
   if (filter === 'internal')  return item.job_group === 'internal';
   return true;
+}
+
+function NoCompanyState() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
+      <Building2 className="w-10 h-10 text-muted-foreground/40" />
+      <p className="text-sm font-semibold text-foreground">No company selected</p>
+      <p className="text-xs text-muted-foreground">Select an active company to see your dashboard.</p>
+      <button
+        onClick={() => navigate('/company-select')}
+        className="mt-2 h-9 px-4 bg-primary text-primary-foreground text-xs font-semibold rounded-xl hover:bg-primary/90"
+      >
+        Select Company
+      </button>
+    </div>
+  );
 }
 
 const todayISO = new Date().toISOString().split('T')[0];
@@ -101,16 +119,26 @@ function SectionCard({ title, icon: Icon, count, urgent, children, defaultOpen =
 export default function Dashboard() {
   const navigate = useNavigate();
   const isAdmin = getIsAdmin();
+  const activeCompany = getCurrentCompany();
+  const employee = getSessionEmployee();
+  // assignedOnly is false for admins (canViewAssignedOnly returns false for admin sessions)
+  const assignedOnly = !isAdmin && canViewAssignedOnly();
   const [companyFilter, setCompanyFilter] = useState('all');
 
   // ── Data loading ──────────────────────────────────────────────────────────
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
-    queryKey: ['dashboard-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 300),
+    queryKey: ['dashboard-jobs', activeCompany?.id, isAdmin],
+    queryFn: () => {
+      if (isAdmin) return base44.entities.Job.list('-created_date', 300);
+      return base44.entities.Job.filter({ company_id: activeCompany.id }, '-created_date', 200);
+    },
   });
   const { data: calendarEvents = [] } = useQuery({
-    queryKey: ['dashboard-calendar'],
-    queryFn: () => base44.entities.CalendarEvent.list('-start_date', 200),
+    queryKey: ['dashboard-calendar', activeCompany?.id, isAdmin],
+    queryFn: () => {
+      if (isAdmin) return base44.entities.CalendarEvent.list('-start_date', 200);
+      return base44.entities.CalendarEvent.filter({ company_id: activeCompany.id }, '-start_date', 100);
+    },
   });
   const { data: tasks = [] } = useQuery({
     queryKey: ['dashboard-tasks'],
@@ -163,10 +191,21 @@ export default function Dashboard() {
   });
 
   // ── Company-filtered job subset ───────────────────────────────────────────
-  const filteredJobs = useMemo(
-    () => jobs.filter(j => matchesCompany(j, companyFilter)),
-    [jobs, companyFilter]
-  );
+  const filteredJobs = useMemo(() => {
+    let list = jobs;
+    // Admin multi-company filter chips
+    if (isAdmin) list = list.filter(j => matchesCompany(j, companyFilter));
+    // Assigned-only: restrict to jobs where this employee is listed
+    if (assignedOnly && employee?.id) {
+      list = list.filter(j => {
+        try {
+          const ids = JSON.parse(j.assigned_employee_ids || '[]');
+          return ids.includes(employee.id);
+        } catch { return false; }
+      });
+    }
+    return list;
+  }, [jobs, companyFilter, assignedOnly, employee?.id, isAdmin]);
 
   // ── Today's schedule ──────────────────────────────────────────────────────
   const todayEvents = useMemo(() => {
@@ -195,6 +234,15 @@ export default function Dashboard() {
     return od + ub + ne;
   }, [invoices, bills, expenses]);
 
+  // Staff without a selected company see the NoCompanyState (after all hooks)
+  if (!isAdmin && !activeCompany) {
+    return (
+      <AppLayout title="Dashboard">
+        <NoCompanyState />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout title="Dashboard">
       <div className="max-w-2xl mx-auto w-full px-4 py-5 space-y-4">
@@ -222,22 +270,32 @@ export default function Dashboard() {
           vendors={vendors}
         />
 
-        {/* ── Company / Context Filter ────────────────────────────────── */}
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          {COMPANY_FILTERS.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setCompanyFilter(f.key)}
-              className={`shrink-0 flex items-center gap-1 h-7 px-3 rounded-full text-xs font-medium transition-colors
-                ${companyFilter === f.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:text-foreground'}`}
-            >
-              <Building2 className="w-3 h-3" />
-              {f.label}
-            </button>
-          ))}
-        </div>
+        {/* ── Company / Context Filter (admin only) ───────────────────── */}
+        {isAdmin && (
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {COMPANY_FILTERS.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setCompanyFilter(f.key)}
+                className={`shrink-0 flex items-center gap-1 h-7 px-3 rounded-full text-xs font-medium transition-colors
+                  ${companyFilter === f.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+              >
+                <Building2 className="w-3 h-3" />
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* Staff: show active company badge */}
+        {!isAdmin && activeCompany && (
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary" />
+            <span className="text-xs font-semibold text-muted-foreground">{activeCompany.name}</span>
+            {assignedOnly && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">Assigned only</span>}
+          </div>
+        )}
 
         {loadingJobs ? (
           <div className="flex justify-center py-16">
@@ -251,7 +309,7 @@ export default function Dashboard() {
               icon={Calendar}
               count={todayEvents.length}
               defaultOpen={true}
-              onViewAll={() => navigate('/calendar')}
+              onViewAll={() => navigate(isAdmin ? '/calendar' : '/field-schedule')}
               viewAllLabel="Schedule"
             >
               <DashTodaySchedule events={todayEvents} jobs={jobs} />

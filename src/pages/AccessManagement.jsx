@@ -9,7 +9,8 @@ import {
   Plus, Loader2, X, Users, Shield, Building2, ChevronDown,
   Edit2, CheckCircle2, Search
 } from 'lucide-react';
-import { isAdmin } from '@/lib/adminAuth';
+import { isAdmin, getSession } from '@/lib/adminAuth';
+import { logAudit } from '@/lib/audit';
 import { PERMISSION_GROUPS } from '@/lib/permissions';
 import { toast } from 'sonner';
 import MembershipEditor from '@/components/access/MembershipEditor';
@@ -142,7 +143,11 @@ export default function AccessManagement() {
   const toggleActiveMutation = useMutation({
     mutationFn: (member) =>
       base44.entities.CompanyMembership.update(member.id, { is_active: !member.is_active }),
-    onSuccess: () => {
+    onSuccess: (_, member) => {
+      const actor = getSession()?.employee?.name || 'Admin';
+      logAudit(member.id, 'company_membership_toggled', actor,
+        `${actor} ${member.is_active ? 'deactivated' : 'activated'} ${member.employee_name} in ${member.company_name}`,
+        { module: 'employee', record_id: member.id, old_value: member.is_active ? 'active' : 'inactive', new_value: member.is_active ? 'inactive' : 'active', is_sensitive: true });
       qc.invalidateQueries({ queryKey: ['all-memberships'] });
       qc.invalidateQueries({ queryKey: ['company-memberships'] });
       toast.success('Member access updated');

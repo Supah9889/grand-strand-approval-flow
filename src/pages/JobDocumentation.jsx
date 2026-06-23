@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
   ArrowLeft, Plus, Droplets, Wind, FlaskConical, Cpu,
-  Camera, FileText, Send, Loader2, ChevronRight, Home,
-  Trash2, CheckCircle2, AlertTriangle, X
+  Camera, FileText, Send, Loader2, Home,
+  CheckCircle2, AlertTriangle, X
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
@@ -16,6 +16,9 @@ import RoomForm from '@/components/restoration/RoomForm';
 import MoistureReadingForm from '@/components/restoration/MoistureReadingForm';
 import DryingLogForm from '@/components/restoration/DryingLogForm';
 import AirSampleForm from '@/components/restoration/AirSampleForm';
+import JobDocChecklist from '@/components/templates/JobDocChecklist';
+import { logAudit } from '@/lib/audit';
+import { getInternalRole } from '@/lib/adminAuth';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -25,6 +28,7 @@ function getSessionEmployee() {
 }
 
 const TABS = [
+  { key: 'checklist', label: 'Checklist', icon: CheckCircle2 },
   { key: 'rooms', label: 'Rooms', icon: Home },
   { key: 'moisture', label: 'Moisture', icon: Droplets },
   { key: 'drying', label: 'Drying', icon: Wind },
@@ -109,10 +113,12 @@ export default function JobDocumentation() {
   const company = getActiveCompany();
   const employee = getSessionEmployee();
   const { canManageRestoration, canSubmitNexus, canViewAssignedOnly } = usePermissions();
-  const [tab, setTab] = useState('rooms');
+  const role = getInternalRole();
+  const [tab, setTab] = useState('checklist');
   const [showForm, setShowForm] = useState(null); // 'room'|'moisture'|'drying'|'sample'
   const [showNexus, setShowNexus] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [manuallyCompleted, setManuallyCompleted] = useState({}); // track manual completions for audit
 
   const { data: job } = useQuery({
     queryKey: ['job', jobId],
@@ -200,6 +206,59 @@ export default function JobDocumentation() {
         </div>
 
         {/* Tab content */}
+
+        {/* CHECKLIST */}
+        {tab === 'checklist' && (() => {
+          const customFields = (() => { try { return JSON.parse(job?.custom_fields || '{}'); } catch { return {}; } })();
+          const templateId = customFields.template_id;
+          const templateName = customFields.template_name;
+          const docContext = {
+            rooms,
+            photos: [],  // job-level photos not tracked here yet
+            moistureReadings: readings,
+            dryingLogs,
+            airSamples,
+            equipment,
+            notes: [],   // job notes not loaded here; treated as advisory
+          };
+          return (
+            <div className="space-y-3">
+              <JobDocChecklist
+                jobId={jobId}
+                jobAddress={job?.address}
+                templateId={templateId}
+                templateName={templateName}
+                company={company}
+                employee={employee}
+                context={docContext}
+                canSubmitNexus={canSubmitNexus}
+              />
+              <div className="bg-card border border-border rounded-xl p-3 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quick Add</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setShowForm('room')} className="flex items-center gap-2 h-9 px-3 bg-muted rounded-xl text-xs font-medium text-foreground hover:bg-accent">
+                    <Home className="w-3.5 h-3.5" /> Add Room
+                  </button>
+                  <button onClick={() => setShowForm('moisture')} className="flex items-center gap-2 h-9 px-3 bg-muted rounded-xl text-xs font-medium text-foreground hover:bg-accent">
+                    <Droplets className="w-3.5 h-3.5" /> Moisture Reading
+                  </button>
+                  <button onClick={() => setShowForm('drying')} className="flex items-center gap-2 h-9 px-3 bg-muted rounded-xl text-xs font-medium text-foreground hover:bg-accent">
+                    <Wind className="w-3.5 h-3.5" /> Drying Log
+                  </button>
+                  <button onClick={() => setShowForm('sample')} className="flex items-center gap-2 h-9 px-3 bg-muted rounded-xl text-xs font-medium text-foreground hover:bg-accent">
+                    <FlaskConical className="w-3.5 h-3.5" /> Air Sample
+                  </button>
+                </div>
+              </div>
+              {templateId && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  <p className="text-xs text-blue-800 font-medium">Template Applied: {templateName}</p>
+                  <p className="text-[11px] text-blue-600 mt-0.5">Documentation requirements are derived from this template.</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ROOMS */}
         {tab === 'rooms' && (

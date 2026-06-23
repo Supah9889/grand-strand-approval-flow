@@ -18,6 +18,8 @@ import ValidationPanel from '@/components/shared/ValidationPanel';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
 import AppLayout from '../components/AppLayout';
+import JobTemplateSelector from '@/components/templates/JobTemplateSelector';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const JOB_COLORS = [
   '#2563eb', '#16a34a', '#dc2626', '#d97706',
@@ -176,6 +178,8 @@ export default function NewJobPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [appliedTemplate, setAppliedTemplate] = useState(null); // { id, name, ... }
+  const activeCompany = getCurrentCompany();
 
   // Pending assignments / vendor link (created after job save)
   const [pendingAssignments, setPendingAssignments] = useState([]); // [{emp, role, notify}]
@@ -343,6 +347,15 @@ export default function NewJobPage() {
       }
 
       await logAudit(job.id, 'job_created', role || 'admin', `Master job file created: ${resolvedAddress}`);
+
+      // Log template applied if one was selected
+      if (appliedTemplate) {
+        await logAudit(job.id, 'template_applied', role || 'admin', `Job template applied: ${appliedTemplate.name}`, {
+          template_id: appliedTemplate.id,
+          template_name: appliedTemplate.name,
+        });
+      }
+
       return job;
     },
     onSuccess: (job) => {
@@ -474,6 +487,27 @@ export default function NewJobPage() {
             {/* ═══════════════════ JOB DETAILS ═══════════════════ */}
             {activeTab === 'details' && (
               <div className="space-y-8">
+
+                {/* Template selector */}
+                <JobTemplateSelector
+                  companyId={activeCompany?.id}
+                  appliedTemplateName={appliedTemplate?.name}
+                  onApply={(tpl) => {
+                    if (!tpl) { setAppliedTemplate(null); return; }
+                    setAppliedTemplate(tpl);
+                    // Prefill fields from template — only if currently empty
+                    if (tpl.service_line) set('service_line', tpl.service_line);
+                    if (tpl.default_priority) set('priority', tpl.default_priority);
+                    if (tpl.required_documentation) set('custom_fields', JSON.stringify({
+                      ...(form.custom_fields ? JSON.parse(form.custom_fields || '{}') : {}),
+                      required_documentation: tpl.required_documentation,
+                      required_photo_sets: tpl.required_photo_sets,
+                      required_notes: tpl.required_notes,
+                      template_id: tpl.id,
+                      template_name: tpl.name,
+                    }));
+                  }}
+                />
 
                 <Section title="Job Identity">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

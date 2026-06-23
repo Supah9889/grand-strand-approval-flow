@@ -7,11 +7,16 @@ import AppLayout from '@/components/AppLayout';
 import { audit } from '@/lib/audit';
 import usePermissions from '@/hooks/usePermissions';
 import {
-  CheckCircle2, AlertTriangle, Trash2, Edit2, Download, Loader2,
-  ChevronDown, ChevronRight, MoreVertical, Check, X
+  CheckCircle2, AlertTriangle, Trash2, Edit2, Download, Loader2, Printer,
+  ChevronDown, ChevronRight, MoreVertical, Check, X, Combine, Split
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import ESXDraftEditModal from '@/components/esx/ESXDraftEditModal';
+import ESXDraftMergeModal from '@/components/esx/ESXDraftMergeModal';
+import ESXDraftSplitModal from '@/components/esx/ESXDraftSplitModal';
+import { openPrintDialog, downloadDraftsPdf } from '@/lib/esxPdfExport';
+import { toast } from 'sonner';
 
 const AUTHORIZED_REVIEWERS = ['Nick', 'Doina', 'Brian', 'Jake', 'Nathan', 'Jesus', 'Sean'];
 
@@ -29,6 +34,11 @@ export default function ESXDraftWorkOrderQueue() {
   const [selected, setSelected] = useState(new Set());
   const [filter, setFilter] = useState('all'); // all, draft, needs_review, approved, rejected
   const [editTarget, setEditTarget] = useState(null);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [splitTarget, setSplitTarget] = useState(null);
+  const [bulkCompany, setBulkCompany] = useState('');
+  const [bulkServiceLine, setBulkServiceLine] = useState('');
+  const [bulkStatus, setBulkStatus] = useState('');
 
   // Permission check
   const isAuthorizedReviewer = AUTHORIZED_REVIEWERS.includes(user?.full_name);
@@ -157,6 +167,28 @@ export default function ESXDraftWorkOrderQueue() {
     },
   });
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: async (updates) => {
+      const toUpdate = Array.from(selected);
+      for (const id of toUpdate) {
+        await base44.entities.ESXDraftWorkOrder.update(id, updates);
+      }
+      audit.system.settingsChanged(user?.full_name, `ESX bulk assign: ${toUpdate.length} drafts`, {
+        module: 'esx',
+        action: 'esx_bulk_action',
+        bulk_action: 'assign',
+        count: toUpdate.length,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['esx-drafts', company?.id]);
+      setSelected(new Set());
+      setBulkCompany('');
+      setBulkServiceLine('');
+      setBulkStatus('');
+    },
+  });
+
   const toggleSelect = (id) => {
     const newSet = new Set(selected);
     if (newSet.has(id)) newSet.delete(id);
@@ -203,26 +235,87 @@ export default function ESXDraftWorkOrderQueue() {
         </div>
 
         {/* Bulk Actions */}
-        {selected.size > 0 && isAuthorizedReviewer && (
-          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
-            <span className="text-xs font-medium text-blue-700">{selected.size} selected</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => bulkApproveMutation.mutate()}
-              disabled={bulkApproveMutation.isPending}
-              className="text-green-700 border-green-200 hover:bg-green-50"
-            >
-              {bulkApproveMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-              Approve Selected
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setSelected(new Set())}
-            >
-              Clear
-            </Button>
+        {selected.size > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 flex-wrap">
+              <span className="text-xs font-medium text-blue-700">{selected.size} selected</span>
+              {isAuthorizedReviewer && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => bulkApproveMutation.mutate()} disabled={bulkApproveMutation.isPending} className="text-green-700 border-green-200 hover:bg-green-50">
+                    <Check className="w-3 h-3" /> Approve
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setMergeMode(true)} disabled={selected.size < 2} className="text-purple-700 border-purple-200 hover:bg-purple-50">
+                    <Combine className="w-3 h-3" /> Merge
+                  </Button>
+                </>
+              )}
+              <Button size="sm" variant="outline" onClick={() => {
+                const toExport = filtered.filter(d => selected.has(d.id));
+                if (toExport.length === 0) { toast.error('No drafts selected'); return; }
+                openPrintDialog(toExport, company);
+              }} className="text-amber-700 border-amber-200 hover:bg-amber-50">
+                <Printer className="w-3 h-3" /> Print
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const toExport = filtered.filter(d => selected.has(d.id));
+                if (toExport.length === 0) { toast.error('No drafts selected'); return; }
+                downloadDraftsPdf(toExport, company);
+              }} className="text-cyan-700 border-cyan-200 hover:bg-cyan-50">
+                <Download className="w-3 h-3" /> PDF
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Clear</Button>
+            </div>
+
+            {/* Bulk Assign Controls */}
+            <div className="flex gap-2 flex-wrap items-center bg-muted/40 rounded-lg p-3">
+              <select
+                value={bulkCompany}
+                onChange={e => setBulkCompany(e.target.value)}
+                className="h-8 px-2 rounded text-xs border border-input bg-card"
+              >
+                <option value="">Assign Company...</option>
+                <option value="Destination Home">Destination Home</option>
+                <option value="Grand Strand Custom Painting">Grand Strand Custom Painting</option>
+              </select>
+              {bulkCompany && (
+                <Button size="sm" variant="outline" onClick={() => bulkAssignMutation.mutate({ suggested_company_name: bulkCompany })} disabled={bulkAssignMutation.isPending} className="text-xs">
+                  Apply
+                </Button>
+              )}
+
+              <select
+                value={bulkServiceLine}
+                onChange={e => setBulkServiceLine(e.target.value)}
+                className="h-8 px-2 rounded text-xs border border-input bg-card"
+              >
+                <option value="">Set Service Line...</option>
+                {['water_mitigation', 'mold_mitigation', 'air_sample_testing', 'reconstruction', 'interior_painting', 'exterior_painting', 'drywall', 'insulation', 'other'].map(sl => (
+                  <option key={sl} value={sl}>{sl.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+              {bulkServiceLine && (
+                <Button size="sm" variant="outline" onClick={() => bulkAssignMutation.mutate({ service_line: bulkServiceLine })} disabled={bulkAssignMutation.isPending} className="text-xs">
+                  Apply
+                </Button>
+              )}
+
+              <select
+                value={bulkStatus}
+                onChange={e => setBulkStatus(e.target.value)}
+                className="h-8 px-2 rounded text-xs border border-input bg-card"
+              >
+                <option value="">Set Status...</option>
+                <option value="draft">Draft</option>
+                <option value="needs_review">Needs Review</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              {bulkStatus && (
+                <Button size="sm" variant="outline" onClick={() => bulkAssignMutation.mutate({ review_status: bulkStatus })} disabled={bulkAssignMutation.isPending} className="text-xs">
+                  Apply
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -306,9 +399,19 @@ export default function ESXDraftWorkOrderQueue() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              onClick={() => setEditTarget(draft)}
+                              className="h-7 px-2 text-blue-700"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => approveMutation.mutate(draft.id)}
                               disabled={approveMutation.isPending}
                               className="h-7 px-2 text-green-700"
+                              title="Approve"
                             >
                               <Check className="w-3 h-3" />
                             </Button>
@@ -318,8 +421,18 @@ export default function ESXDraftWorkOrderQueue() {
                               onClick={() => rejectMutation.mutate(draft.id)}
                               disabled={rejectMutation.isPending}
                               className="h-7 px-2 text-red-700"
+                              title="Reject"
                             >
                               <X className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setSplitTarget(draft)}
+                              className="h-7 px-2 text-orange-700"
+                              title="Split"
+                            >
+                              <Split className="w-3 h-3" />
                             </Button>
                           </>
                         ) : null}
@@ -329,6 +442,7 @@ export default function ESXDraftWorkOrderQueue() {
                           onClick={() => deleteMutation.mutate(draft.id)}
                           disabled={deleteMutation.isPending}
                           className="h-7 px-2 text-destructive"
+                          title="Delete"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -346,7 +460,61 @@ export default function ESXDraftWorkOrderQueue() {
           </div>
         )}
 
+        {/* ESX Testing Placeholder */}
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3 mt-6">
+          <p className="text-sm font-semibold">ESX Sample Testing</p>
+          <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+            <div>
+              <p className="font-medium text-foreground mb-1">Xactimate ESX Import Process</p>
+              <ul className="space-y-1 ml-4">
+                <li>1. Upload ESX file from Xactimate</li>
+                <li>2. System auto-classifies work into service lines</li>
+                <li>3. Reviewers edit, merge, or split drafts as needed</li>
+                <li>4. Approve selected drafts to activate WorkOrders</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Classifier Confidence</p>
+              <ul className="space-y-1 ml-4">
+                <li>🟢 70%+ = High confidence (green)</li>
+                <li>🟡 40-69% = Medium confidence (orange)</li>
+                <li>🔴 &lt;40% = Low confidence (red) → needs_review</li>
+                <li>Reviewers can override confidence at any time</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
       </div>
+
+      {/* Modals */}
+      {editTarget && isAuthorizedReviewer && (
+        <ESXDraftEditModal
+          draft={editTarget}
+          companies={[{ name: 'Destination Home' }, { name: 'Grand Strand Custom Painting' }]}
+          user={user}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {mergeMode && selected.size >= 2 && isAuthorizedReviewer && (
+        <ESXDraftMergeModal
+          selected={selected}
+          drafts={drafts}
+          user={user}
+          company={company}
+          onClose={() => setMergeMode(false)}
+        />
+      )}
+
+      {splitTarget && isAuthorizedReviewer && (
+        <ESXDraftSplitModal
+          draft={splitTarget}
+          user={user}
+          company={company}
+          onClose={() => setSplitTarget(null)}
+        />
+      )}
     </AppLayout>
   );
 }

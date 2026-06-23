@@ -13,6 +13,7 @@ import AppLayout from '../components/AppLayout';
 import { getInternalRole, getSessionEmployee, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { formatDuration } from './TimeEntries';
 import { toast } from 'sonner';
+import { audit } from '@/lib/audit';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 import { validateTimeEntry } from '@/lib/validation';
 import ValidationPanel from '@/components/shared/ValidationPanel';
@@ -93,7 +94,11 @@ export default function TimeEntryDetail() {
         edit_history: JSON.stringify(newHistory),
       });
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      const hours = updated?.duration_minutes ? (updated.duration_minutes / 60).toFixed(2) : 0;
+      audit.timeEntry.edited(entryId, role || 'Admin', entry?.employee_name || '', entry?.job_address || '',
+        form?.edit_reason || '', { old_value: entry?.clock_in, new_value: updated?.clock_in })
+        .catch(() => toast.warning('Audit log failed'));
       queryClient.invalidateQueries({ queryKey: ['time-entry', entryId] });
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       setEditing(false);

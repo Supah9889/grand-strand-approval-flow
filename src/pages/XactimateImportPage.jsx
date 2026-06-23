@@ -8,6 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Upload, FileText, CheckCircle2, AlertTriangle, Clock, Eye, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { getActiveCompany } from './CompanySelect';
 import { getSession } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
+import { toast } from 'sonner';
 import XactimateReviewModal from '@/components/xactimate/XactimateReviewModal';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
 import usePermissions from '@/hooks/usePermissions';
@@ -57,6 +59,8 @@ export default function XactimateImportPage() {
         uploaded_by_name: session?.employee?.name || session?.name || 'Unknown',
         status: 'needs_review',
       });
+      audit.xactimate.uploaded(record.id, session?.employee?.name || 'Admin', file.name)
+        .catch(() => toast.warning('Audit log failed'));
       qc.invalidateQueries({ queryKey: ['xactimate-imports', company?.id] });
       setReviewTarget(record);
     } catch (err) {

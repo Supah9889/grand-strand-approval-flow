@@ -605,6 +605,105 @@ export const audit = {
         { module: 'system', is_sensitive: true, ...opts }),
   },
 
+  // ── NEXUS ITEMS ──────────────────────────────────────────────
+  nexus: {
+    approved: (id, actor, title, opts = {}) =>
+      logAudit(id, 'nexus_item_approved', actor,
+        `${actor} approved Nexus item: "${title}".`,
+        { module: 'nexus', record_id: id, is_sensitive: true, ...opts }),
+
+    rejected: (id, actor, title, reason, opts = {}) =>
+      logAudit(id, 'nexus_item_rejected', actor,
+        `${actor} rejected Nexus item: "${title}"${reason ? ` — ${reason}` : ''}.`,
+        { module: 'nexus', record_id: id, reason, is_sensitive: true, ...opts }),
+
+    edited: (id, actor, title, opts = {}) =>
+      logAudit(id, 'nexus_item_edited', actor,
+        `${actor} edited Nexus item: "${title}".`,
+        { module: 'nexus', record_id: id, ...opts }),
+
+    assigned: (id, actor, title, assignee, opts = {}) =>
+      logAudit(id, 'nexus_item_assigned', actor,
+        `${actor} assigned Nexus item "${title}" to ${assignee}.`,
+        { module: 'nexus', record_id: id, ...opts }),
+
+    archived: (id, actor, title, opts = {}) =>
+      logAudit(id, 'nexus_item_archived', actor,
+        `${actor} archived Nexus item: "${title}".`,
+        { module: 'nexus', record_id: id, ...opts }),
+  },
+
+  // ── XACTIMATE IMPORTS ────────────────────────────────────────
+  xactimate: {
+    uploaded: (id, actor, fileName, opts = {}) =>
+      logAudit(id, 'xactimate_import_uploaded', actor,
+        `${actor} uploaded Xactimate file: ${fileName}.`,
+        { module: 'xactimate', record_id: id, source: 'import', ...opts }),
+
+    reviewed: (id, actor, fileName, opts = {}) =>
+      logAudit(id, 'xactimate_import_reviewed', actor,
+        `${actor} reviewed Xactimate import: ${fileName}.`,
+        { module: 'xactimate', record_id: id, ...opts }),
+
+    approved: (id, actor, fileName, jobId, opts = {}) =>
+      logAudit(id, 'xactimate_import_approved', actor,
+        `${actor} approved Xactimate import "${fileName}" and created job ${jobId}.`,
+        { module: 'xactimate', record_id: id, new_value: jobId, is_sensitive: true, ...opts }),
+
+    rejected: (id, actor, fileName, reason, opts = {}) =>
+      logAudit(id, 'xactimate_import_rejected', actor,
+        `${actor} rejected Xactimate import: ${fileName}${reason ? ` — ${reason}` : ''}.`,
+        { module: 'xactimate', record_id: id, reason, is_sensitive: true, ...opts }),
+
+    generatedRecords: (id, actor, fileName, description, opts = {}) =>
+      logAudit(id, 'xactimate_import_generated_records', actor,
+        `${actor} generated records from Xactimate import "${fileName}": ${description}.`,
+        { module: 'xactimate', record_id: id, is_sensitive: true, ...opts }),
+  },
+
+  // ── WORK ORDERS ──────────────────────────────────────────────
+  workOrder: {
+    created: (id, actor, title, jobAddress, opts = {}) =>
+      logAudit(id, 'work_order_created', actor,
+        `${actor} created work order: "${title}"${jobAddress ? ` on ${jobAddress}` : ''}.`,
+        { module: 'work_order', record_id: id, ...opts }),
+
+    updated: (id, actor, title, opts = {}) =>
+      logAudit(id, 'work_order_updated', actor,
+        `${actor} updated work order: "${title}".`,
+        { module: 'work_order', record_id: id, ...opts }),
+
+    assigned: (id, actor, title, assignees, opts = {}) =>
+      logAudit(id, 'work_order_assigned', actor,
+        `${actor} assigned work order "${title}" to ${assignees}.`,
+        { module: 'work_order', record_id: id, new_value: assignees, ...opts }),
+
+    completed: (id, actor, title, opts = {}) =>
+      logAudit(id, 'work_order_completed', actor,
+        `${actor} marked work order complete: "${title}".`,
+        { module: 'work_order', record_id: id, new_value: 'complete', ...opts }),
+
+    approved: (id, actor, title, opts = {}) =>
+      logAudit(id, 'work_order_approved', actor,
+        `${actor} approved work order: "${title}".`,
+        { module: 'work_order', record_id: id, is_sensitive: true, ...opts }),
+
+    rejected: (id, actor, title, opts = {}) =>
+      logAudit(id, 'work_order_rejected', actor,
+        `${actor} rejected work order: "${title}".`,
+        { module: 'work_order', record_id: id, is_sensitive: true, ...opts }),
+
+    sentToNexus: (id, actor, title, opts = {}) =>
+      logAudit(id, 'work_order_sent_to_nexus', actor,
+        `${actor} submitted work order "${title}" to Nexus for review.`,
+        { module: 'work_order', record_id: id, ...opts }),
+
+    subcontractSent: (id, actor, title, performingCompany, opts = {}) =>
+      logAudit(id, 'subcontract_work_order_sent', actor,
+        `${actor} sent subcontract work order "${title}" to ${performingCompany}.`,
+        { module: 'work_order', record_id: id, new_value: performingCompany, is_sensitive: true, ...opts }),
+  },
+
   // ── LEGACY COMPAT — keep old callsites working ────────────────
   // Old: audit.assignment.created(jobId, actor, empName, label, notified, opts)
   // (already redefined above under assignment namespace — works)
@@ -702,6 +801,27 @@ export const ACTION_LABELS = {
   employee_archived:                { label: 'Employee Archived',                 color: 'text-amber-600' },
   employee_deleted:                 { label: 'Employee Deleted',                  color: 'text-destructive' },
   employee_role_changed:            { label: 'Employee Role Changed',             color: 'text-destructive' },
+
+  nexus_item_approved:              { label: 'Nexus Item Approved',               color: 'text-green-600' },
+  nexus_item_rejected:              { label: 'Nexus Item Rejected',               color: 'text-destructive' },
+  nexus_item_edited:                { label: 'Nexus Item Edited',                 color: 'text-foreground' },
+  nexus_item_assigned:              { label: 'Nexus Item Assigned',               color: 'text-foreground' },
+  nexus_item_archived:              { label: 'Nexus Item Archived',               color: 'text-amber-600' },
+
+  xactimate_import_uploaded:        { label: 'Xactimate Import Uploaded',         color: 'text-primary' },
+  xactimate_import_reviewed:        { label: 'Xactimate Import Reviewed',         color: 'text-foreground' },
+  xactimate_import_approved:        { label: 'Xactimate Import Approved',         color: 'text-green-600' },
+  xactimate_import_rejected:        { label: 'Xactimate Import Rejected',         color: 'text-destructive' },
+  xactimate_import_generated_records: { label: 'Xactimate Records Generated',    color: 'text-primary' },
+
+  work_order_created:               { label: 'Work Order Created',                color: 'text-primary' },
+  work_order_updated:               { label: 'Work Order Updated',                color: 'text-foreground' },
+  work_order_assigned:              { label: 'Work Order Assigned',               color: 'text-foreground' },
+  work_order_completed:             { label: 'Work Order Completed',              color: 'text-green-600' },
+  work_order_approved:              { label: 'Work Order Approved',               color: 'text-green-600' },
+  work_order_rejected:              { label: 'Work Order Rejected',               color: 'text-destructive' },
+  work_order_sent_to_nexus:         { label: 'Work Order Sent to Nexus',          color: 'text-purple-600' },
+  subcontract_work_order_sent:      { label: 'Subcontract WO Sent',               color: 'text-blue-600' },
 
   compliance_field_updated:         { label: 'Compliance Field Updated',          color: 'text-amber-600' },
   compliance_document_uploaded:     { label: 'Compliance Document Uploaded',      color: 'text-primary' },

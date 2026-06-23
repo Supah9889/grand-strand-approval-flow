@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { X, CheckCircle2, XCircle, FileText, Loader2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { audit } from '@/lib/audit';
+import { toast } from 'sonner';
 
 const STATUS_COLORS = {
   uploaded:     'bg-blue-100 text-blue-700',
@@ -57,6 +59,10 @@ export default function XactimateReviewModal({ item, company, session, onClose, 
           reviewed_at: new Date().toISOString(),
           imported_job_id: job.id,
         });
+        audit.xactimate.approved(item.id, reviewerName, item.file_name, job.id)
+          .catch(() => toast.warning('Audit log failed'));
+        audit.xactimate.generatedRecords(item.id, reviewerName, item.file_name, `Job created: ${job.id}`)
+          .catch(() => {});
       } else {
         await base44.entities.XactimateImport.update(item.id, {
           ...form,
@@ -64,6 +70,8 @@ export default function XactimateReviewModal({ item, company, session, onClose, 
           reviewer_name: reviewerName,
           reviewed_at: new Date().toISOString(),
         });
+        audit.xactimate.rejected(item.id, reviewerName, item.file_name, form.review_notes)
+          .catch(() => toast.warning('Audit log failed'));
       }
       onUpdated();
     } catch (e) {
@@ -78,6 +86,8 @@ export default function XactimateReviewModal({ item, company, session, onClose, 
     setError('');
     try {
       await base44.entities.XactimateImport.update(item.id, { ...form, status: 'needs_review' });
+      audit.xactimate.reviewed(item.id, session?.employee?.name || 'Admin', item.file_name)
+        .catch(() => {});
       onUpdated();
     } catch (e) {
       setError(e.message || 'Save failed');

@@ -15,6 +15,7 @@ import { getInternalRole, getSessionEmployee, isAdmin as getIsAdmin } from '@/li
 import AdminManualEntryForm from '../components/timeclock/AdminManualEntryForm';
 import { toast } from 'sonner';
 import { getCurrentCompany } from '@/lib/permissions';
+import { audit } from '@/lib/audit';
 
 const COST_CODES = ['Carpentry Labor/Sub','Drywall Labor/Sub','Other Labor/Sub','Paint Expenses','Painting Labor/Sub'];
 
@@ -80,7 +81,13 @@ export default function TimeEntries() {
   };
 
   const approveMutation = useOptimisticMutation({
-    mutationFn: (id) => base44.entities.TimeEntry.update(id, { approval_status: 'approved', approved_by: role }),
+    mutationFn: async (id) => {
+      const entry = entries.find(e => e.id === id);
+      await base44.entities.TimeEntry.update(id, { approval_status: 'approved', approved_by: role });
+      audit.timeEntry.approved(id, role || 'Admin', entry?.employee_name || '', entry?.job_address || '',
+        entry?.total_hours || (entry?.duration_minutes ? (entry.duration_minutes / 60).toFixed(2) : 0))
+        .catch(() => toast.warning('Audit log failed'));
+    },
     queryKey: ['time-entries'],
     optimisticUpdate: (prev, id) =>
       prev.map(e => e.id === id ? { ...e, approval_status: 'approved', approved_by: role } : e),
@@ -89,7 +96,13 @@ export default function TimeEntries() {
   });
 
   const createEntry = useOptimisticMutation({
-    mutationFn: d => base44.entities.TimeEntry.create(d),
+    mutationFn: async (d) => {
+      const result = await base44.entities.TimeEntry.create(d);
+      audit.timeEntry.created(result?.id || 'new', role || 'Admin', d.employee_name || '', d.job_address || '',
+        d.total_hours || 0)
+        .catch(() => {});
+      return result;
+    },
     queryKey: ['time-entries'],
     optimisticUpdate: (prev, d) => [
       { ...d, id: `temp-${Date.now()}`, created_date: new Date().toISOString() },

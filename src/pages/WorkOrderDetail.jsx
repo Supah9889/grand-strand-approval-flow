@@ -11,7 +11,9 @@ import AppLayout from '@/components/AppLayout';
 import WorkOrderModal from '@/components/workorders/WorkOrderModal';
 import usePermissions from '@/hooks/usePermissions';
 import { canViewWorkOrder, NoAccessRecord } from '@/lib/financialGuards.jsx';
-import { getSessionEmployee } from '@/lib/adminAuth';
+import { getSessionEmployee, getSession } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
+import { toast } from 'sonner';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -58,6 +60,8 @@ export default function WorkOrderDetail() {
     await updateMutation.mutateAsync({ checklist: JSON.stringify(checklist) });
   };
 
+  const actor = employee?.name || getSession()?.employee?.name || 'Field User';
+
   const submitNexus = async () => {
     if (!nexusNote.trim()) return;
     await base44.entities.NexusItem.create({
@@ -71,10 +75,11 @@ export default function WorkOrderDetail() {
       category: 'job_procedure',
       priority: 'normal',
       status: 'pending_review',
-      submitted_by_name: employee?.name || 'Field User',
+      submitted_by_name: actor,
       linked_job_id: wo.job_id,
     });
     await updateMutation.mutateAsync({ nexus_submitted: true });
+    audit.workOrder.sentToNexus(wo.id, actor, wo.title).catch(() => toast.warning('Audit log failed'));
     setShowNexus(false);
     setNexusNote('');
   };
@@ -84,6 +89,7 @@ export default function WorkOrderDetail() {
       status: 'complete',
       completed_date: new Date().toISOString().split('T')[0],
     });
+    audit.workOrder.completed(wo.id, actor, wo.title).catch(() => toast.warning('Audit log failed'));
   };
 
   if (isLoading || !wo) return (

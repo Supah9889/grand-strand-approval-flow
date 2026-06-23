@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { X, Plus, Trash2, Loader2, Building2 } from 'lucide-react';
+import { audit } from '@/lib/audit';
+import { getSession } from '@/lib/adminAuth';
+import { toast } from 'sonner';
 
 const STATUSES = ['draft', 'assigned', 'in_progress', 'waiting', 'complete', 'approved', 'cancelled'];
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
@@ -52,6 +55,7 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
 
   const handleSave = async () => {
     setSaving(true);
+    const actor = getSession()?.employee?.name || 'Admin';
     const payload = {
       ...form,
       company_id: company?.id || form.company_id,
@@ -72,8 +76,20 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
     }
     if (isEdit) {
       await base44.entities.WorkOrder.update(workOrder.id, payload);
+      audit.workOrder.updated(workOrder.id, actor, payload.title, { job_address: payload.job_address })
+        .catch(() => toast.warning('Audit log failed'));
+      // Log assignment change if assigned_employee_ids changed
+      if (payload.assigned_employee_ids && payload.assigned_employee_ids !== workOrder.assigned_employee_ids) {
+        const names = (() => { try { return JSON.parse(payload.assigned_employee_names || '[]').join(', '); } catch { return payload.assigned_employee_names || ''; } })();
+        audit.workOrder.assigned(workOrder.id, actor, payload.title, names).catch(() => {});
+      }
     } else {
-      await base44.entities.WorkOrder.create(payload);
+      const created = await base44.entities.WorkOrder.create(payload);
+      const id = created?.id || 'new';
+      audit.workOrder.created(id, actor, payload.title, payload.job_address).catch(() => toast.warning('Audit log failed'));
+      if (payload.is_subcontract && payload.performing_company_name) {
+        audit.workOrder.subcontractSent(id, actor, payload.title, payload.performing_company_name).catch(() => {});
+      }
     }
     qc.invalidateQueries({ queryKey: ['work-orders'] });
     setSaving(false);

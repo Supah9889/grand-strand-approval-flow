@@ -8,6 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CheckCircle2, XCircle, Clock, Brain, ChevronRight, Plus, AlertTriangle, Loader2 } from 'lucide-react';
 import { getCurrentCompany as getActiveCompany } from '@/lib/permissions';
 import { getSession } from '@/lib/adminAuth';
+import { audit } from '@/lib/audit';
+import { toast } from 'sonner';
 import NexusItemModal from '@/components/nexus/NexusItemModal';
 import NexusSubmitModal from '@/components/nexus/NexusSubmitModal';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
@@ -50,22 +52,30 @@ export default function NexusInbox() {
     refetchInterval: 30000,
   });
 
+  const actor = session?.employee?.name || 'Admin';
+
   const approveMutation = useMutation({
-    mutationFn: ({ id }) => base44.entities.NexusItem.update(id, {
-      status: 'approved',
-      reviewer_name: session?.employee?.name || 'Admin',
-      reviewed_at: new Date().toISOString(),
-    }),
+    mutationFn: async ({ id, item }) => {
+      await base44.entities.NexusItem.update(id, {
+        status: 'approved',
+        reviewer_name: actor,
+        reviewed_at: new Date().toISOString(),
+      });
+      audit.nexus.approved(id, actor, item?.title || id).catch(() => toast.warning('Audit log failed'));
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['nexus-items', company?.id] }),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }) => base44.entities.NexusItem.update(id, {
-      status: 'rejected',
-      review_notes: reason,
-      reviewer_name: session?.employee?.name || 'Admin',
-      reviewed_at: new Date().toISOString(),
-    }),
+    mutationFn: async ({ id, reason, item }) => {
+      await base44.entities.NexusItem.update(id, {
+        status: 'rejected',
+        review_notes: reason,
+        reviewer_name: actor,
+        reviewed_at: new Date().toISOString(),
+      });
+      audit.nexus.rejected(id, actor, item?.title || id, reason).catch(() => toast.warning('Audit log failed'));
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['nexus-items', company?.id] }),
   });
 
@@ -158,7 +168,7 @@ export default function NexusInbox() {
                         size="sm"
                         className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                         disabled={approveMutation.isPending}
-                        onClick={() => approveMutation.mutate({ id: item.id })}
+                        onClick={() => approveMutation.mutate({ id: item.id, item })}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -167,7 +177,7 @@ export default function NexusInbox() {
                         variant="outline"
                         className="flex-1 gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/5"
                         disabled={rejectMutation.isPending}
-                        onClick={() => rejectMutation.mutate({ id: item.id, reason: 'Rejected by reviewer' })}
+                        onClick={() => rejectMutation.mutate({ id: item.id, reason: 'Rejected by reviewer', item })}
                       >
                         <XCircle className="w-3.5 h-3.5" /> Reject
                       </Button>
@@ -195,8 +205,8 @@ export default function NexusInbox() {
         <NexusItemModal
           item={reviewTarget}
           onClose={() => setReviewTarget(null)}
-          onApprove={() => { approveMutation.mutate({ id: reviewTarget.id }); setReviewTarget(null); }}
-          onReject={(reason) => { rejectMutation.mutate({ id: reviewTarget.id, reason }); setReviewTarget(null); }}
+          onApprove={() => { approveMutation.mutate({ id: reviewTarget.id, item: reviewTarget }); setReviewTarget(null); }}
+          onReject={(reason) => { rejectMutation.mutate({ id: reviewTarget.id, reason, item: reviewTarget }); setReviewTarget(null); }}
         />
       )}
       {showSubmit && canSubmitNexus && (

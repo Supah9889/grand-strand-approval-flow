@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigation } from '@/lib/NavigationContext';
 import { getInternalRole, isUnlocked } from '@/lib/adminAuth';
-import { Home, Search, Clock, DollarSign, Settings, Briefcase, CalendarDays, FolderOpen, MoreHorizontal } from 'lucide-react';
+import { Home, Search, Clock, DollarSign, Settings, Briefcase, CalendarDays, FolderOpen, MoreHorizontal, HardHat, ClipboardCheck } from 'lucide-react';
 
 const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
@@ -13,10 +13,10 @@ const ADMIN_NAV_ITEMS = [
 ];
 
 const STAFF_NAV_ITEMS = [
-  { label: 'Jobs', tabName: 'jobs', primaryPath: '/search', icon: Briefcase },
-  { label: 'Schedule', tabName: 'schedule', primaryPath: '/calendar', icon: CalendarDays },
+  { label: 'Field', tabName: 'field', primaryPath: '/field', icon: HardHat },
+  { label: 'Work Orders', tabName: 'workorders', primaryPath: '/work-orders', icon: ClipboardCheck },
   { label: 'Time', tabName: 'time', primaryPath: '/time-clock', icon: Clock },
-  { label: 'Documents', tabName: 'documents', primaryPath: '/job-comms', icon: FolderOpen },
+  { label: 'Schedule', tabName: 'schedule', primaryPath: '/field-schedule', icon: CalendarDays },
   { label: 'More', tabName: 'more', primaryPath: '/dashboard', icon: MoreHorizontal },
 ];
 
@@ -30,10 +30,10 @@ function getActiveTab(pathname, isAdminOrOwner) {
     return 'dashboard';
   }
 
-  if (/^\/(search|job-hub|new-job|global-search)/.test(pathname)) return 'jobs';
-  if (/^\/calendar/.test(pathname)) return 'schedule';
+  if (/^\/field/.test(pathname)) return 'field';
+  if (/^\/work-orders/.test(pathname)) return 'workorders';
   if (/^\/(time-entries|time-clock)/.test(pathname)) return 'time';
-  if (/^\/job-comms/.test(pathname)) return 'documents';
+  if (/^\/field-schedule/.test(pathname)) return 'schedule';
   return 'more';
 }
 

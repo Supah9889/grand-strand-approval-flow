@@ -7,7 +7,7 @@ import {
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
-  Brain, FileBarChart2, UserCircle2, Layers
+  Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -33,11 +33,15 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Field',
+    label: 'Field Operations',
     adminOnly: false,
     items: [
-      { label: 'Time Clock',   to: '/time-clock',  icon: Clock },
-      { label: 'Time Entries', to: '/time-entries', icon: List },
+      { label: 'Field Dashboard',   to: '/field',          icon: HardHat },
+      { label: 'Manager Dashboard', to: '/manager',        icon: BarChart3 },
+      { label: 'Work Orders',       to: '/work-orders',    icon: ClipboardCheck },
+      { label: 'Field Schedule',    to: '/field-schedule', icon: CalendarDays },
+      { label: 'Time Clock',        to: '/time-clock',     icon: Clock },
+      { label: 'Time Entries',      to: '/time-entries',   icon: List },
     ],
   },
   {

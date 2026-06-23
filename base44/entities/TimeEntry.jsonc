@@ -2,6 +2,12 @@
   "name": "TimeEntry",
   "type": "object",
   "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
     "employee_id": {
       "type": "string"
     },
@@ -20,9 +26,14 @@
     "job_title": {
       "type": "string"
     },
+    "work_order_id": {
+      "type": "string"
+    },
+    "work_order_title": {
+      "type": "string"
+    },
     "customer_name": {
-      "type": "string",
-      "description": "Customer on the linked job for QB reference"
+      "type": "string"
     },
     "cost_code": {
       "type": "string",
@@ -35,12 +46,21 @@
       ]
     },
     "cost_code_id": {
+      "type": "string"
+    },
+    "role_on_job": {
       "type": "string",
-      "description": "CostCode entity ID"
+      "enum": [
+        "lead",
+        "crew",
+        "supervisor",
+        "estimator",
+        "other"
+      ],
+      "default": "crew"
     },
     "labor_category": {
-      "type": "string",
-      "description": "Freeform labor category for QB service item mapping"
+      "type": "string"
     },
     "entry_date": {
       "type": "string",
@@ -58,16 +78,13 @@
       "type": "number"
     },
     "total_hours": {
-      "type": "number",
-      "description": "Decimal hours (duration_minutes / 60)"
+      "type": "number"
     },
     "hourly_rate": {
-      "type": "number",
-      "description": "Employee hourly rate if tracked (placeholder)"
+      "type": "number"
     },
     "labor_cost": {
-      "type": "number",
-      "description": "Calculated cost = total_hours * hourly_rate (placeholder)"
+      "type": "number"
     },
     "status": {
       "type": "string",
@@ -111,15 +128,13 @@
       "type": "string"
     },
     "memo": {
-      "type": "string",
-      "description": "Accounting memo for QB time activity"
+      "type": "string"
     },
     "edit_reason": {
       "type": "string"
     },
     "edit_history": {
-      "type": "string",
-      "description": "JSON array of edit records"
+      "type": "string"
     },
     "created_by_name": {
       "type": "string"
@@ -128,8 +143,7 @@
       "type": "string"
     },
     "note": {
-      "type": "string",
-      "description": "Legacy note field"
+      "type": "string"
     },
     "source_system": {
       "type": "string",
@@ -171,12 +185,10 @@
       "default": 0
     },
     "punch_in_lat": {
-      "type": "number",
-      "description": "Latitude at clock-in"
+      "type": "number"
     },
     "punch_in_lng": {
-      "type": "number",
-      "description": "Longitude at clock-in"
+      "type": "number"
     },
     "punch_in_accuracy_meters": {
       "type": "number"
@@ -187,25 +199,20 @@
         "captured",
         "denied",
         "unavailable"
-      ],
-      "description": "Geolocation result at clock-in"
+      ]
     },
     "punch_in_distance_miles": {
-      "type": "number",
-      "description": "Distance from job site at clock-in"
+      "type": "number"
     },
     "punch_in_flagged": {
       "type": "boolean",
-      "default": false,
-      "description": "True if clock-in was outside allowed radius"
+      "default": false
     },
     "punch_out_lat": {
-      "type": "number",
-      "description": "Latitude at clock-out"
+      "type": "number"
     },
     "punch_out_lng": {
-      "type": "number",
-      "description": "Longitude at clock-out"
+      "type": "number"
     },
     "punch_out_accuracy_meters": {
       "type": "number"
@@ -216,22 +223,18 @@
         "captured",
         "denied",
         "unavailable"
-      ],
-      "description": "Geolocation result at clock-out"
+      ]
     },
     "punch_out_distance_miles": {
-      "type": "number",
-      "description": "Distance from job site at clock-out"
+      "type": "number"
     },
     "punch_out_flagged": {
       "type": "boolean",
-      "default": false,
-      "description": "True if clock-out was outside allowed radius"
+      "default": false
     },
     "geo_flagged": {
       "type": "boolean",
-      "default": false,
-      "description": "True if any punch on this entry was out-of-range"
+      "default": false
     }
   },
   "required": [

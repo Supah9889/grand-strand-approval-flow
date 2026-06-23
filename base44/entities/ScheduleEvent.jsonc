@@ -1,0 +1,93 @@
+{
+  "name": "ScheduleEvent",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "work_order_id": {
+      "type": "string"
+    },
+    "work_order_title": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "inspection",
+        "emergency_call",
+        "production_work",
+        "follow_up",
+        "estimate_appointment",
+        "vendor_appointment",
+        "air_sample",
+        "final_walkthrough"
+      ],
+      "default": "production_work"
+    },
+    "title": {
+      "type": "string"
+    },
+    "start_datetime": {
+      "type": "string",
+      "description": "ISO datetime"
+    },
+    "end_datetime": {
+      "type": "string",
+      "description": "ISO datetime"
+    },
+    "all_day": {
+      "type": "boolean",
+      "default": false
+    },
+    "location": {
+      "type": "string"
+    },
+    "assigned_employee_ids": {
+      "type": "string",
+      "description": "JSON array of employee IDs"
+    },
+    "assigned_employee_names": {
+      "type": "string",
+      "description": "JSON array of employee names"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "confirmed",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "rescheduled"
+      ],
+      "default": "scheduled"
+    },
+    "color": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "title",
+    "start_datetime"
+  ]
+}

@@ -2,6 +2,15 @@
   "name": "Job",
   "type": "object",
   "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
     "title": {
       "type": "string",
       "description": "Job title / project name"
@@ -13,6 +22,24 @@
     "job_type": {
       "type": "string",
       "description": "Job type from managed JobType list"
+    },
+    "service_line": {
+      "type": "string",
+      "enum": [
+        "water_mitigation",
+        "mold_mitigation",
+        "air_sample_testing",
+        "reconstruction",
+        "emergency_response",
+        "interior_painting",
+        "exterior_painting",
+        "drywall",
+        "insulation",
+        "cabinet_painting",
+        "epoxy_garage_floor",
+        "other"
+      ],
+      "description": "Service line for this job"
     },
     "address": {
       "type": "string",
@@ -33,7 +60,7 @@
     },
     "customer_id": {
       "type": "string",
-      "description": "Internal Lead/customer record ID"
+      "description": "Customer entity ID"
     },
     "customer_email": {
       "type": "string"
@@ -41,41 +68,36 @@
     "customer_phone": {
       "type": "string"
     },
-    "billing_address": {
+    "property_id": {
       "type": "string",
-      "description": "Customer billing address if different from job site"
+      "description": "Property entity ID"
+    },
+    "billing_address": {
+      "type": "string"
     },
     "description": {
-      "type": "string",
-      "description": "Short job description"
+      "type": "string"
     },
     "internal_notes": {
-      "type": "string",
-      "description": "Notes visible to internal users only"
+      "type": "string"
     },
     "vendor_notes": {
-      "type": "string",
-      "description": "Notes visible to subs/vendors"
+      "type": "string"
     },
     "price": {
-      "type": "number",
-      "description": "Total contract price"
+      "type": "number"
     },
     "color": {
-      "type": "string",
-      "description": "Hex color code for this job"
+      "type": "string"
     },
     "buildertrend_id": {
-      "type": "string",
-      "description": "Optional Buildertrend reference ID"
+      "type": "string"
     },
     "email": {
-      "type": "string",
-      "description": "Customer email address (legacy)"
+      "type": "string"
     },
     "phone": {
-      "type": "string",
-      "description": "Customer phone number (legacy)"
+      "type": "string"
     },
     "job_group": {
       "type": "string",
@@ -129,20 +151,26 @@
         "paid",
         "closed"
       ],
-      "default": "new",
-      "description": "Primary operational status \u2014 reflects the current real-world reality of this job"
+      "default": "new"
     },
     "op_status_updated_at": {
-      "type": "string",
-      "description": "ISO timestamp of last op_status change"
+      "type": "string"
     },
     "op_status_updated_by": {
-      "type": "string",
-      "description": "Who last changed op_status"
+      "type": "string"
     },
     "op_status_note": {
+      "type": "string"
+    },
+    "priority": {
       "type": "string",
-      "description": "Short optional note about the current status"
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "default": "normal"
     },
     "status": {
       "type": "string",
@@ -151,8 +179,7 @@
         "approved",
         "archived"
       ],
-      "default": "pending",
-      "description": "Signature approval status"
+      "default": "pending"
     },
     "locked": {
       "type": "boolean",
@@ -194,42 +221,42 @@
       "default": false
     },
     "custom_fields": {
-      "type": "string",
-      "description": "JSON object of custom field key\u2192value pairs"
+      "type": "string"
     },
     "start_date": {
-      "type": "string",
-      "description": "Projected start date ISO"
+      "type": "string"
     },
     "actual_start_date": {
-      "type": "string",
-      "description": "Actual start date ISO"
+      "type": "string"
     },
     "end_date": {
-      "type": "string",
-      "description": "Projected completion date ISO"
+      "type": "string"
     },
     "actual_end_date": {
-      "type": "string",
-      "description": "Actual completion date ISO"
+      "type": "string"
     },
     "work_days": {
-      "type": "string",
-      "description": "Estimated work days"
+      "type": "string"
     },
     "square_footage": {
-      "type": "number",
-      "description": "Square footage of the job"
+      "type": "number"
     },
     "permit_number": {
       "type": "string"
     },
     "lot_info": {
-      "type": "string",
-      "description": "Lot/parcel info"
+      "type": "string"
     },
     "assigned_to": {
       "type": "string"
+    },
+    "assigned_employee_ids": {
+      "type": "string",
+      "description": "JSON array of assigned employee IDs"
+    },
+    "assigned_employee_names": {
+      "type": "string",
+      "description": "JSON array of assigned employee names"
     },
     "linked_estimate_id": {
       "type": "string"
@@ -241,6 +268,31 @@
       "type": "string"
     },
     "linked_invoice_number": {
+      "type": "string"
+    },
+    "xactimate_import_id": {
+      "type": "string",
+      "description": "XactimateImport entity ID if this job came from Xactimate"
+    },
+    "insurance_claim_number": {
+      "type": "string"
+    },
+    "insurance_carrier": {
+      "type": "string"
+    },
+    "insurance_adjuster_name": {
+      "type": "string"
+    },
+    "insurance_adjuster_phone": {
+      "type": "string"
+    },
+    "insurance_adjuster_email": {
+      "type": "string"
+    },
+    "loss_date": {
+      "type": "string"
+    },
+    "loss_type": {
       "type": "string"
     },
     "source_system": {
@@ -276,36 +328,28 @@
       "type": "string"
     },
     "signature_document_mode": {
-      "type": "string",
-      "description": "How the signature document is generated: generated_template or stamp_uploaded_pdf"
+      "type": "string"
     },
     "source_work_order_file_url": {
-      "type": "string",
-      "description": "URL of the uploaded work order PDF used for PDF stamp mode"
+      "type": "string"
     },
     "source_work_order_file_name": {
-      "type": "string",
-      "description": "File name of the uploaded work order PDF"
+      "type": "string"
     },
     "signature_placement": {
-      "type": "string",
-      "description": "Where the signature stamp is placed on the PDF: bottom_left or bottom_right"
+      "type": "string"
     },
     "signed_output_file_url": {
-      "type": "string",
-      "description": "URL of the completed signed output document"
+      "type": "string"
     },
     "archived_at": {
-      "type": "string",
-      "description": "ISO timestamp when this job was archived"
+      "type": "string"
     },
     "archived_by": {
-      "type": "string",
-      "description": "Name of admin who archived this job"
+      "type": "string"
     },
     "archived_reason": {
-      "type": "string",
-      "description": "Optional reason for archiving"
+      "type": "string"
     }
   },
   "required": [

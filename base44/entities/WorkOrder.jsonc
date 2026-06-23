@@ -1,0 +1,123 @@
+{
+  "name": "WorkOrder",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "work_order_number": {
+      "type": "string",
+      "description": "e.g. WO-2026-001"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "description": "Detailed scope of work"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "assigned",
+        "in_progress",
+        "waiting",
+        "complete",
+        "approved",
+        "cancelled"
+      ],
+      "default": "draft"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "default": "normal"
+    },
+    "assigned_employee_ids": {
+      "type": "string",
+      "description": "JSON array of employee IDs"
+    },
+    "assigned_employee_names": {
+      "type": "string",
+      "description": "JSON array of employee names"
+    },
+    "cost_code_id": {
+      "type": "string"
+    },
+    "cost_code": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "description": "ISO date"
+    },
+    "due_date": {
+      "type": "string",
+      "description": "ISO date"
+    },
+    "completed_date": {
+      "type": "string"
+    },
+    "required_photos": {
+      "type": "boolean",
+      "default": false
+    },
+    "required_notes": {
+      "type": "boolean",
+      "default": false
+    },
+    "checklist": {
+      "type": "string",
+      "description": "JSON array of {item, completed, completed_by, completed_at}"
+    },
+    "completion_notes": {
+      "type": "string"
+    },
+    "photos": {
+      "type": "string",
+      "description": "JSON array of photo URLs"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approved_at": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "nexus_submitted": {
+      "type": "boolean",
+      "default": false
+    },
+    "nexus_item_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "job_id",
+    "title"
+  ]
+}

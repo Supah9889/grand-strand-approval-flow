@@ -73,6 +73,11 @@ const CRMPage = lazy(() => import('./pages/CRMPage'));
 const XactimateImportPage = lazy(() => import('./pages/XactimateImportPage'));
 const NexusInbox = lazy(() => import('./pages/NexusInbox'));
 const CompanyAdmin = lazy(() => import('./pages/CompanyAdmin'));
+const FieldDashboard = lazy(() => import('./pages/FieldDashboard'));
+const ManagerDashboard = lazy(() => import('./pages/ManagerDashboard'));
+const WorkOrders = lazy(() => import('./pages/WorkOrders'));
+const WorkOrderDetail = lazy(() => import('./pages/WorkOrderDetail'));
+const FieldSchedule = lazy(() => import('./pages/FieldSchedule'));
 
 // Loading fallback
 function RouteLoader() {
@@ -255,6 +260,11 @@ const AuthenticatedApp = () => {
               <Route path="/xactimate" element={<XactimateImportPage />} />
               <Route path="/nexus" element={<NexusInbox />} />
               <Route path="/company-admin" element={adminOnly(<CompanyAdmin />)} />
+              <Route path="/field" element={<FieldDashboard />} />
+              <Route path="/manager" element={<ManagerDashboard />} />
+              <Route path="/work-orders" element={<WorkOrders />} />
+              <Route path="/work-orders/:id" element={<WorkOrderDetail />} />
+              <Route path="/field-schedule" element={<FieldSchedule />} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

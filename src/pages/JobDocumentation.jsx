@@ -5,7 +5,7 @@ import { base44 } from '@/api/base44Client';
 import {
   ArrowLeft, Plus, Droplets, Wind, FlaskConical, Cpu,
   Camera, FileText, Send, Loader2, Home,
-  CheckCircle2, AlertTriangle, X
+  CheckCircle2, AlertTriangle, X, StickyNote, Image
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
@@ -34,6 +34,8 @@ const TABS = [
   { key: 'drying', label: 'Drying', icon: Wind },
   { key: 'samples', label: 'Air Tests', icon: FlaskConical },
   { key: 'equipment', label: 'Equipment', icon: Cpu },
+  { key: 'photos', label: 'Photos', icon: Image },
+  { key: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
 const RESULT_STYLES = {
@@ -156,6 +158,21 @@ export default function JobDocumentation() {
     enabled: !!jobId,
   });
 
+  // Load job photos (from JobFile attachments) and notes
+  const { data: jobFiles = [] } = useQuery({
+    queryKey: ['job-files', jobId],
+    queryFn: () => base44.entities.JobFile.filter({ job_id: jobId }, '-created_date', 100),
+    enabled: !!jobId,
+  });
+  const jobPhotos = jobFiles.filter(f => f.file_type === 'photo' || /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(f.file_name || ''));
+
+  const { data: jobNotes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ['job-notes-doc', jobId],
+    queryFn: () => base44.entities.JobNote.filter({ job_id: jobId }, '-created_date', 100),
+    enabled: !!jobId,
+  });
+  const fieldNotes = jobNotes.filter(n => ['field_update','completion_note','general'].includes(n.note_type));
+
   const onSaved = () => {
     setShowForm(null);
     refetchRooms(); refetchReadings(); refetchDrying(); refetchSamples(); refetchEquipment();
@@ -214,12 +231,12 @@ export default function JobDocumentation() {
           const templateName = customFields.template_name;
           const docContext = {
             rooms,
-            photos: [],  // job-level photos not tracked here yet
+            photos: jobPhotos,
             moistureReadings: readings,
             dryingLogs,
             airSamples,
             equipment,
-            notes: [],   // job notes not loaded here; treated as advisory
+            notes: fieldNotes,
           };
           return (
             <div className="space-y-3">
@@ -382,6 +399,62 @@ export default function JobDocumentation() {
                 <p className="text-xs text-muted-foreground">{s.room_name} · {s.sample_date} · {s.lab}</p>
                 {s.result_summary && <p className="text-xs text-foreground mt-1">{s.result_summary}</p>}
                 {s.nexus_submitted && <p className="text-xs text-purple-600 mt-1 flex items-center gap-1"><Send className="w-3 h-3" />Submitted to Nexus</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* PHOTOS */}
+        {tab === 'photos' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{jobPhotos.length} Photos</p>
+            </div>
+            {jobPhotos.length === 0 ? (
+              <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center space-y-2">
+                <Image className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">No photos uploaded yet</p>
+                <p className="text-xs text-muted-foreground">Upload photos from the Job Hub → Files tab</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {jobPhotos.map(f => (
+                  <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer"
+                    className="aspect-square rounded-xl overflow-hidden border border-border bg-muted">
+                    <img src={f.file_url} alt={f.file_name} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* NOTES */}
+        {tab === 'notes' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{fieldNotes.length} Notes</p>
+            </div>
+            {fieldNotes.length === 0 ? (
+              <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center space-y-2">
+                <StickyNote className="w-8 h-8 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">No field notes yet</p>
+                <p className="text-xs text-muted-foreground">Add notes from the Job Hub → Notes tab</p>
+              </div>
+            ) : fieldNotes.map(n => (
+              <div key={n.id} className="bg-card border border-border rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">
+                    {n.note_type?.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{n.author_name}</span>
+                </div>
+                <p className="text-xs text-foreground">{n.content}</p>
+                {n.created_date && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {format(new Date(n.created_date), 'MMM d, h:mm a')}
+                  </p>
+                )}
               </div>
             ))}
           </div>

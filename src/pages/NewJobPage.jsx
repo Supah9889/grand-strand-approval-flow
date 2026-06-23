@@ -179,6 +179,7 @@ export default function NewJobPage() {
   const [touched, setTouched] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [appliedTemplate, setAppliedTemplate] = useState(null); // { id, name, ... }
+  const [createDefaultWOs, setCreateDefaultWOs] = useState(true);
   const activeCompany = getCurrentCompany();
 
   // Pending assignments / vendor link (created after job save)
@@ -354,6 +355,62 @@ export default function NewJobPage() {
           template_id: appliedTemplate.id,
           template_name: appliedTemplate.name,
         });
+
+        // Create default work orders from template if enabled
+        if (createDefaultWOs && appliedTemplate.default_work_order_templates) {
+          let woTemplateIds = [];
+          try { woTemplateIds = JSON.parse(appliedTemplate.default_work_order_templates); } catch {}
+
+          if (woTemplateIds.length > 0) {
+            // Fetch the referenced WorkOrderTemplate records
+            const woTemplates = await Promise.all(
+              woTemplateIds.map(id => typeof id === 'string'
+                ? base44.entities.WorkOrderTemplate.get(id).catch(() => null)
+                : Promise.resolve(id))
+            );
+            const validTemplates = woTemplates.filter(Boolean);
+
+            // Check for existing WOs on this job to avoid duplicates
+            const existingWOs = await base44.entities.WorkOrder.filter({ job_id: job.id });
+            const existingTitles = new Set(existingWOs.map(w => w.title));
+
+            for (const wot of validTemplates) {
+              const title = wot.title || wot.name;
+              if (existingTitles.has(title)) continue; // skip duplicates
+
+              const checklist = (() => { try { return JSON.parse(wot.completion_checklist || '[]'); } catch { return []; } })();
+
+              const wo = await base44.entities.WorkOrder.create({
+                company_id: job.company_id || activeCompany?.id,
+                company_slug: job.company_slug || activeCompany?.slug,
+                job_id: job.id,
+                job_address: resolvedAddress,
+                job_title: job.title,
+                title,
+                description: wot.description || '',
+                scope: wot.default_scope || '',
+                cost_code: wot.default_cost_code || '',
+                service_line: wot.service_line || appliedTemplate.service_line,
+                priority: appliedTemplate.default_priority || 'normal',
+                status: 'draft',
+                required_photos: wot.required_photos || false,
+                required_notes: wot.required_notes || false,
+                checklist: checklist.length ? JSON.stringify(checklist.map(c => ({ item: c.item || c, completed: false }))) : undefined,
+                required_documentation: wot.required_documentation,
+                created_by_name: role || 'admin',
+              });
+
+              await logAudit(wo.id, 'work_order_created', role || 'admin', `Work order "${title}" auto-created from template "${appliedTemplate.name}"`, {
+                module: 'work_order', record_id: wo.id, job_id: job.id,
+              });
+            }
+
+            await logAudit(job.id, 'template_generated_work_orders', role || 'admin',
+              `${validTemplates.length} work order(s) generated from template "${appliedTemplate.name}"`, {
+                job_id: job.id, new_value: validTemplates.map(t => t.title || t.name).join(', '),
+              });
+          }
+        }
       }
 
       return job;
@@ -508,6 +565,24 @@ export default function NewJobPage() {
                     }));
                   }}
                 />
+
+                {/* Default WO toggle — shown when template has work order templates */}
+                {appliedTemplate?.default_work_order_templates && (() => {
+                  let ids = []; try { ids = JSON.parse(appliedTemplate.default_work_order_templates); } catch {}
+                  if (!ids.length) return null;
+                  return (
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                      <div>
+                        <p className="text-xs font-semibold text-blue-900">Create default work orders</p>
+                        <p className="text-[11px] text-blue-700">{ids.length} work order(s) from this template will be created automatically</p>
+                      </div>
+                      <button type="button" onClick={() => setCreateDefaultWOs(v => !v)}
+                        className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${createDefaultWOs ? 'bg-blue-600' : 'bg-muted'}`}>
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${createDefaultWOs ? 'left-5' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 <Section title="Job Identity">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

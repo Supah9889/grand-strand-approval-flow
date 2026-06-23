@@ -834,6 +834,9 @@ export const ACTION_LABELS = {
   template_created:                 { label: 'Template Created',                  color: 'text-primary' },
   template_updated:                 { label: 'Template Updated',                  color: 'text-foreground' },
   template_applied:                 { label: 'Template Applied',                  color: 'text-primary' },
+  template_generated_work_orders:   { label: 'Work Orders Generated from Template', color: 'text-primary' },
+  job_photo_uploaded:               { label: 'Job Photo Uploaded',                color: 'text-primary' },
+  job_note_added:                   { label: 'Job Note Added',                    color: 'text-foreground' },
   documentation_requirement_completed: { label: 'Documentation Completed',        color: 'text-green-600' },
 
   override_action:                  { label: 'Admin Override',                    color: 'text-destructive' },

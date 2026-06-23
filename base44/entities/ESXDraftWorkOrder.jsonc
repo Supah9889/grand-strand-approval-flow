@@ -1,0 +1,100 @@
+{
+  "name": "ESXDraftWorkOrder",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "description": "Draft work order title"
+    },
+    "description": {
+      "type": "string"
+    },
+    "suggested_company_id": {
+      "type": "string",
+      "description": "Suggested company for this work"
+    },
+    "suggested_company_name": {
+      "type": "string"
+    },
+    "suggested_subcontractor_id": {
+      "type": "string"
+    },
+    "suggested_subcontractor_name": {
+      "type": "string"
+    },
+    "service_line": {
+      "type": "string",
+      "enum": [
+        "water_mitigation",
+        "mold_mitigation",
+        "air_sample_testing",
+        "reconstruction",
+        "emergency_response",
+        "interior_painting",
+        "exterior_painting",
+        "drywall",
+        "insulation",
+        "cabinet_painting",
+        "epoxy_garage_floor",
+        "other"
+      ]
+    },
+    "estimated_labor_category": {
+      "type": "string"
+    },
+    "source_esx_line_items": {
+      "type": "string",
+      "description": "JSON array of parsed ESX line items"
+    },
+    "source_import_id": {
+      "type": "string",
+      "description": "XactimateImport entity ID"
+    },
+    "confidence_score": {
+      "type": "number",
+      "description": "0-100 classification confidence"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "needs_review",
+        "approved",
+        "rejected"
+      ],
+      "default": "draft"
+    },
+    "reviewer_notes": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approved_at": {
+      "type": "string"
+    },
+    "linked_work_order_id": {
+      "type": "string",
+      "description": "ID of created operational WorkOrder after approval"
+    },
+    "created_from_esx_import": {
+      "type": "boolean",
+      "default": true
+    },
+    "source_data": {
+      "type": "string",
+      "description": "Raw ESX data for traceability"
+    }
+  },
+  "required": [
+    "company_id",
+    "title",
+    "source_import_id"
+  ]
+}

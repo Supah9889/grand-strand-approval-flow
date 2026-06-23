@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import XactimateReviewModal from '@/components/xactimate/XactimateReviewModal';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
 import usePermissions from '@/hooks/usePermissions';
+import { classifyESXWorkOrder } from '@/lib/esxClassifier';
 
 const STATUS_MAP = {
   uploaded:     { label: 'Uploaded',      color: 'bg-blue-100 text-blue-700' },
@@ -62,6 +63,35 @@ export default function XactimateImportPage() {
       audit.xactimate.uploaded(record.id, session?.employee?.name || 'Admin', file.name)
         .catch(() => toast.warning('Audit log failed'));
       qc.invalidateQueries({ queryKey: ['xactimate-imports', company?.id] });
+      
+      // Generate draft work orders from ESX (stub for now — full ESX parsing TBD)
+      const draftLineItems = [];
+      if (file.name.endsWith('.esx') || file.name.endsWith('.xml')) {
+        // Placeholder: In production, parse ESX file here
+        draftLineItems.push({
+          description: `ESX Import from ${file.name}`,
+          laborCategory: 'Unknown',
+        });
+      }
+      for (const item of draftLineItems) {
+        const classification = classifyESXWorkOrder(item);
+        await base44.entities.ESXDraftWorkOrder.create({
+          company_id: company.id,
+          company_slug: company.slug,
+          title: item.description,
+          description: `Parsed from ${file.name}`,
+          suggested_company_id: null,
+          suggested_company_name: classification.suggestedCompany,
+          service_line: classification.serviceLine,
+          estimated_labor_category: classification.laborCategory,
+          source_esx_line_items: JSON.stringify([item]),
+          source_import_id: record.id,
+          confidence_score: classification.confidenceScore,
+          review_status: classification.needsReview ? 'needs_review' : 'draft',
+          source_data: JSON.stringify(item),
+        });
+      }
+      
       setReviewTarget(record);
     } catch (err) {
       setUploadError(err.message || 'Upload failed');

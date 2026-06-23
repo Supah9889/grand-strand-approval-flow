@@ -144,6 +144,7 @@ const NAV_GROUPS = [
           { label: 'Review Feedback',    to: '/review-feedback',    icon: MessageSquare },
           { label: 'Review Decisions',   to: '/review-decisions',   icon: CheckSquare },
           { label: 'Edge Case Tests',    to: '/edge-case-tests',    icon: ClipboardCheck },
+          { label: 'ESX Draft WO Queue', to: '/esx-draft-work-orders', icon: ClipboardCheck },
         ],
       },
       ];

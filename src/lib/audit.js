@@ -661,6 +661,49 @@ export const audit = {
         { module: 'xactimate', record_id: id, is_sensitive: true, ...opts }),
   },
 
+  // ── ESX DRAFT WORK ORDERS ────────────────────────────────────
+  esxDraft: {
+    generated: (id, actor, title, importId, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_generated', actor,
+        `${actor} generated ESX draft work order: "${title}".`,
+        { module: 'esx', record_id: id, source_import_id: importId, ...opts }),
+
+    approved: (id, actor, title, workOrderId, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_approved', actor,
+        `${actor} approved ESX draft: "${title}" → WorkOrder ${workOrderId}.`,
+        { module: 'esx', record_id: id, linked_work_order_id: workOrderId, is_sensitive: true, ...opts }),
+
+    rejected: (id, actor, title, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_rejected', actor,
+        `${actor} rejected ESX draft: "${title}".`,
+        { module: 'esx', record_id: id, is_sensitive: true, ...opts }),
+
+    deleted: (id, actor, title, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_deleted', actor,
+        `${actor} deleted ESX draft: "${title}".`,
+        { module: 'esx', record_id: id, ...opts }),
+
+    edited: (id, actor, title, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_edited', actor,
+        `${actor} edited ESX draft: "${title}".`,
+        { module: 'esx', record_id: id, ...opts }),
+
+    bulkAction: (actor, action, count, opts = {}) =>
+      logAudit('batch', 'esx_bulk_action', actor,
+        `${actor} performed bulk ${action} on ${count} ESX drafts.`,
+        { module: 'esx', bulk_action: action, count, ...opts }),
+
+    merged: (id, actor, sourceIds, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_merged', actor,
+        `${actor} merged ${sourceIds.length} ESX drafts into one.`,
+        { module: 'esx', record_id: id, merged_from: sourceIds, ...opts }),
+
+    split: (id, actor, newIds, opts = {}) =>
+      logAudit(id, 'esx_draft_work_order_split', actor,
+        `${actor} split ESX draft into ${newIds.length} new drafts.`,
+        { module: 'esx', record_id: id, split_into: newIds, ...opts }),
+  },
+
   // ── WORK ORDERS ──────────────────────────────────────────────
   workOrder: {
     created: (id, actor, title, jobAddress, opts = {}) =>
@@ -813,6 +856,15 @@ export const ACTION_LABELS = {
   xactimate_import_approved:        { label: 'Xactimate Import Approved',         color: 'text-green-600' },
   xactimate_import_rejected:        { label: 'Xactimate Import Rejected',         color: 'text-destructive' },
   xactimate_import_generated_records: { label: 'Xactimate Records Generated',    color: 'text-primary' },
+
+  esx_draft_work_order_generated:   { label: 'ESX Draft Generated',             color: 'text-primary' },
+  esx_draft_work_order_approved:    { label: 'ESX Draft Approved',              color: 'text-green-600' },
+  esx_draft_work_order_rejected:    { label: 'ESX Draft Rejected',              color: 'text-destructive' },
+  esx_draft_work_order_deleted:     { label: 'ESX Draft Deleted',               color: 'text-destructive' },
+  esx_draft_work_order_edited:      { label: 'ESX Draft Edited',                color: 'text-foreground' },
+  esx_bulk_action:                  { label: 'ESX Bulk Action',                 color: 'text-primary' },
+  esx_draft_work_order_merged:      { label: 'ESX Drafts Merged',               color: 'text-primary' },
+  esx_draft_work_order_split:       { label: 'ESX Draft Split',                 color: 'text-primary' },
 
   work_order_created:               { label: 'Work Order Created',                color: 'text-primary' },
   work_order_updated:               { label: 'Work Order Updated',                color: 'text-foreground' },

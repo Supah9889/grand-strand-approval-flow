@@ -106,6 +106,7 @@ const ReviewFeedbackAdmin = lazy(() => import('./pages/ReviewFeedbackAdmin'));
 const ReviewScript = lazy(() => import('./pages/ReviewScript'));
 const ReviewDecisions = lazy(() => import('./pages/ReviewDecisions'));
 const EdgeCaseTests = lazy(() => import('./pages/EdgeCaseTests'));
+const ESXDraftWorkOrderQueue = lazy(() => import('./pages/ESXDraftWorkOrderQueue'));
 
 // Loading fallback
 function RouteLoader() {
@@ -321,6 +322,7 @@ const AuthenticatedApp = () => {
               <Route path="/review-script" element={adminOnly(<ReviewScript />)} />
               <Route path="/review-decisions" element={adminOnly(<ReviewDecisions />)} />
               <Route path="/edge-case-tests" element={adminOnly(<EdgeCaseTests />)} />
+              <Route path="/esx-draft-work-orders" element={adminOnly(<ESXDraftWorkOrderQueue />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

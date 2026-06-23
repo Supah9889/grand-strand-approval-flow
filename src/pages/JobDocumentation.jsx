@@ -18,14 +18,8 @@ import DryingLogForm from '@/components/restoration/DryingLogForm';
 import AirSampleForm from '@/components/restoration/AirSampleForm';
 import JobDocChecklist from '@/components/templates/JobDocChecklist';
 import { logAudit } from '@/lib/audit';
-import { getInternalRole } from '@/lib/adminAuth';
-
-function getActiveCompany() {
-  try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
-}
-function getSessionEmployee() {
-  try { return JSON.parse(sessionStorage.getItem('session_employee')); } catch { return null; }
-}
+import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const TABS = [
   { key: 'checklist', label: 'Checklist', icon: CheckCircle2 },
@@ -112,7 +106,7 @@ export default function JobDocumentation() {
   const { id: jobId } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const company = getActiveCompany();
+  const company = getCurrentCompany();
   const employee = getSessionEmployee();
   const { canManageRestoration, canSubmitNexus, canViewAssignedOnly } = usePermissions();
   const role = getInternalRole();

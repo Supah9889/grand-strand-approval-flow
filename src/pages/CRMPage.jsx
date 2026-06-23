@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus, Search, Phone, Mail, MapPin, User, Building2, ChevronRight } from 'lucide-react';
-import { getActiveCompany } from './CompanySelect';
+import { getCurrentCompany } from '@/lib/permissions';
 import CustomerForm from '@/components/crm/CustomerForm';
 import PropertyForm from '@/components/crm/PropertyForm';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
@@ -25,7 +25,7 @@ const TYPE_COLORS = {
 
 export default function CRMPage() {
   const qc = useQueryClient();
-  const company = getActiveCompany();
+  const company = getCurrentCompany();
   const { canManageCRM } = usePermissions();
   const companyGuard = useCompanyGuard('Select a company to access the CRM.');
   const [tab, setTab] = useState('customers');

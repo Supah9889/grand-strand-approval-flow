@@ -9,7 +9,7 @@ import { Loader2, Trash2, Zap, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 const DEMO_TAG = true; // is_demo flag value
 
-function buildDemoRecords(companyId, companySlug) {
+function buildDemoRecords(companyId, companySlug, selectedCompanyName) {
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
 
@@ -31,7 +31,7 @@ function buildDemoRecords(companyId, companySlug) {
     ],
     jobs: [
       {
-        company_id: companyId, company_slug: companySlug, company_name: 'Destination Home',
+        company_id: companyId, company_slug: companySlug, company_name: selectedCompanyName,
         title: '[DEMO] Water Mitigation - 123 Demo Lane',
         customer_name: '[DEMO] Jane Homeowner',
         address: '123 Demo Lane, Columbus, OH 43215',
@@ -42,7 +42,7 @@ function buildDemoRecords(companyId, companySlug) {
         is_demo: DEMO_TAG,
       },
       {
-        company_id: companyId, company_slug: companySlug, company_name: 'Destination Home',
+        company_id: companyId, company_slug: companySlug, company_name: selectedCompanyName,
         title: '[DEMO] Mold Mitigation - 456 Sample Ave',
         customer_name: '[DEMO] Bob Builder',
         address: '456 Sample Ave, Columbus, OH 43220',
@@ -70,7 +70,7 @@ function buildDemoRecords(companyId, companySlug) {
         company_id: companyId, company_slug: companySlug,
         title: '[DEMO] Moisture reading unusually high in bedroom 2',
         category: 'field_observation', priority: 'high',
-        status: 'pending', source_type: 'manual',
+        status: 'pending_review', source_type: 'manual',
         description: 'Demo Nexus item — moisture meter reading 28% on drywall, above 18% dry standard.',
         is_demo: DEMO_TAG,
       },
@@ -94,7 +94,7 @@ export default function DemoDataPage() {
   const createDemo = useMutation({
     mutationFn: async () => {
       if (!company?.id) throw new Error('No company selected');
-      const records = buildDemoRecords(company.id, company.slug);
+      const records = buildDemoRecords(company.id, company.slug, company.name);
       const lines = [];
 
       for (const c of records.customers) {

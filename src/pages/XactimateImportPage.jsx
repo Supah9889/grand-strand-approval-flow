@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Upload, FileText, CheckCircle2, AlertTriangle, Clock, Eye, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
-import { getActiveCompany } from './CompanySelect';
+import { getCurrentCompany } from '@/lib/permissions';
 import { getSession } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
@@ -25,7 +25,7 @@ const STATUS_MAP = {
 
 export default function XactimateImportPage() {
   const qc = useQueryClient();
-  const company = getActiveCompany();
+  const company = getCurrentCompany();
   const session = getSession();
   const { canManageXactimate } = usePermissions();
   const companyGuard = useCompanyGuard('Select a company to access Xactimate imports.');

@@ -1,0 +1,57 @@
+{
+  "name": "ProvenJobsExportChecklist",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "export_date": {
+      "type": "string"
+    },
+    "exported_by": {
+      "type": "string"
+    },
+    "files_received": {
+      "type": "string"
+    },
+    "missing_items": {
+      "type": "string"
+    },
+    "checklist_sections": {
+      "type": "string",
+      "description": "JSON object of item keys to boolean"
+    },
+    "progress_percent": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "next_action": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_progress",
+        "complete",
+        "missing_items",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "updated_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id"
+  ]
+}

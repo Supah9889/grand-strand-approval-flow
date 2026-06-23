@@ -8,7 +8,7 @@ import {
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
   Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck,
-  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate, Archive
+  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate, Archive, AlertTriangle
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -129,6 +129,17 @@ const NAV_GROUPS = [
           { label: 'Export Checklist',        to: '/proven-jobs-checklist',     icon: ClipboardCheck },
           { label: 'Legacy Imports',          to: '/legacy-imports',            icon: Database },
           { label: 'Legacy Records',          to: '/legacy-records',            icon: Archive },
+        ],
+      },
+      {
+        label: 'Nick Review',
+        adminOnly: true,
+        items: [
+          { label: 'Review Dashboard',   to: '/review-dashboard',   icon: BarChart3 },
+          { label: 'Rollout Checklist',  to: '/rollout-checklist',  icon: ClipboardCheck },
+          { label: 'Replacement Map',    to: '/replacement-map',    icon: LayoutTemplate },
+          { label: 'Known Limitations',  to: '/known-limitations',  icon: AlertTriangle },
+          { label: 'Demo Data',          to: '/demo-data',          icon: Database },
         ],
       },
       ];

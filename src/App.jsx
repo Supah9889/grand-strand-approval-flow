@@ -97,6 +97,11 @@ const ProvenJobsChecklist = lazy(() => import('./pages/ProvenJobsChecklist'));
 const JobTemplatesPage = lazy(() => import('./pages/JobTemplatesPage'));
 const WorkOrderTemplatesPage = lazy(() => import('./pages/WorkOrderTemplatesPage'));
 const DocumentationRequirementsPage = lazy(() => import('./pages/DocumentationRequirementsPage'));
+const ReviewDashboard = lazy(() => import('./pages/ReviewDashboard'));
+const RolloutChecklist = lazy(() => import('./pages/RolloutChecklist'));
+const ReplacementMap = lazy(() => import('./pages/ReplacementMap'));
+const KnownLimitations = lazy(() => import('./pages/KnownLimitations'));
+const DemoDataPage = lazy(() => import('./pages/DemoDataPage'));
 
 // Loading fallback
 function RouteLoader() {
@@ -303,6 +308,11 @@ const AuthenticatedApp = () => {
               <Route path="/legacy-records" element={adminOnly(<LegacyRecords />)} />
               <Route path="/migration-dashboard" element={adminOnly(<MigrationDashboard />)} />
               <Route path="/proven-jobs-checklist" element={adminOnly(<ProvenJobsChecklist />)} />
+              <Route path="/review-dashboard" element={adminOnly(<ReviewDashboard />)} />
+              <Route path="/rollout-checklist" element={adminOnly(<RolloutChecklist />)} />
+              <Route path="/replacement-map" element={adminOnly(<ReplacementMap />)} />
+              <Route path="/known-limitations" element={adminOnly(<KnownLimitations />)} />
+              <Route path="/demo-data" element={adminOnly(<DemoDataPage />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

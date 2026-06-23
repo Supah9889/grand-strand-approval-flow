@@ -1,0 +1,50 @@
+{
+  "name": "ReviewFeedback",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "reviewer_name": {
+      "type": "string"
+    },
+    "reviewer_role": {
+      "type": "string"
+    },
+    "section": {
+      "type": "string"
+    },
+    "feedback_text": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "reviewed",
+        "accepted",
+        "deferred",
+        "rejected"
+      ],
+      "default": "new"
+    },
+    "created_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "reviewer_name",
+    "feedback_text",
+    "section"
+  ]
+}

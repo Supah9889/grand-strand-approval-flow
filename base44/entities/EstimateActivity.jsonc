@@ -6,7 +6,20 @@
       "type": "string"
     },
     "action": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "estimate_created",
+        "estimate_edited",
+        "line_items_changed",
+        "status_changed",
+        "document_generated",
+        "email_sent",
+        "estimate_approved",
+        "estimate_rejected",
+        "revision_created",
+        "linked_job_updated",
+        "viewed"
+      ]
     },
     "detail": {
       "type": "string"
@@ -20,6 +33,7 @@
   },
   "required": [
     "estimate_id",
-    "action"
+    "action",
+    "timestamp"
   ]
 }

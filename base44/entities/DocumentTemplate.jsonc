@@ -3,7 +3,8 @@
   "type": "object",
   "properties": {
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "Template name"
     },
     "type": {
       "type": "string",
@@ -14,23 +15,31 @@
         "invoice_support",
         "change_order",
         "other"
-      ]
+      ],
+      "description": "Document type"
     },
     "description": {
       "type": "string"
     },
+    "file_url": {
+      "type": "string",
+      "description": "Uploaded template file URL"
+    },
     "version": {
-      "type": "string"
+      "type": "string",
+      "description": "Version number e.g. v1.0"
     },
     "active": {
       "type": "boolean",
       "default": true
     },
-    "file_url": {
-      "type": "string"
+    "field_mappings": {
+      "type": "string",
+      "description": "JSON string of field mapping config"
     }
   },
   "required": [
-    "name"
+    "name",
+    "type"
   ]
 }

@@ -5,8 +5,61 @@
     "job_id": {
       "type": "string"
     },
+    "job_address": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
     "estimated_revenue": {
-      "type": "number"
+      "type": "number",
+      "default": 0
+    },
+    "labor_budget": {
+      "type": "number",
+      "default": 0
+    },
+    "materials_budget": {
+      "type": "number",
+      "default": 0
+    },
+    "subcontractor_budget": {
+      "type": "number",
+      "default": 0
+    },
+    "other_budget": {
+      "type": "number",
+      "default": 0
+    },
+    "total_cost_budget": {
+      "type": "number",
+      "default": 0
+    },
+    "profit_target": {
+      "type": "number",
+      "default": 0
+    },
+    "margin_target_pct": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced"
+      ],
+      "default": "not_synced"
     }
   },
   "required": [

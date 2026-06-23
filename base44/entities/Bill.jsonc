@@ -2,17 +2,28 @@
   "name": "Bill",
   "type": "object",
   "properties": {
+    "bill_number": {
+      "type": "string"
+    },
     "job_id": {
       "type": "string"
     },
-    "vendor_id": {
+    "job_address": {
       "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer associated with the job, for QB reference"
     },
     "vendor_name": {
       "type": "string"
     },
-    "bill_number": {
-      "type": "string"
+    "vendor_id": {
+      "type": "string",
+      "description": "Vendor entity ID"
     },
     "bill_date": {
       "type": "string"
@@ -20,21 +31,119 @@
     "due_date": {
       "type": "string"
     },
-    "description": {
-      "type": "string"
-    },
-    "status": {
-      "type": "string"
-    },
     "amount": {
-      "type": "number"
+      "type": "number",
+      "default": 0
+    },
+    "subtotal": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "is_taxable": {
+      "type": "boolean",
+      "default": false
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "labor",
+        "materials",
+        "subcontractor",
+        "permit",
+        "equipment",
+        "travel",
+        "disposal",
+        "admin",
+        "other"
+      ],
+      "default": "other"
     },
     "cost_code": {
       "type": "string"
     },
+    "cost_code_id": {
+      "type": "string",
+      "description": "CostCode entity ID"
+    },
+    "qb_account_name": {
+      "type": "string",
+      "description": "Mapped QB expense account placeholder"
+    },
+    "memo": {
+      "type": "string",
+      "description": "Accounting memo"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "open",
+        "paid",
+        "overdue",
+        "closed"
+      ],
+      "default": "open"
+    },
     "notes": {
       "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "last_modified_by": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_bill_id": {
+      "type": "string",
+      "description": "QuickBooks Bill ID placeholder"
+    },
+    "qb_vendor_id": {
+      "type": "string",
+      "description": "QuickBooks Vendor ID placeholder"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed",
+        "needs_review"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
+      "type": "string"
+    },
+    "qb_export_date": {
+      "type": "string"
+    },
+    "qb_export_error": {
+      "type": "string"
+    },
+    "qb_export_attempt_count": {
+      "type": "number",
+      "default": 0
     }
   },
-  "required": []
+  "required": [
+    "vendor_name",
+    "amount"
+  ]
 }

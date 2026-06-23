@@ -1,0 +1,61 @@
+{
+  "name": "Property",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "customer_id": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "property_type": {
+      "type": "string",
+      "enum": [
+        "single_family",
+        "multi_family",
+        "condo",
+        "commercial",
+        "industrial",
+        "other"
+      ],
+      "default": "single_family"
+    },
+    "year_built": {
+      "type": "number"
+    },
+    "square_footage": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "insurance_company": {
+      "type": "string"
+    },
+    "insurance_policy_number": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "address"
+  ]
+}

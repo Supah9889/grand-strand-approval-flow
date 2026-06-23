@@ -1,0 +1,106 @@
+{
+  "name": "XactimateImport",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL to stored ESX/original file"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "file_size": {
+      "type": "number"
+    },
+    "uploaded_by_id": {
+      "type": "string"
+    },
+    "uploaded_by_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "parsing",
+        "needs_review",
+        "approved",
+        "rejected",
+        "imported"
+      ],
+      "default": "uploaded"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Extracted from ESX"
+    },
+    "property_address": {
+      "type": "string"
+    },
+    "claim_number": {
+      "type": "string"
+    },
+    "loss_date": {
+      "type": "string"
+    },
+    "loss_type": {
+      "type": "string"
+    },
+    "carrier_name": {
+      "type": "string"
+    },
+    "adjuster_name": {
+      "type": "string"
+    },
+    "adjuster_phone": {
+      "type": "string"
+    },
+    "adjuster_email": {
+      "type": "string"
+    },
+    "scope_summary": {
+      "type": "string",
+      "description": "Human-readable summary of scope items"
+    },
+    "raw_extracted_json": {
+      "type": "string",
+      "description": "JSON string of parsed ESX data"
+    },
+    "line_item_count": {
+      "type": "number",
+      "default": 0
+    },
+    "reviewer_id": {
+      "type": "string"
+    },
+    "reviewer_name": {
+      "type": "string"
+    },
+    "review_notes": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "imported_job_id": {
+      "type": "string"
+    },
+    "rejection_reason": {
+      "type": "string"
+    },
+    "parse_error": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "file_url",
+    "file_name"
+  ]
+}

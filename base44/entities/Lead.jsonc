@@ -2,53 +2,220 @@
   "name": "Lead",
   "type": "object",
   "properties": {
-    "name": {
+    "contact_name": {
       "type": "string"
     },
+    "company_name": {
+      "type": "string"
+    },
+    "contact_type": {
+      "type": "string",
+      "enum": [
+        "lead",
+        "prospect",
+        "customer"
+      ],
+      "default": "lead"
+    },
     "phone": {
+      "type": "string"
+    },
+    "phone_secondary": {
       "type": "string"
     },
     "email": {
       "type": "string"
     },
-    "address": {
+    "email_secondary": {
+      "type": "string"
+    },
+    "property_address": {
+      "type": "string"
+    },
+    "mailing_address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "lead_source": {
+      "type": "string",
+      "enum": [
+        "website",
+        "google",
+        "referral",
+        "repeat_customer",
+        "buildertrend",
+        "facebook",
+        "instagram",
+        "yard_sign",
+        "door_hanger",
+        "nextdoor",
+        "other"
+      ]
+    },
+    "referral_source": {
+      "type": "string",
+      "description": "Name or ID of referral source"
+    },
+    "assigned_to": {
       "type": "string"
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "new_lead",
+        "contacted",
+        "qualified",
+        "estimate_scheduled",
+        "estimate_in_progress",
+        "estimate_sent",
+        "waiting_on_approval",
+        "follow_up_needed",
+        "won",
+        "lost",
+        "converted_to_job",
+        "no_response",
+        "on_hold",
+        "not_qualified",
+        "duplicate",
+        "archived"
+      ],
+      "default": "new_lead"
     },
-    "source": {
-      "type": "string"
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
     },
-    "referral_source": {
-      "type": "string"
+    "follow_up_date": {
+      "type": "string",
+      "description": "ISO date"
     },
-    "referral_source_name": {
-      "type": "string"
-    },
-    "project_type": {
-      "type": "string"
-    },
-    "project_timeline": {
-      "type": "string"
-    },
-    "project_description": {
+    "follow_up_time": {
       "type": "string"
     },
     "follow_up_notes": {
       "type": "string"
     },
-    "notes": {
+    "last_contact_date": {
       "type": "string"
     },
-    "converted_job_id": {
+    "preferred_contact_method": {
+      "type": "string",
+      "enum": [
+        "phone",
+        "text",
+        "email",
+        "any"
+      ]
+    },
+    "best_time_to_contact": {
       "type": "string"
     },
-    "vendor_id": {
+    "internal_notes": {
+      "type": "string"
+    },
+    "presale_job_title": {
+      "type": "string"
+    },
+    "service_type": {
+      "type": "string",
+      "enum": [
+        "interior_painting",
+        "exterior_painting",
+        "cabinet_painting",
+        "deck_staining",
+        "commercial_painting",
+        "drywall_repair",
+        "power_washing",
+        "epoxy_floor",
+        "other"
+      ]
+    },
+    "work_scope_summary": {
+      "type": "string"
+    },
+    "estimate_needed": {
+      "type": "boolean",
+      "default": true
+    },
+    "estimate_scheduled_date": {
+      "type": "string"
+    },
+    "estimate_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "scheduled",
+        "in_progress",
+        "sent",
+        "approved",
+        "declined"
+      ],
+      "default": "not_started"
+    },
+    "proposal_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "sent",
+        "approved",
+        "declined"
+      ],
+      "default": "not_started"
+    },
+    "approximate_value": {
+      "type": "number"
+    },
+    "billing_type": {
+      "type": "string",
+      "enum": [
+        "customer_pay",
+        "insurance",
+        "builder",
+        "property_manager",
+        "other"
+      ]
+    },
+    "requested_timeline": {
+      "type": "string"
+    },
+    "urgency_level": {
+      "type": "string",
+      "enum": [
+        "flexible",
+        "within_month",
+        "within_2_weeks",
+        "asap"
+      ],
+      "default": "flexible"
+    },
+    "converted_to_job": {
+      "type": "boolean",
+      "default": false
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "linked_job_address": {
       "type": "string"
     }
   },
   "required": [
-    "name"
+    "contact_name",
+    "status"
   ]
 }

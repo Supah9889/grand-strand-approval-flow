@@ -14,7 +14,7 @@
     "vendor_name": {
       "type": "string"
     },
-    "title": {
+    "date_created": {
       "type": "string"
     },
     "status": {
@@ -29,36 +29,30 @@
       ],
       "default": "draft"
     },
-    "date_created": {
-      "type": "string"
+    "line_items": {
+      "type": "string",
+      "description": "JSON array of {description, qty, unit_price, total}"
     },
-    "expected_delivery": {
-      "type": "string"
+    "subtotal": {
+      "type": "number",
+      "default": 0
+    },
+    "tax": {
+      "type": "number",
+      "default": 0
+    },
+    "total": {
+      "type": "number",
+      "default": 0
     },
     "notes": {
-      "type": "string"
-    },
-    "internal_notes": {
-      "type": "string"
-    },
-    "created_by_name": {
       "type": "string"
     },
     "file_url": {
       "type": "string"
     },
-    "line_items": {
-      "type": "string",
-      "description": "JSON array of purchase order line items"
-    },
-    "subtotal": {
-      "type": "number"
-    },
-    "tax": {
-      "type": "number"
-    },
-    "total": {
-      "type": "number"
+    "created_by_name": {
+      "type": "string"
     }
   },
   "required": [

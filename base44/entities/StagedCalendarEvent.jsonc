@@ -1,0 +1,116 @@
+{
+  "name": "StagedCalendarEvent",
+  "type": "object",
+  "properties": {
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_file_name": {
+      "type": "string"
+    },
+    "source_page": {
+      "type": "number"
+    },
+    "source_row": {
+      "type": "number"
+    },
+    "raw_source_text": {
+      "type": "string"
+    },
+    "event_date": {
+      "type": "string",
+      "description": "ISO date from calendar position"
+    },
+    "event_title": {
+      "type": "string"
+    },
+    "start_time": {
+      "type": "string"
+    },
+    "end_time": {
+      "type": "string"
+    },
+    "source_job_name": {
+      "type": "string",
+      "description": "Job name extracted from parentheses"
+    },
+    "normalized_job_name": {
+      "type": "string"
+    },
+    "event_category": {
+      "type": "string",
+      "enum": [
+        "job_visit",
+        "estimate",
+        "tour",
+        "office_internal",
+        "reminder",
+        "meeting",
+        "other"
+      ],
+      "default": "other"
+    },
+    "is_non_production": {
+      "type": "boolean",
+      "default": false,
+      "description": "Tours, estimates, birthdays, reminders, meetings"
+    },
+    "is_office_event": {
+      "type": "boolean",
+      "default": false,
+      "description": "Tied to Grand Stand Office or has no job"
+    },
+    "match_status": {
+      "type": "string",
+      "enum": [
+        "matched_staged",
+        "matched_live",
+        "unmatched",
+        "office_unmapped",
+        "needs_review"
+      ],
+      "default": "unmatched"
+    },
+    "matched_job_id": {
+      "type": "string"
+    },
+    "matched_staged_job_id": {
+      "type": "string"
+    },
+    "warnings": {
+      "type": "string",
+      "description": "JSON array"
+    },
+    "errors": {
+      "type": "string",
+      "description": "JSON array"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "skipped",
+        "needs_review"
+      ],
+      "default": "pending"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "review_notes": {
+      "type": "string"
+    },
+    "live_calendar_event_id": {
+      "type": "string"
+    },
+    "imported_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "import_batch_id",
+    "event_date",
+    "event_title"
+  ]
+}

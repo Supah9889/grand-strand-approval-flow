@@ -2,11 +2,25 @@
   "name": "Employee",
   "type": "object",
   "properties": {
+    "employee_number": {
+      "type": "string",
+      "description": "Internal employee number e.g. EMP-001"
+    },
     "name": {
       "type": "string"
     },
     "employee_code": {
-      "type": "string"
+      "type": "string",
+      "description": "Unique code used to clock in"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "staff",
+        "field"
+      ],
+      "default": "field"
     },
     "email": {
       "type": "string"
@@ -14,43 +28,101 @@
     "phone": {
       "type": "string"
     },
-    "role": {
-      "type": "string"
-    },
     "default_cost_code": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "Carpentry Labor/Sub",
+        "Drywall Labor/Sub",
+        "Other Labor/Sub",
+        "Paint Expenses",
+        "Painting Labor/Sub"
+      ],
+      "description": "Default cost code for time entries"
     },
-    "notes": {
-      "type": "string"
+    "allowed_cost_codes": {
+      "type": "string",
+      "description": "JSON array of allowed cost codes"
+    },
+    "permission_overrides": {
+      "type": "string",
+      "description": "JSON object of permission_key: boolean overrides for this individual employee"
     },
     "active": {
       "type": "boolean",
       "default": true
     },
+    "notes": {
+      "type": "string"
+    },
     "invite_status": {
-      "type": "string"
-    },
-    "invite_token": {
-      "type": "string"
-    },
-    "invite_token_expires": {
-      "type": "string"
-    },
-    "invite_sent_from": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "not_sent",
+        "pending_confirmation",
+        "confirmed",
+        "expired",
+        "resent"
+      ],
+      "default": "not_sent",
+      "description": "Status of employee invite/onboarding email"
     },
     "invite_sent_date": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO timestamp when invite was first sent"
     },
-    "last_invite_resent_date": {
-      "type": "string"
+    "invite_sent_from": {
+      "type": "string",
+      "description": "Sender email address used for the invite"
+    },
+    "invite_token": {
+      "type": "string",
+      "description": "Unique token for invite verification link"
+    },
+    "invite_token_expires": {
+      "type": "string",
+      "description": "ISO timestamp when the invite link expires"
     },
     "verification_status": {
-      "type": "string"
-    },
-    "permissions_override": {
       "type": "string",
-      "description": "JSON object of employee-specific permission overrides"
+      "enum": [
+        "unverified",
+        "verified"
+      ],
+      "default": "unverified"
+    },
+    "verification_date": {
+      "type": "string",
+      "description": "ISO timestamp when employee clicked the verification link"
+    },
+    "last_invite_resent_date": {
+      "type": "string",
+      "description": "ISO timestamp of the most recent resend"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_employee_id": {
+      "type": "string",
+      "description": "QuickBooks Employee/Vendor ID placeholder"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
+      "type": "string"
     }
   },
   "required": [

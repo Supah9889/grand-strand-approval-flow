@@ -1,0 +1,84 @@
+{
+  "name": "ImportBatch",
+  "type": "object",
+  "properties": {
+    "source_system": {
+      "type": "string",
+      "default": "buildertrend",
+      "description": "Always 'buildertrend' for BT imports"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "jobsites",
+        "daily_logs",
+        "schedule_calendar",
+        "mixed"
+      ],
+      "description": "What kind of data this batch contains"
+    },
+    "source_file_name": {
+      "type": "string"
+    },
+    "uploaded_by": {
+      "type": "string"
+    },
+    "uploaded_at": {
+      "type": "string",
+      "description": "ISO timestamp"
+    },
+    "dry_run_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "complete",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "import_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "complete",
+        "partial",
+        "failed",
+        "rolled_back"
+      ],
+      "default": "not_started"
+    },
+    "total_rows": {
+      "type": "number",
+      "default": 0
+    },
+    "staged_count": {
+      "type": "number",
+      "default": 0
+    },
+    "imported_count": {
+      "type": "number",
+      "default": 0
+    },
+    "skipped_count": {
+      "type": "number",
+      "default": 0
+    },
+    "warning_count": {
+      "type": "number",
+      "default": 0
+    },
+    "error_count": {
+      "type": "number",
+      "default": 0
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_type",
+    "source_file_name"
+  ]
+}

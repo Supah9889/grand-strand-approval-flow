@@ -5,20 +5,38 @@
     "job_id": {
       "type": "string"
     },
+    "job_address": {
+      "type": "string"
+    },
     "employee_id": {
       "type": "string"
     },
     "employee_name": {
       "type": "string"
     },
-    "role": {
+    "employee_code": {
       "type": "string"
+    },
+    "role_on_job": {
+      "type": "string",
+      "enum": [
+        "project_manager",
+        "lead",
+        "crew",
+        "supervisor",
+        "estimator",
+        "other"
+      ],
+      "default": "crew"
     },
     "notify_on_updates": {
       "type": "boolean",
-      "default": false
+      "default": true
     },
-    "assigned_date": {
+    "assigned_by": {
+      "type": "string"
+    },
+    "notes": {
       "type": "string"
     }
   },

@@ -1,0 +1,86 @@
+{
+  "name": "Customer",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Which company this customer belongs to"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "first_name": {
+      "type": "string"
+    },
+    "last_name": {
+      "type": "string"
+    },
+    "full_name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "phone_alt": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "homeowner",
+        "tenant",
+        "builder",
+        "property_manager",
+        "insurance",
+        "commercial",
+        "other"
+      ],
+      "default": "homeowner"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "prospect",
+        "archived"
+      ],
+      "default": "active"
+    },
+    "referral_source": {
+      "type": "string"
+    },
+    "referral_source_detail": {
+      "type": "string"
+    },
+    "billing_address": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "string",
+      "description": "JSON array of tags"
+    },
+    "insurance_company": {
+      "type": "string"
+    },
+    "insurance_claim_number": {
+      "type": "string"
+    },
+    "insurance_adjuster_name": {
+      "type": "string"
+    },
+    "insurance_adjuster_phone": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "full_name"
+  ]
+}

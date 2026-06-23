@@ -6,7 +6,8 @@ import {
   FileText, Building2, Receipt, CalendarDays, Users,
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
-  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2
+  ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
+  Brain, FileBarChart2, UserCircle2, Layers
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -15,6 +16,13 @@ import { base44 } from '@/api/base44Client';
 
 // Sidebar groups — staff see only non-adminOnly groups
 const NAV_GROUPS = [
+  {
+    label: 'Platform',
+    adminOnly: false,
+    items: [
+      { label: 'Switch Company', to: '/company-select', icon: Layers },
+    ],
+  },
   {
     label: 'Main',
     adminOnly: false,
@@ -46,9 +54,10 @@ const NAV_GROUPS = [
   },
   {
     label: 'Sales & CRM',
-    adminOnly: true,
+    adminOnly: false,
     items: [
-      { label: 'Sales / CRM',   to: '/sales',         icon: TrendingUp },
+      { label: 'CRM',           to: '/crm',           icon: UserCircle2 },
+      { label: 'Sales / Leads', to: '/sales',         icon: TrendingUp },
       { label: 'Estimates',     to: '/estimates',      icon: ClipboardList },
       { label: 'Change Orders', to: '/change-orders', icon: FileDiff },
     ],
@@ -73,10 +82,19 @@ const NAV_GROUPS = [
       { label: 'Admin Overview',  to: '/admin-overview',  icon: LayoutDashboard },
       { label: 'BT Import',       to: '/bt-import',       icon: Database },
       { label: 'QB Connection',   to: '/qb-connection',   icon: Link2 },
+      { label: 'Company Admin',   to: '/company-admin',   icon: Building2 },
       { label: 'Admin Mode',      to: '/admin',           icon: ShieldAlert },
-    ],
-  },
-];
+      ],
+      },
+      {
+      label: 'Nexus',
+      adminOnly: false,
+      items: [
+      { label: 'Nexus Inbox',  to: '/nexus',      icon: Brain },
+      { label: 'Xactimate',    to: '/xactimate',  icon: FileBarChart2 },
+      ],
+      },
+      ];
 
 const STORAGE_KEY = 'sidebar_open_groups';
 

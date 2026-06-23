@@ -1,0 +1,46 @@
+{
+  "name": "CompanyCostCode",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string",
+      "description": "e.g. DH-MOLD-TECH, GSCP-PAINT-LABOR, ADMIN-OFFICE"
+    },
+    "label": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "labor",
+        "materials",
+        "subcontractor",
+        "equipment",
+        "admin",
+        "other"
+      ],
+      "default": "labor"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "description": {
+      "type": "string"
+    },
+    "default_hourly_rate": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "company_id",
+    "code",
+    "label"
+  ]
+}

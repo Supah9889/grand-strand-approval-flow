@@ -6,7 +6,19 @@
       "type": "string"
     },
     "action": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "co_created",
+        "co_edited",
+        "status_changed",
+        "document_generated",
+        "file_uploaded",
+        "sent_for_approval",
+        "approved",
+        "rejected",
+        "closed",
+        "visibility_changed"
+      ]
     },
     "detail": {
       "type": "string"
@@ -20,6 +32,7 @@
   },
   "required": [
     "co_id",
-    "action"
+    "action",
+    "timestamp"
   ]
 }

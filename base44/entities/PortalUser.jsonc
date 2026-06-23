@@ -2,34 +2,70 @@
   "name": "PortalUser",
   "type": "object",
   "properties": {
-    "job_id": {
+    "name": {
       "type": "string"
     },
-    "access_token": {
-      "type": "string"
-    },
-    "client_name": {
-      "type": "string"
-    },
-    "client_email": {
+    "email": {
       "type": "string"
     },
     "portal_type": {
-      "type": "string"
-    },
-    "allowed_sections": {
       "type": "string",
-      "description": "JSON array of portal sections"
+      "enum": [
+        "client",
+        "vendor",
+        "subcontractor"
+      ],
+      "default": "client"
     },
-    "status": {
+    "access_status": {
+      "type": "string",
+      "enum": [
+        "invited",
+        "active",
+        "disabled",
+        "revoked"
+      ],
+      "default": "invited"
+    },
+    "job_id": {
+      "type": "string",
+      "description": "Primary job this portal user is scoped to"
+    },
+    "job_address": {
+      "type": "string",
+      "description": "Cached address of the linked job"
+    },
+    "linked_job_ids": {
+      "type": "string",
+      "description": "Legacy: JSON array of job IDs (kept for backward compat)"
+    },
+    "linked_vendor_id": {
       "type": "string"
     },
-    "expires_at": {
+    "invited_by": {
+      "type": "string"
+    },
+    "invite_date": {
+      "type": "string"
+    },
+    "activated_date": {
+      "type": "string"
+    },
+    "access_token": {
+      "type": "string",
+      "description": "Secure unique token for URL-based portal access"
+    },
+    "section_permissions": {
+      "type": "string",
+      "description": "JSON object of section_key: boolean \u2014 controls what client can see. Defaults applied if absent."
+    },
+    "internal_notes": {
       "type": "string"
     }
   },
   "required": [
-    "job_id",
-    "access_token"
+    "name",
+    "email",
+    "portal_type"
   ]
 }

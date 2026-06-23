@@ -2,10 +2,20 @@
   "name": "ChangeOrder",
   "type": "object",
   "properties": {
+    "co_number": {
+      "type": "string",
+      "description": "Auto-generated change order number e.g. CO-2026-001"
+    },
     "job_id": {
       "type": "string"
     },
-    "co_number": {
+    "job_title": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "customer_name": {
       "type": "string"
     },
     "title": {
@@ -17,28 +27,124 @@
     "reason": {
       "type": "string"
     },
-    "status": {
+    "category": {
+      "type": "string",
+      "enum": [
+        "additional_work",
+        "scope_reduction",
+        "material_change",
+        "schedule_change",
+        "unforeseen_condition",
+        "customer_request",
+        "vendor_request",
+        "internal_adjustment",
+        "warranty_exclusion",
+        "other"
+      ],
+      "default": "additional_work"
+    },
+    "scope_summary": {
       "type": "string"
     },
-    "amount": {
-      "type": "number"
-    },
-    "schedule_days": {
-      "type": "number"
-    },
-    "schedule_notes": {
+    "internal_notes": {
       "type": "string"
     },
     "client_facing_notes": {
       "type": "string"
     },
-    "attachments": {
+    "status": {
       "type": "string",
-      "description": "JSON array of attachment references"
+      "enum": [
+        "draft",
+        "in_review",
+        "sent",
+        "approved",
+        "rejected",
+        "closed",
+        "canceled",
+        "superseded"
+      ],
+      "default": "draft"
+    },
+    "cost_impact": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_impact": {
+      "type": "number",
+      "default": 0
+    },
+    "total_financial_impact": {
+      "type": "number",
+      "default": 0
+    },
+    "time_impact_value": {
+      "type": "number",
+      "default": 0
+    },
+    "time_impact_unit": {
+      "type": "string",
+      "enum": [
+        "hours",
+        "days",
+        "weeks"
+      ],
+      "default": "days"
+    },
+    "schedule_notes": {
+      "type": "string"
+    },
+    "signature_required": {
+      "type": "boolean",
+      "default": false
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "sent_date": {
+      "type": "string"
+    },
+    "approval_date": {
+      "type": "string"
+    },
+    "rejection_date": {
+      "type": "string"
+    },
+    "closed_date": {
+      "type": "string"
+    },
+    "approval_notes": {
+      "type": "string"
+    },
+    "rejection_notes": {
+      "type": "string"
+    },
+    "response_recorded_by": {
+      "type": "string"
+    },
+    "generated_document_url": {
+      "type": "string"
+    },
+    "related_estimate_id": {
+      "type": "string"
+    },
+    "related_daily_log_id": {
+      "type": "string"
+    },
+    "related_task_id": {
+      "type": "string"
+    },
+    "files": {
+      "type": "string",
+      "description": "JSON array of attached file URLs"
     }
   },
   "required": [
     "job_id",
-    "title"
+    "title",
+    "status"
   ]
 }

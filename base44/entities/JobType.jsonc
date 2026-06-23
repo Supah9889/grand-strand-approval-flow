@@ -3,17 +3,22 @@
   "type": "object",
   "properties": {
     "name": {
+      "type": "string",
+      "description": "Display name e.g. Exterior Painting"
+    },
+    "description": {
       "type": "string"
     },
     "active": {
       "type": "boolean",
       "default": true
     },
+    "display_order": {
+      "type": "number",
+      "default": 0
+    },
     "created_by_name": {
       "type": "string"
-    },
-    "display_order": {
-      "type": "number"
     }
   },
   "required": [

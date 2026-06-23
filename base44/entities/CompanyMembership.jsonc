@@ -1,0 +1,46 @@
+{
+  "name": "CompanyMembership",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "employee_id": {
+      "type": "string"
+    },
+    "employee_name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "operations_admin",
+        "estimator",
+        "field_technician",
+        "office_support",
+        "vendor",
+        "nexus_reviewer"
+      ],
+      "default": "field_technician"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "employee_id",
+    "role"
+  ]
+}

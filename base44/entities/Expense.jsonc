@@ -2,55 +2,256 @@
   "name": "Expense",
   "type": "object",
   "properties": {
+    "expense_number": {
+      "type": "string",
+      "description": "Auto-generated reference e.g. EXP-2026-001"
+    },
+    "inbox_status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "in_review",
+        "confirmed",
+        "needs_review",
+        "filed",
+        "archived"
+      ],
+      "default": "new",
+      "description": "Cost Inbox processing status"
+    },
+    "duplicate_status": {
+      "type": "string",
+      "enum": [
+        "none",
+        "possible_duplicate",
+        "needs_review",
+        "ignored",
+        "confirmed_duplicate"
+      ],
+      "default": "none",
+      "description": "Duplicate detection result"
+    },
+    "duplicate_of_id": {
+      "type": "string",
+      "description": "ID of the suspected original expense record"
+    },
+    "duplicate_checked_at": {
+      "type": "string",
+      "description": "ISO timestamp when duplicate check ran"
+    },
+    "duplicate_ignored_by": {
+      "type": "string",
+      "description": "User who chose to ignore the duplicate warning"
+    },
     "job_id": {
       "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer on the linked job"
     },
     "vendor_name": {
       "type": "string"
     },
-    "store_location": {
-      "type": "string"
+    "vendor_id": {
+      "type": "string",
+      "description": "Vendor entity ID"
     },
-    "receipt_url": {
+    "store_location": {
       "type": "string"
     },
     "receipt_number": {
       "type": "string"
     },
-    "transaction_date": {
-      "type": "string"
+    "expense_date": {
+      "type": "string",
+      "description": "ISO date YYYY-MM-DD (canonical field)"
     },
-    "payment_method": {
-      "type": "string"
+    "receipt_date": {
+      "type": "string",
+      "description": "Kept for legacy compatibility"
     },
     "category": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "materials",
+        "tools_equipment",
+        "fuel_travel",
+        "subcontractor",
+        "permit_fees",
+        "disposal",
+        "meals",
+        "office_supplies",
+        "other"
+      ],
+      "default": "materials"
     },
     "cost_code": {
       "type": "string"
     },
-    "amount": {
-      "type": "number"
+    "cost_code_id": {
+      "type": "string",
+      "description": "CostCode entity ID"
+    },
+    "qb_account_name": {
+      "type": "string",
+      "description": "Mapped QB expense account placeholder"
     },
     "subtotal": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
-    "tax": {
-      "type": "number"
+    "tax_amount": {
+      "type": "number",
+      "default": 0
     },
-    "tip": {
-      "type": "number"
+    "discount_total": {
+      "type": "number",
+      "default": 0
     },
-    "inbox_status": {
-      "type": "string"
+    "total_amount": {
+      "type": "number",
+      "default": 0
     },
-    "notes": {
+    "is_taxable": {
+      "type": "boolean",
+      "default": false
+    },
+    "payment_method": {
       "type": "string"
     },
     "line_items": {
       "type": "string",
-      "description": "JSON array of receipt line items"
+      "description": "JSON array of line items"
+    },
+    "description": {
+      "type": "string"
+    },
+    "memo": {
+      "type": "string",
+      "description": "Accounting memo"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "receipt_image_url": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "source_file_url": {
+      "type": "string",
+      "description": "Original uploaded file if part of a multi-receipt batch"
+    },
+    "source_file_name": {
+      "type": "string"
+    },
+    "source_receipt_index": {
+      "type": "number",
+      "description": "Which receipt number within the source file (1-based)"
+    },
+    "source_receipt_total": {
+      "type": "number",
+      "description": "Total receipts detected in the source file"
+    },
+    "parsed_confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "parsed_match_status": {
+      "type": "string",
+      "enum": [
+        "matched",
+        "needs_review",
+        "mismatch"
+      ]
+    },
+    "parsed_item_count": {
+      "type": "number",
+      "default": 0
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "submitted_by": {
+      "type": "string"
+    },
+    "submitted_by_id": {
+      "type": "string",
+      "description": "Employee entity ID"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "last_modified_by": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "receipt_scan",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_expense_id": {
+      "type": "string"
+    },
+    "qb_vendor_id": {
+      "type": "string"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed",
+        "needs_review"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
+      "type": "string"
+    },
+    "qb_export_date": {
+      "type": "string"
+    },
+    "qb_export_error": {
+      "type": "string"
+    },
+    "qb_export_attempt_count": {
+      "type": "number",
+      "default": 0
     }
   },
-  "required": []
+  "required": [
+    "vendor_name",
+    "total_amount"
+  ]
 }

@@ -3,10 +3,12 @@
   "type": "object",
   "properties": {
     "label": {
-      "type": "string"
+      "type": "string",
+      "description": "Display label shown to users"
     },
     "field_key": {
-      "type": "string"
+      "type": "string",
+      "description": "Internal key used to store value on job (snake_case)"
     },
     "field_type": {
       "type": "string",
@@ -21,7 +23,12 @@
         "phone",
         "email",
         "readonly"
-      ]
+      ],
+      "default": "text"
+    },
+    "dropdown_options": {
+      "type": "string",
+      "description": "JSON array of option strings for dropdown type"
     },
     "help_text": {
       "type": "string"
@@ -38,7 +45,8 @@
       "default": true
     },
     "display_order": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
     "visibility": {
       "type": "string",
@@ -46,25 +54,29 @@
         "admin_only",
         "staff_visible",
         "all"
-      ]
+      ],
+      "default": "admin_only",
+      "description": "Minimum role required to see this field"
     },
     "editable_by": {
       "type": "string",
       "enum": [
         "admin_only",
         "staff_editable"
-      ]
-    },
-    "dropdown_options": {
-      "type": "string",
-      "description": "JSON array of dropdown option strings"
+      ],
+      "default": "admin_only"
     },
     "apply_to_groups": {
+      "type": "string",
+      "description": "JSON array of job_group values this field applies to, or empty for all"
+    },
+    "created_by_name": {
       "type": "string"
     }
   },
   "required": [
     "label",
-    "field_key"
+    "field_key",
+    "field_type"
   ]
 }

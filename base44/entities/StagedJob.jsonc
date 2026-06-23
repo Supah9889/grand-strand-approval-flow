@@ -1,0 +1,118 @@
+{
+  "name": "StagedJob",
+  "type": "object",
+  "properties": {
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_file_name": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    },
+    "raw_source_text": {
+      "type": "string",
+      "description": "JSON string of the raw row"
+    },
+    "raw_job_name": {
+      "type": "string",
+      "description": "Exact BT job name as exported"
+    },
+    "clean_job_name": {
+      "type": "string",
+      "description": "Name after stripping leading date prefix"
+    },
+    "normalized_job_name": {
+      "type": "string",
+      "description": "Lowercase trimmed for matching"
+    },
+    "received_date": {
+      "type": "string",
+      "description": "Parsed date from name prefix e.g. 2026-04-24"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "customer_phone": {
+      "type": "string"
+    },
+    "customer_email": {
+      "type": "string"
+    },
+    "schedule_status": {
+      "type": "string"
+    },
+    "square_footage": {
+      "type": "number"
+    },
+    "match_status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "possible_duplicate",
+        "matched_existing",
+        "needs_review"
+      ],
+      "default": "new"
+    },
+    "matched_job_id": {
+      "type": "string",
+      "description": "If matched to existing live job"
+    },
+    "duplicate_of_staged_id": {
+      "type": "string"
+    },
+    "warnings": {
+      "type": "string",
+      "description": "JSON array of warning strings"
+    },
+    "errors": {
+      "type": "string",
+      "description": "JSON array of error strings"
+    },
+    "flags": {
+      "type": "string",
+      "description": "JSON array: missing_address, invalid_zip, missing_client, internal_record, test_record, etc."
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "skipped",
+        "needs_review"
+      ],
+      "default": "pending"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "review_notes": {
+      "type": "string"
+    },
+    "live_job_id": {
+      "type": "string",
+      "description": "Set after confirmed import creates the live Job record"
+    },
+    "imported_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "import_batch_id",
+    "raw_job_name"
+  ]
+}

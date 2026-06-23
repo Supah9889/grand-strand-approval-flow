@@ -2,16 +2,32 @@
   "name": "Invoice",
   "type": "object",
   "properties": {
+    "invoice_number": {
+      "type": "string"
+    },
     "job_id": {
       "type": "string"
     },
-    "estimate_id": {
+    "job_address": {
       "type": "string"
     },
-    "change_order_id": {
+    "job_title": {
       "type": "string"
     },
-    "invoice_number": {
+    "customer_name": {
+      "type": "string"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "Internal customer/lead record ID"
+    },
+    "customer_email": {
+      "type": "string"
+    },
+    "customer_phone": {
+      "type": "string"
+    },
+    "billing_address": {
       "type": "string"
     },
     "invoice_date": {
@@ -20,42 +36,149 @@
     "due_date": {
       "type": "string"
     },
-    "customer_name": {
-      "type": "string"
-    },
-    "title": {
-      "type": "string"
-    },
-    "description": {
-      "type": "string"
-    },
-    "status": {
-      "type": "string"
-    },
     "amount": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
-    "total": {
-      "type": "number"
+    "subtotal": {
+      "type": "number",
+      "default": 0
     },
-    "paid_amount": {
-      "type": "number"
+    "tax_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "discount_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "amount_paid": {
+      "type": "number",
+      "default": 0
     },
     "balance_due": {
-      "type": "number"
+      "type": "number",
+      "default": 0
+    },
+    "is_taxable": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "viewed",
+        "paid",
+        "partial",
+        "overdue",
+        "closed"
+      ],
+      "default": "draft"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "estimate",
+        "change_order",
+        "manual"
+      ],
+      "default": "manual"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "cost_code": {
+      "type": "string",
+      "description": "Primary cost code for this invoice"
+    },
+    "cost_code_id": {
+      "type": "string",
+      "description": "CostCode entity ID"
     },
     "line_items": {
       "type": "string",
-      "description": "JSON array of invoice line items"
+      "description": "JSON array of {description, qty, unit_price, total, cost_code, qb_item}"
     },
     "notes": {
       "type": "string"
     },
-    "cost_code": {
+    "internal_notes": {
       "type": "string"
+    },
+    "memo": {
+      "type": "string",
+      "description": "Accounting memo / QuickBooks memo field"
+    },
+    "generated_document_url": {
+      "type": "string"
+    },
+    "email_history": {
+      "type": "string",
+      "description": "JSON array"
+    },
+    "sent_date": {
+      "type": "string"
+    },
+    "paid_date": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "last_modified_by": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_invoice_id": {
+      "type": "string",
+      "description": "QuickBooks Invoice ID placeholder"
+    },
+    "qb_customer_id": {
+      "type": "string",
+      "description": "QuickBooks Customer ID placeholder"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed",
+        "needs_review"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
+      "type": "string"
+    },
+    "qb_export_date": {
+      "type": "string"
+    },
+    "qb_export_error": {
+      "type": "string"
+    },
+    "qb_export_attempt_count": {
+      "type": "number",
+      "default": 0
     }
   },
   "required": [
-    "job_id"
+    "job_id",
+    "customer_name",
+    "amount"
   ]
 }

@@ -3,40 +3,62 @@
   "type": "object",
   "properties": {
     "vendor_id": {
-      "type": "string"
+      "type": "string",
+      "description": "Linked vendor or subcontractor ID"
     },
     "vendor_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Vendor company name for display"
     },
     "document_type": {
       "type": "string",
       "enum": [
         "certificate_of_insurance",
         "workers_compensation"
-      ]
+      ],
+      "description": "Type of compliance document"
     },
     "file_url": {
-      "type": "string"
+      "type": "string",
+      "description": "URL to the uploaded document"
     },
     "file_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Original file name"
     },
     "file_size": {
-      "type": "number"
+      "type": "number",
+      "description": "File size in bytes"
     },
     "uploaded_by": {
-      "type": "string"
+      "type": "string",
+      "description": "User who uploaded the document"
     },
     "upload_date": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO timestamp of upload"
+    },
+    "document_date": {
+      "type": "string",
+      "description": "Document issue date if available"
+    },
+    "expiration_date": {
+      "type": "string",
+      "description": "Document expiration date if available"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes about this document"
     },
     "is_current": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "description": "Whether this is the current active document"
     }
   },
   "required": [
     "vendor_id",
+    "vendor_name",
     "document_type",
     "file_url",
     "file_name"

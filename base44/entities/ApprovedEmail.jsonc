@@ -3,18 +3,27 @@
   "type": "object",
   "properties": {
     "email": {
-      "type": "string"
+      "type": "string",
+      "description": "Approved outbound sender email address"
     },
     "display_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Friendly display name e.g. Grand Strand Custom Painting"
     },
     "is_default": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Whether this is the default sender"
     },
     "active": {
       "type": "boolean",
       "default": true
+    },
+    "notes": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
     }
   },
   "required": [

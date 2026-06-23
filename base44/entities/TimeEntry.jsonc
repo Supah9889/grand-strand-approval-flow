@@ -17,43 +17,228 @@
     "job_address": {
       "type": "string"
     },
-    "clock_in": {
+    "job_title": {
       "type": "string"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer on the linked job for QB reference"
+    },
+    "cost_code": {
+      "type": "string",
+      "enum": [
+        "Carpentry Labor/Sub",
+        "Drywall Labor/Sub",
+        "Other Labor/Sub",
+        "Paint Expenses",
+        "Painting Labor/Sub"
+      ]
+    },
+    "cost_code_id": {
+      "type": "string",
+      "description": "CostCode entity ID"
+    },
+    "labor_category": {
+      "type": "string",
+      "description": "Freeform labor category for QB service item mapping"
+    },
+    "entry_date": {
+      "type": "string",
+      "description": "ISO date YYYY-MM-DD"
+    },
+    "clock_in": {
+      "type": "string",
+      "description": "ISO timestamp"
     },
     "clock_out": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO timestamp"
+    },
+    "duration_minutes": {
+      "type": "number"
+    },
+    "total_hours": {
+      "type": "number",
+      "description": "Decimal hours (duration_minutes / 60)"
+    },
+    "hourly_rate": {
+      "type": "number",
+      "description": "Employee hourly rate if tracked (placeholder)"
+    },
+    "labor_cost": {
+      "type": "number",
+      "description": "Calculated cost = total_hours * hourly_rate (placeholder)"
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "clocked_in",
+        "clocked_out",
+        "needs_review",
+        "edited"
+      ],
+      "default": "clocked_in"
     },
     "approval_status": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending"
     },
     "approved_by": {
       "type": "string"
     },
-    "cost_code": {
-      "type": "string"
+    "entry_source": {
+      "type": "string",
+      "enum": [
+        "employee_clock",
+        "admin_manual",
+        "admin_edit"
+      ],
+      "default": "employee_clock"
     },
-    "notes": {
+    "manual_adjustment": {
+      "type": "boolean",
+      "default": false
+    },
+    "employee_note": {
       "type": "string"
     },
     "admin_note": {
       "type": "string"
     },
+    "memo": {
+      "type": "string",
+      "description": "Accounting memo for QB time activity"
+    },
     "edit_reason": {
       "type": "string"
     },
-    "location": {
+    "edit_history": {
       "type": "string",
-      "description": "JSON location payload"
+      "description": "JSON array of edit records"
     },
-    "hours": {
+    "created_by_name": {
+      "type": "string"
+    },
+    "last_updated_by": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string",
+      "description": "Legacy note field"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_time_activity_id": {
+      "type": "string"
+    },
+    "qb_employee_id": {
+      "type": "string"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed",
+        "needs_review"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
+      "type": "string"
+    },
+    "qb_export_date": {
+      "type": "string"
+    },
+    "qb_export_error": {
+      "type": "string"
+    },
+    "qb_export_attempt_count": {
+      "type": "number",
+      "default": 0
+    },
+    "punch_in_lat": {
+      "type": "number",
+      "description": "Latitude at clock-in"
+    },
+    "punch_in_lng": {
+      "type": "number",
+      "description": "Longitude at clock-in"
+    },
+    "punch_in_accuracy_meters": {
       "type": "number"
+    },
+    "punch_in_location_status": {
+      "type": "string",
+      "enum": [
+        "captured",
+        "denied",
+        "unavailable"
+      ],
+      "description": "Geolocation result at clock-in"
+    },
+    "punch_in_distance_miles": {
+      "type": "number",
+      "description": "Distance from job site at clock-in"
+    },
+    "punch_in_flagged": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if clock-in was outside allowed radius"
+    },
+    "punch_out_lat": {
+      "type": "number",
+      "description": "Latitude at clock-out"
+    },
+    "punch_out_lng": {
+      "type": "number",
+      "description": "Longitude at clock-out"
+    },
+    "punch_out_accuracy_meters": {
+      "type": "number"
+    },
+    "punch_out_location_status": {
+      "type": "string",
+      "enum": [
+        "captured",
+        "denied",
+        "unavailable"
+      ],
+      "description": "Geolocation result at clock-out"
+    },
+    "punch_out_distance_miles": {
+      "type": "number",
+      "description": "Distance from job site at clock-out"
+    },
+    "punch_out_flagged": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if clock-out was outside allowed radius"
+    },
+    "geo_flagged": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if any punch on this entry was out-of-range"
     }
   },
   "required": [
     "employee_id",
+    "employee_name",
+    "job_id",
+    "cost_code",
     "clock_in"
   ]
 }

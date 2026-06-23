@@ -2,47 +2,200 @@
   "name": "Estimate",
   "type": "object",
   "properties": {
-    "job_id": {
-      "type": "string"
-    },
-    "linked_job_id": {
-      "type": "string"
-    },
     "estimate_number": {
-      "type": "string"
-    },
-    "title": {
-      "type": "string"
-    },
-    "customer_name": {
-      "type": "string"
-    },
-    "status": {
-      "type": "string"
-    },
-    "amount": {
-      "type": "number"
-    },
-    "total": {
-      "type": "number"
-    },
-    "line_items": {
       "type": "string",
-      "description": "JSON array of estimate line items"
+      "description": "Auto-generated unique estimate number e.g. EST-2026-001"
     },
-    "notes": {
-      "type": "string"
+    "version": {
+      "type": "number",
+      "default": 1,
+      "description": "Version number, increments on revision"
+    },
+    "parent_estimate_id": {
+      "type": "string",
+      "description": "ID of original estimate if this is a revision"
     },
     "is_current_version": {
       "type": "boolean",
       "default": true
     },
-    "parent_estimate_id": {
+    "estimate_type": {
+      "type": "string",
+      "enum": [
+        "estimate",
+        "proposal",
+        "bid",
+        "change_order"
+      ],
+      "default": "estimate"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready_to_send",
+        "sent",
+        "viewed",
+        "approved",
+        "rejected",
+        "expired",
+        "in_revision",
+        "superseded",
+        "on_hold",
+        "canceled",
+        "converted"
+      ],
+      "default": "draft"
+    },
+    "title": {
       "type": "string"
     },
-    "version": {
+    "client_name": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "client_email": {
+      "type": "string"
+    },
+    "client_phone": {
+      "type": "string"
+    },
+    "property_address": {
+      "type": "string"
+    },
+    "mailing_address": {
+      "type": "string"
+    },
+    "linked_lead_id": {
+      "type": "string"
+    },
+    "linked_lead_name": {
+      "type": "string"
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "linked_job_address": {
+      "type": "string"
+    },
+    "referral_source": {
+      "type": "string"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "service_type": {
+      "type": "string",
+      "enum": [
+        "interior_painting",
+        "exterior_painting",
+        "cabinet_painting",
+        "deck_staining",
+        "commercial_painting",
+        "drywall_repair",
+        "power_washing",
+        "epoxy_floor",
+        "other"
+      ]
+    },
+    "scope_summary": {
+      "type": "string"
+    },
+    "detailed_scope": {
+      "type": "string"
+    },
+    "internal_notes": {
+      "type": "string"
+    },
+    "client_facing_notes": {
+      "type": "string"
+    },
+    "revision_notes": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "string",
+      "description": "JSON array of line items"
+    },
+    "subtotal": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "discount_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "deposit_amount": {
       "type": "number"
+    },
+    "billing_type": {
+      "type": "string",
+      "enum": [
+        "customer_pay",
+        "insurance",
+        "builder",
+        "property_manager",
+        "other"
+      ]
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "template_name": {
+      "type": "string"
+    },
+    "generated_document_url": {
+      "type": "string"
+    },
+    "terms_version": {
+      "type": "string"
+    },
+    "date_created": {
+      "type": "string"
+    },
+    "sent_date": {
+      "type": "string"
+    },
+    "viewed_date": {
+      "type": "string"
+    },
+    "expiration_date": {
+      "type": "string"
+    },
+    "approval_date": {
+      "type": "string"
+    },
+    "rejection_date": {
+      "type": "string"
+    },
+    "response_notes": {
+      "type": "string"
+    },
+    "response_recorded_by": {
+      "type": "string"
+    },
+    "email_history": {
+      "type": "string",
+      "description": "JSON array of sent email records"
     }
   },
-  "required": []
+  "required": [
+    "estimate_type",
+    "status",
+    "client_name"
+  ]
 }

@@ -1,0 +1,51 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Company display name"
+    },
+    "slug": {
+      "type": "string",
+      "description": "Short identifier e.g. DH, GSCP"
+    },
+    "color": {
+      "type": "string",
+      "description": "Brand hex color"
+    },
+    "logo_url": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string"
+    },
+    "industry": {
+      "type": "string",
+      "enum": [
+        "restoration",
+        "painting",
+        "construction",
+        "other"
+      ],
+      "default": "other"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "slug"
+  ]
+}

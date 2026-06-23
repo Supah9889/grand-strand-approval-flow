@@ -1,0 +1,118 @@
+{
+  "name": "StagedDailyLog",
+  "type": "object",
+  "properties": {
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_file_name": {
+      "type": "string"
+    },
+    "source_row": {
+      "type": "number"
+    },
+    "raw_source_text": {
+      "type": "string",
+      "description": "Full raw text block for this log entry"
+    },
+    "log_date": {
+      "type": "string",
+      "description": "ISO date YYYY-MM-DD"
+    },
+    "source_job_name": {
+      "type": "string",
+      "description": "Job name as it appeared in the export"
+    },
+    "normalized_job_name": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "added_by": {
+      "type": "string"
+    },
+    "log_notes": {
+      "type": "string"
+    },
+    "weather_summary": {
+      "type": "string"
+    },
+    "weather_timestamp": {
+      "type": "string"
+    },
+    "temp_high": {
+      "type": "number"
+    },
+    "temp_low": {
+      "type": "number"
+    },
+    "wind": {
+      "type": "string"
+    },
+    "humidity": {
+      "type": "string"
+    },
+    "precipitation": {
+      "type": "string"
+    },
+    "attachment_count": {
+      "type": "number",
+      "default": 0
+    },
+    "needs_attachment_review": {
+      "type": "boolean",
+      "default": false
+    },
+    "match_status": {
+      "type": "string",
+      "enum": [
+        "matched_staged",
+        "matched_live",
+        "unmatched",
+        "needs_review"
+      ],
+      "default": "unmatched"
+    },
+    "matched_job_id": {
+      "type": "string"
+    },
+    "matched_staged_job_id": {
+      "type": "string"
+    },
+    "warnings": {
+      "type": "string",
+      "description": "JSON array"
+    },
+    "errors": {
+      "type": "string",
+      "description": "JSON array"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "skipped",
+        "needs_review"
+      ],
+      "default": "pending"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "review_notes": {
+      "type": "string"
+    },
+    "live_daily_log_id": {
+      "type": "string"
+    },
+    "imported_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "import_batch_id",
+    "log_date"
+  ]
+}

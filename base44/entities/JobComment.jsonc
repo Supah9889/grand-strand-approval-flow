@@ -8,6 +8,12 @@
     "job_address": {
       "type": "string"
     },
+    "author_name": {
+      "type": "string"
+    },
+    "author_role": {
+      "type": "string"
+    },
     "body": {
       "type": "string"
     },
@@ -29,17 +35,15 @@
       ],
       "default": "internal"
     },
-    "author_name": {
-      "type": "string"
-    },
-    "author_role": {
-      "type": "string"
-    },
     "attached_file_url": {
       "type": "string"
     },
     "attached_file_name": {
       "type": "string"
+    },
+    "parent_comment_id": {
+      "type": "string",
+      "description": "For future thread replies"
     }
   },
   "required": [

@@ -68,6 +68,11 @@ const GlobalSearch = lazy(() => import('./pages/GlobalSearch'));
 const NewJobPage = lazy(() => import('./pages/NewJobPage'));
 const MobileSettings = lazy(() => import('./pages/MobileSettings'));
 const QBConnection = lazy(() => import('./pages/QBConnection'));
+const CompanySelect = lazy(() => import('./pages/CompanySelect'));
+const CRMPage = lazy(() => import('./pages/CRMPage'));
+const XactimateImportPage = lazy(() => import('./pages/XactimateImportPage'));
+const NexusInbox = lazy(() => import('./pages/NexusInbox'));
+const CompanyAdmin = lazy(() => import('./pages/CompanyAdmin'));
 
 // Loading fallback
 function RouteLoader() {
@@ -245,6 +250,11 @@ const AuthenticatedApp = () => {
               <Route path="/custom-fields" element={adminOnly(<CustomFields />)} />
               <Route path="/audit-log" element={adminOnly(<AuditLogPage />)} />
               <Route path="/qb-connection" element={adminOnly(<QBConnection />)} />
+              <Route path="/company-select" element={<CompanySelect />} />
+              <Route path="/crm" element={<CRMPage />} />
+              <Route path="/xactimate" element={<XactimateImportPage />} />
+              <Route path="/nexus" element={<NexusInbox />} />
+              <Route path="/company-admin" element={adminOnly(<CompanyAdmin />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

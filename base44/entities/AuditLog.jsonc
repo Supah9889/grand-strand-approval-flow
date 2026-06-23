@@ -2,58 +2,140 @@
   "name": "AuditLog",
   "type": "object",
   "properties": {
+    "module": {
+      "type": "string",
+      "enum": [
+        "job",
+        "signature",
+        "estimate",
+        "change_order",
+        "invoice",
+        "payment",
+        "bill",
+        "purchase_order",
+        "budget",
+        "time_entry",
+        "warranty",
+        "task",
+        "daily_log",
+        "lead",
+        "employee",
+        "portal",
+        "expense",
+        "system"
+      ],
+      "default": "job",
+      "description": "Which module/record type this event belongs to"
+    },
     "record_id": {
-      "type": "string"
+      "type": "string",
+      "description": "ID of the affected record"
     },
     "job_id": {
-      "type": "string"
+      "type": "string",
+      "description": "ID of related job/project if applicable"
     },
     "job_address": {
       "type": "string"
     },
-    "module": {
-      "type": "string"
-    },
     "action": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "record_created",
+        "record_edited",
+        "record_deleted",
+        "record_archived",
+        "status_changed",
+        "field_updated",
+        "job_created",
+        "job_edited",
+        "imported_from_csv",
+        "signature_submitted",
+        "record_locked",
+        "record_unlocked",
+        "post_sign_edit",
+        "review_link_opened",
+        "financial_edit",
+        "invoice_created",
+        "invoice_sent",
+        "invoice_status_changed",
+        "payment_recorded",
+        "payment_edited",
+        "payment_applied",
+        "bill_created",
+        "bill_edited",
+        "bill_status_changed",
+        "po_created",
+        "po_edited",
+        "po_status_changed",
+        "budget_edited",
+        "time_entry_created",
+        "time_entry_edited",
+        "time_entry_manual",
+        "co_created",
+        "co_edited",
+        "co_approved",
+        "co_rejected",
+        "co_status_changed",
+        "estimate_created",
+        "estimate_edited",
+        "estimate_approved",
+        "estimate_rejected",
+        "lead_status_changed",
+        "lead_converted",
+        "warranty_created",
+        "warranty_status_changed",
+        "task_created",
+        "task_status_changed",
+        "portal_access_granted",
+        "portal_access_revoked",
+        "override_action",
+        "permission_change",
+        "system_event"
+      ],
+      "description": "Type of action performed"
     },
     "actor": {
-      "type": "string"
+      "type": "string",
+      "description": "Who performed the action"
     },
     "actor_role": {
-      "type": "string"
+      "type": "string",
+      "description": "Role of actor: admin, staff, system, customer"
     },
     "detail": {
-      "type": "string"
-    },
-    "timestamp": {
-      "type": "string"
+      "type": "string",
+      "description": "Human-readable summary of the event"
     },
     "old_value": {
-      "type": "string"
+      "type": "string",
+      "description": "Prior state / old value (JSON string or plain text)"
     },
     "new_value": {
-      "type": "string"
+      "type": "string",
+      "description": "New state / updated value"
     },
     "reason": {
-      "type": "string"
-    },
-    "source": {
-      "type": "string"
-    },
-    "is_sensitive": {
-      "type": "boolean",
-      "default": false
+      "type": "string",
+      "description": "Reason/justification provided for the action"
     },
     "is_override": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "True if this was an admin override of a locked/protected record"
+    },
+    "is_sensitive": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for financial, signature, permission, or override actions"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO timestamp of when this event occurred"
     }
   },
   "required": [
-    "record_id",
     "action",
-    "actor",
-    "detail"
+    "timestamp"
   ]
 }

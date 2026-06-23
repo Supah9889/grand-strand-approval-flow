@@ -1,0 +1,105 @@
+{
+  "name": "NexusItem",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "xactimate_import",
+        "time_entry",
+        "job_note",
+        "customer_contact",
+        "estimate",
+        "field_upload",
+        "manual"
+      ],
+      "default": "manual"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "ID of the originating record"
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "raw_content": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "customer_insight",
+        "job_procedure",
+        "cost_data",
+        "vendor_performance",
+        "safety",
+        "compliance",
+        "process_improvement",
+        "other"
+      ],
+      "default": "other"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "default": "normal"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "approved",
+        "rejected",
+        "archived"
+      ],
+      "default": "pending_review"
+    },
+    "submitted_by_id": {
+      "type": "string"
+    },
+    "submitted_by_name": {
+      "type": "string"
+    },
+    "reviewer_id": {
+      "type": "string"
+    },
+    "reviewer_name": {
+      "type": "string"
+    },
+    "review_notes": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "string",
+      "description": "JSON array of tags"
+    },
+    "linked_job_id": {
+      "type": "string"
+    },
+    "linked_customer_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "title",
+    "summary"
+  ]
+}

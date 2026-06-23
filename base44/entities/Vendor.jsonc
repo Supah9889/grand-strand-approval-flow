@@ -2,11 +2,16 @@
   "name": "Vendor",
   "type": "object",
   "properties": {
+    "vendor_number": {
+      "type": "string",
+      "description": "Internal reference number e.g. VEN-001"
+    },
     "company_name": {
       "type": "string"
     },
     "display_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Name shown on documents/exports"
     },
     "contact_name": {
       "type": "string"
@@ -17,27 +22,109 @@
     "phone": {
       "type": "string"
     },
+    "phone_secondary": {
+      "type": "string"
+    },
     "address": {
       "type": "string"
     },
-    "type": {
+    "city": {
       "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "vendor",
+        "subcontractor",
+        "builder",
+        "property_manager",
+        "insurance",
+        "referral",
+        "homeowner_contact",
+        "other"
+      ],
+      "default": "vendor"
+    },
+    "default_cost_code": {
+      "type": "string",
+      "description": "Default cost code for bills/expenses from this vendor"
+    },
+    "default_cost_code_id": {
+      "type": "string"
+    },
+    "default_qb_account": {
+      "type": "string",
+      "description": "Default QB expense account placeholder"
+    },
+    "tax_id": {
+      "type": "string",
+      "description": "EIN or SSN (handle with care)"
+    },
+    "is_1099": {
+      "type": "boolean",
+      "default": false,
+      "description": "Flag for 1099 vendor"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "memo": {
+      "type": "string",
+      "description": "Accounting memo"
     },
     "active": {
       "type": "boolean",
       "default": true
     },
-    "notes": {
+    "created_by_name": {
       "type": "string"
     },
-    "compliance_status": {
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "app",
+        "imported",
+        "manual_entry"
+      ],
+      "default": "app"
+    },
+    "qb_vendor_id": {
+      "type": "string",
+      "description": "QuickBooks Vendor ID placeholder"
+    },
+    "qb_sync_status": {
+      "type": "string",
+      "enum": [
+        "not_synced",
+        "pending",
+        "synced",
+        "failed"
+      ],
+      "default": "not_synced"
+    },
+    "qb_export_batch_id": {
       "type": "string"
     },
-    "insurance_expiration": {
+    "qb_export_date": {
       "type": "string"
     },
-    "license_expiration": {
-      "type": "string"
+    "coi_expiration_date": {
+      "type": "string",
+      "description": "Certificate of Insurance expiration date (ISO format)"
+    },
+    "workers_comp_expiration_date": {
+      "type": "string",
+      "description": "Workers' Compensation Insurance expiration date (ISO format)"
+    },
+    "compliance_notes": {
+      "type": "string",
+      "description": "Internal notes about compliance status"
     }
   },
   "required": [

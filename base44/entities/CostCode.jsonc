@@ -3,10 +3,12 @@
   "type": "object",
   "properties": {
     "code_number": {
-      "type": "string"
+      "type": "string",
+      "description": "Short identifier e.g. 1001, 2001-M"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "Display name e.g. Painting Labor/Sub"
     },
     "description": {
       "type": "string"
@@ -18,56 +20,128 @@
         "inactive",
         "archived"
       ],
-      "default": "active"
-    },
-    "active": {
-      "type": "boolean"
+      "default": "active",
+      "description": "Lifecycle status"
     },
     "category": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "labor",
+        "materials",
+        "equipment",
+        "subcontractor",
+        "overhead",
+        "administrative",
+        "permit_inspection",
+        "travel",
+        "disposal_cleanup",
+        "miscellaneous",
+        "revenue_billing",
+        "other"
+      ],
+      "default": "labor"
     },
     "subcategory": {
-      "type": "string"
+      "type": "string",
+      "description": "Optional subcategory for finer grouping"
     },
     "code_type": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "expense",
+        "billable",
+        "non_billable",
+        "revenue",
+        "labor",
+        "material",
+        "time",
+        "vendor_charge",
+        "subcontractor_charge",
+        "internal_only"
+      ],
+      "default": "expense",
+      "description": "Determines where and how the code is used"
     },
     "allowed_on": {
       "type": "string",
-      "description": "JSON array of record types where this code is allowed"
+      "description": "JSON array of record types: [\"expense\",\"bill\",\"invoice\",\"estimate\",\"time_entry\",\"job\"]"
     },
     "internal_accounting_category": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "direct_labor",
+        "direct_materials",
+        "subcontracted_labor",
+        "office_overhead",
+        "job_supplies",
+        "travel_expense",
+        "equipment_rental",
+        "disposal",
+        "permit_fees",
+        "revenue",
+        "warranty_work",
+        "non_billable_internal",
+        "other"
+      ],
+      "default": "direct_labor",
+      "description": "Internal category for reporting"
     },
     "accounting_direction": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "expense_only",
+        "revenue_only",
+        "both",
+        "internal_only"
+      ],
+      "default": "expense_only",
+      "description": "Whether this code is used on expense, revenue, or both sides"
     },
     "default_usage_notes": {
       "type": "string"
     },
     "qb_account_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Chart of accounts name"
     },
     "qb_account_id": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Account ID placeholder"
     },
     "qb_income_account": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Income account for revenue-side codes"
     },
     "qb_item_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Product/Service item name"
+    },
+    "qb_item_id": {
+      "type": "string",
+      "description": "Future QB: Product/Service item ID placeholder"
     },
     "qb_class_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Class placeholder"
     },
     "qb_location_name": {
-      "type": "string"
-    },
-    "qb_direction": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Location placeholder"
     },
     "qb_vendor_mapping": {
-      "type": "string"
+      "type": "string",
+      "description": "Future QB: Default vendor mapping if applicable"
+    },
+    "qb_direction": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income",
+        "both",
+        "not_applicable"
+      ],
+      "default": "expense",
+      "description": "Future QB transaction direction"
     },
     "default_taxable": {
       "type": "boolean",
@@ -75,16 +149,23 @@
     },
     "export_eligible": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "description": "Whether this code should appear in accounting exports"
+    },
+    "default_vendor_id": {
+      "type": "string",
+      "description": "Optional default vendor entity ID"
     },
     "default_vendor_name": {
       "type": "string"
     },
     "default_rate": {
-      "type": "number"
+      "type": "number",
+      "description": "Optional default rate (e.g. labor rate per hour)"
     },
     "labor_category": {
-      "type": "string"
+      "type": "string",
+      "description": "Labor classification for QB time activity mapping"
     },
     "requires_memo": {
       "type": "boolean",
@@ -107,7 +188,8 @@
       "default": false
     },
     "display_order": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
     "created_by_name": {
       "type": "string"
@@ -117,7 +199,7 @@
     }
   },
   "required": [
-    "code_number",
-    "name"
+    "name",
+    "code_number"
   ]
 }

@@ -3,31 +3,75 @@
   "type": "object",
   "properties": {
     "record_type": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "job",
+        "expense",
+        "invoice",
+        "estimate",
+        "bill",
+        "change_order",
+        "vendor",
+        "customer",
+        "purchase_order",
+        "time_entry",
+        "warranty",
+        "other"
+      ],
+      "description": "The type of record this file is attached to"
     },
     "record_id": {
-      "type": "string"
+      "type": "string",
+      "description": "The ID of the related record"
     },
     "job_id": {
-      "type": "string"
+      "type": "string",
+      "description": "Job ID for cross-reference (even if primary record is not a job)"
     },
     "file_url": {
-      "type": "string"
+      "type": "string",
+      "description": "Publicly accessible URL of the uploaded file"
     },
     "file_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Display name of the file (can be renamed)"
     },
     "original_file_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Original file name at upload time"
     },
     "file_type": {
-      "type": "string"
+      "type": "string",
+      "description": "MIME type e.g. application/pdf, image/png"
     },
     "file_size": {
-      "type": "number"
+      "type": "number",
+      "description": "File size in bytes"
     },
     "category": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "receipt",
+        "invoice_support",
+        "contract",
+        "signed_doc",
+        "estimate",
+        "proposal",
+        "change_order",
+        "permit",
+        "vendor_document",
+        "photo",
+        "internal",
+        "agreement",
+        "supporting_doc",
+        "other"
+      ],
+      "default": "other",
+      "description": "Document category for filtering"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description or caption"
     },
     "visibility": {
       "type": "string",
@@ -37,36 +81,42 @@
         "vendor",
         "both"
       ],
-      "default": "internal"
-    },
-    "description": {
-      "type": "string"
+      "default": "internal",
+      "description": "Who can see this attachment"
     },
     "uploaded_by": {
-      "type": "string"
+      "type": "string",
+      "description": "Email of the user who uploaded"
     },
     "uploaded_by_name": {
-      "type": "string"
+      "type": "string",
+      "description": "Display name of uploader"
     },
     "upload_date": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO timestamp of upload"
     },
     "archived": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Soft delete \u2014 archived files are hidden from default views"
     },
     "archived_by": {
-      "type": "string"
+      "type": "string",
+      "description": "User who archived this file"
     },
     "archived_at": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO timestamp of archival"
+    },
+    "replaced_by_id": {
+      "type": "string",
+      "description": "If replaced, ID of the new attachment record"
     },
     "version": {
       "type": "number",
-      "default": 1
-    },
-    "replaced_by_id": {
-      "type": "string"
+      "default": 1,
+      "description": "Version number \u2014 increments on replace"
     }
   },
   "required": [

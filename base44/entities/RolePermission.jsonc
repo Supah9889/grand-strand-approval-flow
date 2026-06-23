@@ -5,20 +5,21 @@
     "role": {
       "type": "string",
       "enum": [
+        "owner",
         "admin",
         "staff"
-      ]
+      ],
+      "description": "Which role this permission set applies to"
     },
     "permissions": {
       "type": "string",
-      "description": "JSON object of permission keys to boolean values"
+      "description": "JSON object of permission_key: boolean"
     },
     "updated_by": {
       "type": "string"
     }
   },
   "required": [
-    "role",
-    "permissions"
+    "role"
   ]
 }

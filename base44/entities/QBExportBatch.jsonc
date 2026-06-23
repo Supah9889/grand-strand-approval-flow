@@ -3,53 +3,90 @@
   "type": "object",
   "properties": {
     "batch_number": {
-      "type": "string"
+      "type": "string",
+      "description": "e.g. BATCH-2026-001"
     },
     "export_type": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "customers",
+        "jobs",
+        "estimates",
+        "invoices",
+        "bills",
+        "expenses",
+        "vendors",
+        "time_entries",
+        "cost_codes",
+        "full"
+      ],
+      "default": "invoices"
     },
     "export_format": {
       "type": "string",
       "enum": [
         "csv",
         "xlsx"
-      ]
+      ],
+      "default": "csv"
     },
     "status": {
       "type": "string",
       "enum": [
+        "pending",
+        "in_progress",
         "completed",
-        "failed"
-      ]
+        "failed",
+        "partial"
+      ],
+      "default": "pending"
     },
     "record_count": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
     "exported_count": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
     "failed_count": {
-      "type": "number"
+      "type": "number",
+      "default": 0
     },
     "date_range_start": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO date filter start"
     },
     "date_range_end": {
+      "type": "string",
+      "description": "ISO date filter end"
+    },
+    "export_file_url": {
+      "type": "string",
+      "description": "URL of generated CSV/XLSX export file"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "error_log": {
+      "type": "string",
+      "description": "JSON array of error messages"
+    },
+    "approved_by": {
       "type": "string"
     },
     "exported_by": {
       "type": "string"
     },
     "exported_at": {
-      "type": "string"
+      "type": "string",
+      "description": "ISO timestamp"
     },
-    "notes": {
+    "created_by_name": {
       "type": "string"
     }
   },
   "required": [
-    "batch_number",
-    "export_type",
-    "status"
+    "export_type"
   ]
 }

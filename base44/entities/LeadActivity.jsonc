@@ -33,6 +33,7 @@
   },
   "required": [
     "lead_id",
-    "action"
+    "action",
+    "timestamp"
   ]
 }

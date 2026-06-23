@@ -5,13 +5,23 @@
     "job_id": {
       "type": "string"
     },
+    "job_title": {
+      "type": "string"
+    },
     "job_address": {
       "type": "string"
     },
     "customer_name": {
       "type": "string"
     },
+    "original_completion_date": {
+      "type": "string"
+    },
     "date_reported": {
+      "type": "string",
+      "description": "ISO date YYYY-MM-DD"
+    },
+    "created_by_name": {
       "type": "string"
     },
     "title": {
@@ -24,7 +34,19 @@
       "type": "string"
     },
     "category": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "paint_touchup",
+        "drywall",
+        "carpentry",
+        "water_moisture",
+        "material_defect",
+        "workmanship",
+        "customer_concern",
+        "schedule_visit",
+        "other"
+      ],
+      "default": "other"
     },
     "priority": {
       "type": "string",
@@ -38,7 +60,18 @@
     },
     "status": {
       "type": "string",
-      "description": "Warranty workflow status",
+      "enum": [
+        "new",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "closed",
+        "waiting_customer",
+        "waiting_materials",
+        "on_hold",
+        "not_covered",
+        "reopened"
+      ],
       "default": "new"
     },
     "assigned_to": {
@@ -48,12 +81,6 @@
       "type": "string"
     },
     "internal_notes": {
-      "type": "string"
-    },
-    "resolution_summary": {
-      "type": "string"
-    },
-    "coverage_decision_notes": {
       "type": "string"
     },
     "appointment_required": {
@@ -72,24 +99,44 @@
     "appointment_notes": {
       "type": "string"
     },
+    "linked_calendar_event_id": {
+      "type": "string"
+    },
     "follow_up_needed": {
       "type": "boolean",
       "default": false
+    },
+    "follow_up_notes": {
+      "type": "string"
+    },
+    "resolution_summary": {
+      "type": "string"
+    },
+    "resolution_date": {
+      "type": "string"
+    },
+    "closed_date": {
+      "type": "string"
     },
     "covered_under_warranty": {
       "type": "boolean",
       "default": true
     },
-    "created_by_name": {
+    "coverage_decision_notes": {
       "type": "string"
     },
     "photos": {
       "type": "string",
-      "description": "JSON array of uploaded photo or file URLs"
+      "description": "JSON array of photo URLs"
+    },
+    "files": {
+      "type": "string",
+      "description": "JSON array of {url, name, uploaded_at}"
     }
   },
   "required": [
     "job_id",
-    "title"
+    "title",
+    "status"
   ]
 }

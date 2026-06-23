@@ -84,6 +84,9 @@ const MoistureReadingsPage = lazy(() => import('./pages/MoistureReadingsPage'));
 const DryingLogsPage = lazy(() => import('./pages/DryingLogsPage'));
 const AirSamplesPage = lazy(() => import('./pages/AirSamplesPage'));
 const EquipmentPage = lazy(() => import('./pages/EquipmentPage'));
+const GSCPField = lazy(() => import('./pages/GSCPField'));
+const SubcontractReview = lazy(() => import('./pages/SubcontractReview'));
+const SubcontractVisibility = lazy(() => import('./pages/SubcontractVisibility'));
 
 // Loading fallback
 function RouteLoader() {
@@ -277,6 +280,9 @@ const AuthenticatedApp = () => {
               <Route path="/drying-logs" element={<DryingLogsPage />} />
               <Route path="/air-samples" element={<AirSamplesPage />} />
               <Route path="/equipment" element={<EquipmentPage />} />
+              <Route path="/gscp-field" element={<GSCPField />} />
+              <Route path="/subcontract-review" element={<SubcontractReview />} />
+              <Route path="/subcontracts" element={<SubcontractVisibility />} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

@@ -1,0 +1,87 @@
+{
+  "name": "SubcontractNote",
+  "type": "object",
+  "properties": {
+    "work_order_id": {
+      "type": "string"
+    },
+    "work_order_title": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "job_address": {
+      "type": "string"
+    },
+    "performing_company_id": {
+      "type": "string"
+    },
+    "performing_company_name": {
+      "type": "string"
+    },
+    "origin_company_id": {
+      "type": "string"
+    },
+    "author_id": {
+      "type": "string"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "note_type": {
+      "type": "string",
+      "enum": [
+        "field_update",
+        "photo",
+        "completion",
+        "issue",
+        "question",
+        "general"
+      ],
+      "default": "field_update"
+    },
+    "content": {
+      "type": "string"
+    },
+    "photo_urls": {
+      "type": "string",
+      "description": "JSON array of photo URLs"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "correction_needed"
+      ],
+      "default": "pending"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "review_note": {
+      "type": "string"
+    },
+    "visible_to_origin": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set to true by reviewer when approved for DH viewing"
+    },
+    "nexus_submitted": {
+      "type": "boolean",
+      "default": false
+    },
+    "nexus_item_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "work_order_id",
+    "content"
+  ]
+}

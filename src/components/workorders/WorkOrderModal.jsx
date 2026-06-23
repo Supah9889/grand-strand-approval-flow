@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Building2 } from 'lucide-react';
 
 const STATUSES = ['draft', 'assigned', 'in_progress', 'waiting', 'complete', 'approved', 'cancelled'];
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
+const SUBCONTRACT_STATUSES = ['draft','sent','accepted','in_progress','needs_review','complete','approved','rejected'];
 const COST_CODES = ['Painting Labor/Sub', 'Drywall Labor/Sub', 'Carpentry Labor/Sub', 'Other Labor/Sub', 'Paint Expenses'];
 
 export default function WorkOrderModal({ workOrder, company, onClose, onSaved }) {
@@ -16,6 +17,9 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
     cost_code: '', start_date: '', due_date: '', required_photos: false,
     required_notes: false, checklist: '[]',
     job_id: '', job_address: '',
+    is_subcontract: false,
+    performing_company_id: '', performing_company_name: '', performing_company_slug: '',
+    assigned_reviewer_name: '', subcontract_status: 'draft',
     ...workOrder,
   });
   const [checklistItems, setChecklistItems] = useState(() => {
@@ -29,6 +33,11 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
     queryFn: () => company
       ? base44.entities.Job.filter({ company_id: company.id }, '-created_date', 100)
       : base44.entities.Job.list('-created_date', 100),
+  });
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ['all-companies'],
+    queryFn: () => base44.entities.Company.list(),
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -53,6 +62,13 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
     if (form.job_id) {
       const job = jobs.find(j => j.id === form.job_id);
       if (job) { payload.job_address = job.address; payload.job_title = job.title || job.address; }
+    }
+    // Set origin company fields when subcontract
+    if (form.is_subcontract) {
+      payload.origin_company_id = company?.id || form.company_id;
+      payload.origin_company_name = company?.name || form.company_name;
+      payload.origin_company_slug = company?.slug || form.company_slug;
+      if (!payload.subcontract_status) payload.subcontract_status = 'draft';
     }
     if (isEdit) {
       await base44.entities.WorkOrder.update(workOrder.id, payload);
@@ -132,6 +148,45 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
           <div>
             <label className="text-xs text-muted-foreground">Scope of Work</label>
             <textarea className="w-full border border-input rounded-xl px-3 py-2 text-sm mt-1 resize-none h-24" value={form.scope} onChange={e => set('scope', e.target.value)} />
+          </div>
+
+          {/* Subcontract toggle */}
+          <div className="border border-border rounded-xl p-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={form.is_subcontract} onChange={e => set('is_subcontract', e.target.checked)} />
+              <Building2 className="w-4 h-4 text-blue-600" />
+              This is a subcontract work order
+            </label>
+            {form.is_subcontract && (
+              <div className="space-y-2 pt-1">
+                <div>
+                  <label className="text-xs text-muted-foreground">Performing Company</label>
+                  <select className="w-full border border-input rounded-xl px-3 h-10 text-sm mt-1 bg-card"
+                    value={form.performing_company_id}
+                    onChange={e => {
+                      const c = companies.find(c => c.id === e.target.value);
+                      set('performing_company_id', e.target.value);
+                      set('performing_company_name', c?.name || '');
+                      set('performing_company_slug', c?.slug || '');
+                    }}>
+                    <option value="">Select company...</option>
+                    {companies.filter(c => c.id !== company?.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Assigned Reviewer Name</label>
+                  <input className="w-full border border-input rounded-xl px-3 h-10 text-sm mt-1"
+                    placeholder="e.g. Jesus" value={form.assigned_reviewer_name} onChange={e => set('assigned_reviewer_name', e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Subcontract Status</label>
+                  <select className="w-full border border-input rounded-xl px-3 h-10 text-sm mt-1 bg-card"
+                    value={form.subcontract_status} onChange={e => set('subcontract_status', e.target.value)}>
+                    {SUBCONTRACT_STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Requirements */}

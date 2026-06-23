@@ -44,6 +44,61 @@
       ],
       "default": "draft"
     },
+    "subcontract_status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "accepted",
+        "in_progress",
+        "needs_review",
+        "complete",
+        "approved",
+        "rejected"
+      ],
+      "description": "Cross-company subcontract lifecycle status",
+      "default": "draft"
+    },
+    "is_subcontract": {
+      "type": "boolean",
+      "default": false
+    },
+    "origin_company_id": {
+      "type": "string",
+      "description": "Company that created/owns the job (e.g. Destination Home)"
+    },
+    "origin_company_name": {
+      "type": "string"
+    },
+    "origin_company_slug": {
+      "type": "string"
+    },
+    "performing_company_id": {
+      "type": "string",
+      "description": "Company performing the work (e.g. GSCP)"
+    },
+    "performing_company_name": {
+      "type": "string"
+    },
+    "performing_company_slug": {
+      "type": "string"
+    },
+    "assigned_reviewer_id": {
+      "type": "string",
+      "description": "Employee ID of the reviewer (e.g. Jesus)"
+    },
+    "assigned_reviewer_name": {
+      "type": "string"
+    },
+    "visibility_origin": {
+      "type": "boolean",
+      "default": true,
+      "description": "Origin company can see approved updates"
+    },
+    "visibility_all_admins": {
+      "type": "boolean",
+      "default": false
+    },
     "priority": {
       "type": "string",
       "enum": [

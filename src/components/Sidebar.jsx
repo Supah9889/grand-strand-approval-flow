@@ -46,6 +46,15 @@ const NAV_GROUPS = [
     ],
   },
   {
+    label: 'Subcontracts',
+    adminOnly: false,
+    items: [
+      { label: 'GSCP Field',          to: '/gscp-field',          icon: HardHat },
+      { label: 'Review Queue',        to: '/subcontract-review',  icon: CheckSquare },
+      { label: 'DH Subcontract View', to: '/subcontracts',        icon: Building2 },
+    ],
+  },
+  {
     label: 'Coordination',
     adminOnly: false,
     items: [

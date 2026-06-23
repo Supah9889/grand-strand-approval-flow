@@ -1,0 +1,53 @@
+{
+  "name": "ReviewDecision",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "reviewer_name": {
+      "type": "string"
+    },
+    "decision_type": {
+      "type": "string",
+      "enum": [
+        "continue_development",
+        "begin_parallel_run",
+        "begin_limited_pilot",
+        "approve_cutover_planning",
+        "blocked"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "description": "Short decision summary"
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "finalized",
+        "superseded"
+      ],
+      "default": "draft"
+    },
+    "target_date": {
+      "type": "string"
+    },
+    "rollout_checklist_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "reviewer_name",
+    "decision_type",
+    "decision"
+  ]
+}

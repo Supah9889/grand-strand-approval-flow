@@ -102,6 +102,9 @@ const RolloutChecklist = lazy(() => import('./pages/RolloutChecklist'));
 const ReplacementMap = lazy(() => import('./pages/ReplacementMap'));
 const KnownLimitations = lazy(() => import('./pages/KnownLimitations'));
 const DemoDataPage = lazy(() => import('./pages/DemoDataPage'));
+const ReviewFeedbackAdmin = lazy(() => import('./pages/ReviewFeedbackAdmin'));
+const ReviewScript = lazy(() => import('./pages/ReviewScript'));
+const ReviewDecisions = lazy(() => import('./pages/ReviewDecisions'));
 
 // Loading fallback
 function RouteLoader() {
@@ -313,6 +316,9 @@ const AuthenticatedApp = () => {
               <Route path="/replacement-map" element={adminOnly(<ReplacementMap />)} />
               <Route path="/known-limitations" element={adminOnly(<KnownLimitations />)} />
               <Route path="/demo-data" element={adminOnly(<DemoDataPage />)} />
+              <Route path="/review-feedback" element={adminOnly(<ReviewFeedbackAdmin />)} />
+              <Route path="/review-script" element={adminOnly(<ReviewScript />)} />
+              <Route path="/review-decisions" element={adminOnly(<ReviewDecisions />)} />
 
               {/* Settings Routes */}
               <Route path="/mobile-settings" element={<MobileSettings />} />

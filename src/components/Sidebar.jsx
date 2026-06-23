@@ -8,7 +8,7 @@ import {
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
   Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck,
-  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate, Archive, AlertTriangle
+  Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate, Archive, AlertTriangle, MessageSquare
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
@@ -140,6 +140,9 @@ const NAV_GROUPS = [
           { label: 'Replacement Map',    to: '/replacement-map',    icon: LayoutTemplate },
           { label: 'Known Limitations',  to: '/known-limitations',  icon: AlertTriangle },
           { label: 'Demo Data',          to: '/demo-data',          icon: Database },
+          { label: 'Review Script',      to: '/review-script',      icon: ClipboardCheck },
+          { label: 'Review Feedback',    to: '/review-feedback',    icon: MessageSquare },
+          { label: 'Review Decisions',   to: '/review-decisions',   icon: CheckSquare },
         ],
       },
       ];

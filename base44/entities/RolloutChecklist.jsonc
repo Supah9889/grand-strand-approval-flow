@@ -1,0 +1,56 @@
+{
+  "name": "RolloutChecklist",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string"
+    },
+    "company_slug": {
+      "type": "string"
+    },
+    "checklist_sections": {
+      "type": "string",
+      "description": "JSON object of item keys to boolean"
+    },
+    "progress_percent": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_progress",
+        "ready_for_review",
+        "approved_parallel_run",
+        "approved_cutover",
+        "blocked",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "owner_name": {
+      "type": "string"
+    },
+    "target_review_date": {
+      "type": "string"
+    },
+    "target_parallel_run_date": {
+      "type": "string"
+    },
+    "target_cutover_date": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "updated_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id"
+  ]
+}

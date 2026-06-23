@@ -184,6 +184,89 @@ export default function DemoDataPage() {
         lines.push('✓ Nexus Item: ' + ni.title);
       }
 
+      // Field note (JobNote on first job)
+      if (createdJobs[0]) {
+        await base44.entities.JobNote.create({
+          company_id: company.id, company_slug: company.slug,
+          job_id: createdJobs[0].id, job_address: createdJobs[0].address,
+          content: '[DEMO] Field note from tech: dehumidifiers running, moisture down to 22% on day 2. Customer notified.',
+          note_type: 'field_update', author_name: '[DEMO] Field Tech',
+          is_demo: DEMO_TAG,
+        });
+        lines.push('✓ Field Note: Day 2 update');
+
+        // Completion note
+        await base44.entities.JobNote.create({
+          company_id: company.id, company_slug: company.slug,
+          job_id: createdJobs[0].id, job_address: createdJobs[0].address,
+          content: '[DEMO] Job completion note: all readings below 16%, equipment removed, customer signed off.',
+          note_type: 'completion', author_name: '[DEMO] Lead Tech',
+          is_demo: DEMO_TAG,
+        });
+        lines.push('✓ Completion Note: final sign-off');
+
+        // Photo placeholder JobFile
+        await base44.entities.JobFile.create({
+          company_id: company.id, company_slug: company.slug,
+          job_id: createdJobs[0].id, job_address: createdJobs[0].address,
+          file_name: '[DEMO] before-photo-bedroom.jpg',
+          file_type: 'image/jpeg',
+          label: 'Before - Bedroom 2',
+          category: 'photo',
+          is_demo: DEMO_TAG,
+        });
+        lines.push('✓ Photo Placeholder: before-photo-bedroom.jpg');
+
+        // GSCP subcontract note
+        await base44.entities.SubcontractNote.create({
+          work_order_id: 'demo', job_id: createdJobs[0].id,
+          job_address: createdJobs[0].address,
+          performing_company_id: company.id,
+          performing_company_name: '[DEMO] GSCP',
+          author_name: '[DEMO] Jesus',
+          note_type: 'field_update',
+          content: '[DEMO] GSCP field update: water extraction complete, 3 dehumidifiers placed, air movers running.',
+          review_status: 'pending', visible_to_origin: false,
+          is_demo: DEMO_TAG,
+        });
+        lines.push('✓ GSCP Subcontract Note: pending review');
+
+        // Time entry
+        const clockIn = new Date();
+        clockIn.setHours(7, 0, 0, 0);
+        const clockOut = new Date();
+        clockOut.setHours(15, 30, 0, 0);
+        await base44.entities.TimeEntry.create({
+          company_id: company.id, company_slug: company.slug,
+          employee_id: 'demo', employee_name: '[DEMO] Field Tech',
+          job_id: createdJobs[0].id, job_address: createdJobs[0].address,
+          job_title: createdJobs[0].title,
+          cost_code: 'Other Labor/Sub',
+          clock_in: clockIn.toISOString(),
+          clock_out: clockOut.toISOString(),
+          duration_minutes: 510, total_hours: 8.5,
+          entry_date: new Date().toISOString().slice(0, 10),
+          status: 'clocked_out', approval_status: 'pending',
+          entry_source: 'employee_clock',
+          is_demo: DEMO_TAG,
+        });
+        lines.push('✓ Time Entry: 8.5 hrs demo tech');
+
+        // Review feedback
+        await base44.entities.ReviewFeedback.create({
+          company_id: company.id,
+          reviewer_name: '[DEMO] Nick',
+          reviewer_role: 'Owner',
+          section: 'daily_field',
+          feedback_text: '[DEMO] The time clock and field dashboard look solid. I want to make sure field techs can easily see their assigned jobs without scrolling.',
+          priority: 'medium',
+          status: 'new',
+          created_at: new Date().toISOString(),
+          is_demo: DEMO_TAG,
+        });
+        lines.push('✓ Review Feedback: Nick demo comment');
+      }
+
       return lines;
     },
     onSuccess: (lines) => {
@@ -197,7 +280,7 @@ export default function DemoDataPage() {
   const clearDemo = useMutation({
     mutationFn: async () => {
       const lines = [];
-      const ents = ['Job', 'Customer', 'Property', 'WorkOrder', 'Room', 'MoistureReading', 'DryingLog', 'AirSampleTest', 'LegacyJobRecord', 'NexusItem'];
+      const ents = ['Job', 'Customer', 'Property', 'WorkOrder', 'Room', 'MoistureReading', 'DryingLog', 'AirSampleTest', 'LegacyJobRecord', 'NexusItem', 'JobNote', 'JobFile', 'SubcontractNote', 'TimeEntry', 'ReviewFeedback'];
       for (const name of ents) {
         await base44.entities[name].deleteMany({ company_id: company?.id, is_demo: true });
         lines.push('🗑 Cleared demo ' + name + ' records');
@@ -250,6 +333,12 @@ export default function DemoDataPage() {
               'Air Sample: Pending result',
               'Legacy Record: PJ-DEMO-001 (needs review)',
               'Nexus Item: High moisture observation (pending)',
+              'Field Note: Day 2 tech update',
+              'Completion Note: Final sign-off',
+              'Photo Placeholder: before-photo-bedroom.jpg',
+              'GSCP Subcontract Note: pending Jesus review',
+              'Time Entry: 8.5 hrs demo tech',
+              'Review Feedback: Demo Nick comment',
             ].map((item, i) => (
               <li key={i} className="flex gap-1.5"><span className="text-primary">+</span>{item}</li>
             ))}

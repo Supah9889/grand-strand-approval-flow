@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import WorkOrderModal from '@/components/workorders/WorkOrderModal';
+import usePermissions from '@/hooks/usePermissions';
+import { canViewWorkOrder, NoAccessRecord } from '@/lib/financialGuards.jsx';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -29,6 +31,7 @@ export default function WorkOrderDetail() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const employee = getSessionEmployee();
+  const { canViewAssignedOnly } = usePermissions();
   const { id } = useParams();
 
   const [showEdit, setShowEdit] = useState(false);
@@ -88,6 +91,12 @@ export default function WorkOrderDetail() {
   if (isLoading || !wo) return (
     <AppLayout title="Work Order">
       <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+    </AppLayout>
+  );
+
+  if (!canViewWorkOrder(wo, canViewAssignedOnly)) return (
+    <AppLayout title="Work Order">
+      <NoAccessRecord message="You do not have access to this work order." />
     </AppLayout>
   );
 

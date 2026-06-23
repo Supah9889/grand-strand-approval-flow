@@ -11,6 +11,7 @@ import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 import { NoAccessState } from '@/components/CompanyGuard';
 import usePermissions from '@/hooks/usePermissions';
+import { canViewJob } from '@/lib/financialGuards.jsx';
 import RoomForm from '@/components/restoration/RoomForm';
 import MoistureReadingForm from '@/components/restoration/MoistureReadingForm';
 import DryingLogForm from '@/components/restoration/DryingLogForm';
@@ -107,7 +108,7 @@ export default function JobDocumentation() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const employee = getSessionEmployee();
-  const { canManageRestoration, canSubmitNexus } = usePermissions();
+  const { canManageRestoration, canSubmitNexus, canViewAssignedOnly } = usePermissions();
   const [tab, setTab] = useState('rooms');
   const [showForm, setShowForm] = useState(null); // 'room'|'moisture'|'drying'|'sample'
   const [showNexus, setShowNexus] = useState(false);
@@ -159,6 +160,12 @@ export default function JobDocumentation() {
   if (!canManageRestoration) return (
     <AppLayout title="Job Documentation">
       <NoAccessState message="You do not have permission to access job documentation." />
+    </AppLayout>
+  );
+
+  if (job && !canViewJob(job, company, canViewAssignedOnly)) return (
+    <AppLayout title="Job Documentation">
+      <NoAccessState message="You do not have access to this job." />
     </AppLayout>
   );
 

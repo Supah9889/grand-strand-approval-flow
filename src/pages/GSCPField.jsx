@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
+import usePermissions from '@/hooks/usePermissions';
+import { filterAssignedRecords, AssignedOnlyBanner, SubcontractPendingNotice } from '@/lib/financialGuards.jsx';
 
 const todayISO = new Date().toISOString().split('T')[0];
 
@@ -152,6 +154,7 @@ export default function GSCPField() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const employee = getSessionEmployee();
+  const { canViewAssignedOnly } = usePermissions();
 
   const [showClock, setShowClock] = useState(false);
   const [noteWo, setNoteWo] = useState(null);
@@ -227,9 +230,16 @@ export default function GSCPField() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['gscp-work-orders'] }),
   });
 
+  const visibleWorkOrders = useMemo(
+    () => filterAssignedRecords(workOrders, canViewAssignedOnly),
+    [workOrders, canViewAssignedOnly]
+  );
+
   return (
     <AppLayout title="GSCP Field">
       <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
+
+        {canViewAssignedOnly && <AssignedOnlyBanner />}
 
         {/* Company + reviewer context */}
         <div className="flex items-center gap-2">
@@ -265,9 +275,9 @@ export default function GSCPField() {
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your Work Orders</h2>
             <button onClick={() => navigate('/work-orders')} className="text-xs text-primary hover:underline">All</button>
           </div>
-          {workOrders.length === 0 ? (
+          {visibleWorkOrders.length === 0 ? (
             <p className="text-xs text-muted-foreground py-4 text-center">No active work orders</p>
-          ) : workOrders.map(wo => (
+          ) : visibleWorkOrders.map(wo => (
             <div key={wo.id} className="bg-card border border-border rounded-xl p-3 mb-2">
               {/* Header */}
               <div className="flex items-start justify-between gap-2 mb-1">
@@ -290,6 +300,7 @@ export default function GSCPField() {
 
               {wo.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{wo.description}</p>}
               {wo.due_date && <p className="text-xs text-muted-foreground mb-2">Due: {wo.due_date}</p>}
+              {wo.subcontract_status === 'needs_review' && <SubcontractPendingNotice />}
 
               {/* Actions */}
               <div className="flex gap-2 flex-wrap">

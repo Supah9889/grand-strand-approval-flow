@@ -5,6 +5,8 @@ import { base44 } from '@/api/base44Client';
 import { Plus, Loader2, ChevronRight, AlertTriangle, CheckSquare } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import WorkOrderModal from '@/components/workorders/WorkOrderModal';
+import usePermissions from '@/hooks/usePermissions';
+import { filterAssignedRecords, AssignedOnlyBanner } from '@/lib/financialGuards.jsx';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -27,6 +29,7 @@ const TABS = ['all', 'draft', 'assigned', 'in_progress', 'waiting', 'complete'];
 export default function WorkOrders() {
   const navigate = useNavigate();
   const company = getActiveCompany();
+  const { canViewAssignedOnly, canManageWorkOrders } = usePermissions();
   const [tab, setTab] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editWO, setEditWO] = useState(null);
@@ -38,14 +41,16 @@ export default function WorkOrders() {
       : base44.entities.WorkOrder.list('-created_date', 200),
   });
 
-  const filtered = useMemo(() =>
-    tab === 'all' ? workOrders : workOrders.filter(w => w.status === tab),
-    [workOrders, tab]
-  );
+  const filtered = useMemo(() => {
+    const byTab = tab === 'all' ? workOrders : workOrders.filter(w => w.status === tab);
+    return filterAssignedRecords(byTab, canViewAssignedOnly);
+  }, [workOrders, tab, canViewAssignedOnly]);
 
   return (
     <AppLayout title="Work Orders">
       <div className="max-w-2xl mx-auto px-4 py-4 pb-24 space-y-4">
+
+        {canViewAssignedOnly && <AssignedOnlyBanner />}
 
         <div className="flex items-center justify-between">
           <h1 className="text-base font-semibold text-foreground">Work Orders</h1>

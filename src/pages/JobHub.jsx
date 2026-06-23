@@ -9,6 +9,8 @@ import {
 import AppLayout from '../components/AppLayout';
 import PullToRefresh from '@/components/PullToRefresh';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import usePermissions from '@/hooks/usePermissions';
+import { FinancialGuard, RestrictedBadge } from '@/lib/financialGuards.jsx';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,7 +50,7 @@ const TABS = [
   { key: 'time',      label: 'Time',      icon: Clock,       adminOnly: true  },
   { key: 'team',      label: 'Team',      icon: Users,       adminOnly: true  },
   { key: 'clients',   label: 'Client Access', icon: User,    adminOnly: true  },
-  { key: 'financials',label: 'Financials',icon: DollarSign,  adminOnly: true  },
+  { key: 'financials',label: 'Financials',icon: DollarSign,  adminOnly: true, financialOnly: true },
   { key: 'cos',       label: 'Change Orders', icon: FileDiff, adminOnly: true },
 ];
 
@@ -79,6 +81,7 @@ export default function JobHub() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAdmin = getIsAdmin();
+  const { canViewFinancials } = usePermissions();
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
 
@@ -132,7 +135,7 @@ export default function JobHub() {
     enabled: !!jobId && activeTab === 'cos' && isAdmin,
   });
 
-  const visibleTabs = TABS.filter(t => !t.adminOnly || isAdmin);
+  const visibleTabs = TABS.filter(t => (!t.adminOnly || isAdmin) && (!t.financialOnly || canViewFinancials));
   const primaryTabs = visibleTabs.filter(t => PRIMARY_TAB_KEYS.has(t.key));
   const advancedTabs = visibleTabs.filter(t => !PRIMARY_TAB_KEYS.has(t.key));
   const activeAdvancedTab = advancedTabs.find(t => t.key === activeTab);
@@ -350,7 +353,9 @@ export default function JobHub() {
                   </div>
                   {co.total_financial_impact !== 0 && (
                     <p className={`text-xs font-semibold mt-0.5 ${co.total_financial_impact > 0 ? 'text-primary' : 'text-red-600'}`}>
-                      {co.total_financial_impact > 0 ? '+' : ''}${Number(co.total_financial_impact || 0).toLocaleString()}
+                      {canViewFinancials
+                        ? `${co.total_financial_impact > 0 ? '+' : ''}$${Number(co.total_financial_impact || 0).toLocaleString()}`
+                        : <RestrictedBadge />}
                     </p>
                   )}
                 </div>

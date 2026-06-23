@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
+import usePermissions from '@/hooks/usePermissions';
+import { filterAssignedRecords, AssignedOnlyBanner } from '@/lib/financialGuards.jsx';
 
 const todayISO = new Date().toISOString().split('T')[0];
 
@@ -145,6 +147,7 @@ export default function FieldDashboard() {
   const qc = useQueryClient();
   const company = getActiveCompany();
   const employee = getSessionEmployee();
+  const { canViewAssignedOnly } = usePermissions();
 
   const [showClockModal, setShowClockModal] = useState(false);
   const [noteJob, setNoteJob] = useState(null);
@@ -188,8 +191,19 @@ export default function FieldDashboard() {
     const scheduledJobIds = new Set(scheduleEvents.map(e => e.job_id).filter(Boolean));
     const inProgress = jobs.filter(j => j.op_status === 'in_progress');
     const scheduled = jobs.filter(j => scheduledJobIds.has(j.id) && !inProgress.find(p => p.id === j.id));
-    return [...inProgress, ...scheduled].slice(0, 10);
-  }, [jobs, scheduleEvents]);
+    const all = [...inProgress, ...scheduled].slice(0, 10);
+    return filterAssignedRecords(all, canViewAssignedOnly);
+  }, [jobs, scheduleEvents, canViewAssignedOnly]);
+
+  const visibleWorkOrders = useMemo(
+    () => filterAssignedRecords(workOrders, canViewAssignedOnly),
+    [workOrders, canViewAssignedOnly]
+  );
+
+  const visibleScheduleEvents = useMemo(
+    () => filterAssignedRecords(scheduleEvents, canViewAssignedOnly),
+    [scheduleEvents, canViewAssignedOnly]
+  );
 
   const clockInMutation = useMutation({
     mutationFn: async ({ jobId, costCode }) => {
@@ -263,6 +277,8 @@ export default function FieldDashboard() {
     <AppLayout title="Field">
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4 pb-24">
 
+        {canViewAssignedOnly && <AssignedOnlyBanner />}
+
         {/* Company badge */}
         {company && (
           <div className="flex items-center gap-2">
@@ -301,11 +317,11 @@ export default function FieldDashboard() {
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today's Schedule</h2>
             <button onClick={() => navigate('/calendar')} className="text-xs text-primary hover:underline">View all</button>
           </div>
-          {scheduleEvents.length === 0 ? (
+          {visibleScheduleEvents.length === 0 ? (
             <p className="text-xs text-muted-foreground py-3 text-center">No events scheduled today</p>
           ) : (
             <div className="space-y-2">
-              {scheduleEvents.slice(0, 5).map(ev => (
+              {visibleScheduleEvents.slice(0, 5).map(ev => (
                 <div key={ev.id} className="bg-card border border-border rounded-xl p-3 flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{ev.title}</p>
@@ -368,11 +384,11 @@ export default function FieldDashboard() {
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Work Orders</h2>
           </div>
-          {workOrders.length === 0 ? (
+          {visibleWorkOrders.length === 0 ? (
             <p className="text-xs text-muted-foreground py-3 text-center">No assigned work orders</p>
           ) : (
             <div className="space-y-2">
-              {workOrders.slice(0, 5).map(wo => (
+              {visibleWorkOrders.slice(0, 5).map(wo => (
                 <div key={wo.id} className="bg-card border border-border rounded-xl p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">

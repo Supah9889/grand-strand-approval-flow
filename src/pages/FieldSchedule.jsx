@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Plus, Loader2, Calendar, ChevronLeft, ChevronRight, X, Loader } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format, addDays, subDays, startOfWeek, parseISO } from 'date-fns';
+import usePermissions from '@/hooks/usePermissions';
+import { filterAssignedRecords, AssignedOnlyBanner } from '@/lib/financialGuards.jsx';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -132,6 +135,7 @@ function EventModal({ event, company, jobs, onClose, onSaved }) {
 export default function FieldSchedule() {
   const qc = useQueryClient();
   const company = getActiveCompany();
+  const { canViewAssignedOnly } = usePermissions();
   const [viewDate, setViewDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
@@ -154,9 +158,16 @@ export default function FieldSchedule() {
       : base44.entities.Job.list('-created_date', 100),
   });
 
+  const visibleEvents = useMemo(
+    () => filterAssignedRecords(events, canViewAssignedOnly),
+    [events, canViewAssignedOnly]
+  );
+
   return (
     <AppLayout title="Schedule">
       <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
+
+        {canViewAssignedOnly && <AssignedOnlyBanner />}
 
         {/* Date nav */}
         <div className="flex items-center justify-between">
@@ -184,11 +195,11 @@ export default function FieldSchedule() {
 
         {isLoading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-        ) : events.length === 0 ? (
+        ) : visibleEvents.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground text-sm">No events for this day</div>
         ) : (
           <div className="space-y-2">
-            {events
+            {visibleEvents
               .sort((a, b) => (a.start_datetime || '').localeCompare(b.start_datetime || ''))
               .map(ev => (
                 <EventCard key={ev.id} event={ev} onClick={e => { setEditEvent(e); setShowModal(true); }} />

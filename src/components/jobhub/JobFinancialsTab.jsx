@@ -5,6 +5,8 @@ import { base44 } from '@/api/base44Client';
 import { FileText, DollarSign, Receipt, CreditCard, ArrowRight, Loader2, TrendingUp } from 'lucide-react';
 import { fmt } from '@/lib/financialHelpers';
 import { calcJobFinancials } from '@/lib/financialHelpers';
+import usePermissions from '@/hooks/usePermissions';
+import { FinancialGuard, RestrictedBadge } from '@/lib/financialGuards.jsx';
 
 const STATUS_COLORS = {
   draft:    'bg-muted text-muted-foreground',
@@ -48,6 +50,7 @@ function FinRow({ icon: Icon, iconBg, label, amount, status, sub, onClick }) {
 
 export default function JobFinancialsTab({ job, isAdmin }) {
   const navigate = useNavigate();
+  const { canViewFinancials } = usePermissions();
 
   const { data: invoices = [], isLoading: li } = useQuery({
     queryKey: ['hub-fin-invoices', job.id],
@@ -87,6 +90,10 @@ export default function JobFinancialsTab({ job, isAdmin }) {
   if (loading) return (
     <div className="flex justify-center py-10"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
   );
+
+  if (!canViewFinancials) {
+    return <FinancialGuard canView={false} />;
+  }
 
   return (
     <div className="space-y-4">

@@ -174,6 +174,48 @@ export function isAdminSession() {
   return r === 'admin' || r === 'owner';
 }
 
+export function isAdminFallbackRole(role) {
+  return role === 'owner' || role === 'admin';
+}
+
+export function getVisibleCompaniesForSession({
+  sessionRole,
+  employee,
+  companies = [],
+  memberships = [],
+} = {}) {
+  const activeCompanies = companies.filter(company => company && company.is_active !== false);
+
+  if (isAdminFallbackRole(sessionRole)) {
+    return {
+      companies: activeCompanies,
+      adminFallbackActive: memberships.length === 0,
+      emptyReason: activeCompanies.length ? null : 'no_companies',
+    };
+  }
+
+  if (!employee?.id) {
+    return {
+      companies: [],
+      adminFallbackActive: false,
+      emptyReason: activeCompanies.length ? 'no_assigned_companies' : 'no_companies',
+    };
+  }
+
+  const activeMembershipCompanyIds = new Set(
+    memberships
+      .filter(membership => membership.employee_id === employee.id && membership.is_active !== false)
+      .map(membership => membership.company_id)
+      .filter(Boolean)
+  );
+
+  return {
+    companies: activeCompanies.filter(company => activeMembershipCompanyIds.has(company.id)),
+    adminFallbackActive: false,
+    emptyReason: activeMembershipCompanyIds.size ? null : 'no_assigned_companies',
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Employee role helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -454,9 +496,8 @@ export function hasCompanyAccess(userOrContext, companyId) {
   const targetCompanyId = normalizeId(companyId);
   if (!targetCompanyId) return false;
 
-  const employee = getContextEmployee(userOrContext);
   const role = getContextRole(userOrContext);
-  if (!employee?.id && (role === 'owner' || role === 'admin' || isOwnerSession() || isAdminSession())) {
+  if (isAdminFallbackRole(role) || isOwnerSession() || isAdminSession()) {
     return true;
   }
 
@@ -472,9 +513,10 @@ export function canUseActiveCompanySelection(userOrContext, company) {
   const employee = getContextEmployee(userOrContext);
   const role = getContextRole(userOrContext);
 
-  // Override-code owner/admin sessions have no Employee record and are allowed
-  // to select any active company. Staff-like sessions must be employee scoped.
-  if (!employee?.id) return role === 'owner' || role === 'admin';
+  // Owner/admin sessions must be able to recover setup/migration states where
+  // CompanyMembership is empty. Staff-like sessions remain membership scoped.
+  if (isAdminFallbackRole(role)) return true;
+  if (!employee?.id) return false;
 
   return getUserCompanyMemberships(userOrContext).some(membership =>
     membership.employee_id === employee.id

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import BottomSheetSelect from '@/components/BottomSheetSelect';
 import PullToRefresh from '@/components/PullToRefresh';
-import { Loader2, Plus, Users, X, Settings2, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Loader2, Plus, Users, X, Settings2, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import { isAdminAuthed, getInternalRole } from '@/lib/adminAuth';
@@ -67,6 +67,12 @@ export default function EmployeeManager() {
   const { data: invites = [] } = useQuery({
     queryKey: ['employee-invites'],
     queryFn: () => base44.entities.EmployeeInvite.list('-created_date', 500).catch(() => []),
+    enabled: isAdmin,
+  });
+
+  const { data: membershipProbe = [] } = useQuery({
+    queryKey: ['company-membership-bootstrap-probe'],
+    queryFn: () => base44.entities.CompanyMembership.list('created_date', 1).catch(() => []),
     enabled: isAdmin,
   });
 
@@ -175,6 +181,13 @@ export default function EmployeeManager() {
             </Button>
           </div>
         </div>
+
+        {membershipProbe.length === 0 && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Memberships are required for employee access. Run bootstrap for admins, then assign employees to companies.</span>
+          </div>
+        )}
 
         {/* Approved Emails Settings Panel */}
         <AnimatePresence>

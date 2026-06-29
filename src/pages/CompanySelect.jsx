@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
+import { getVisibleCompaniesForSession } from '@/lib/permissions';
 import { ChevronRight, Loader2 } from 'lucide-react';
 
 const COMPANY_KEY = 'active_company';
@@ -35,6 +36,8 @@ export default function CompanySelect() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [companies, setCompanies] = useState([]);
+  const [adminFallbackActive, setAdminFallbackActive] = useState(false);
+  const [emptyMessage, setEmptyMessage] = useState('No companies configured yet.');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,25 +45,32 @@ export default function CompanySelect() {
 
     async function loadAllowedCompanies() {
       try {
-        const activeCompanies = await base44.entities.Company.filter({ is_active: true });
+        const allCompanies = await base44.entities.Company.list('name', 500);
+        const allMemberships = await base44.entities.CompanyMembership.list('created_date', 1000).catch(() => []);
         const employee = getSessionEmployee();
         const sessionRole = getInternalRole();
-        let visibleCompanies = [];
+        const visible = getVisibleCompaniesForSession({
+          sessionRole,
+          employee,
+          companies: allCompanies,
+          memberships: allMemberships,
+        });
 
-        if (employee?.id) {
-          const memberships = await base44.entities.CompanyMembership.filter({
-            employee_id: employee.id,
-            is_active: true,
-          }).catch(() => []);
-          const allowedCompanyIds = new Set(memberships.map(membership => membership.company_id).filter(Boolean));
-          visibleCompanies = activeCompanies.filter(company => allowedCompanyIds.has(company.id));
-        } else if (sessionRole === 'owner' || sessionRole === 'admin') {
-          visibleCompanies = activeCompanies;
+        if (!cancelled) {
+          setCompanies(visible.companies);
+          setAdminFallbackActive(visible.adminFallbackActive);
+          setEmptyMessage(
+            visible.emptyReason === 'no_assigned_companies'
+              ? 'No assigned companies. Contact an admin.'
+              : 'No companies configured yet.'
+          );
         }
-
-        if (!cancelled) setCompanies(visibleCompanies);
       } catch {
-        if (!cancelled) setCompanies([]);
+        if (!cancelled) {
+          setCompanies([]);
+          setAdminFallbackActive(false);
+          setEmptyMessage('No assigned companies. Contact an admin.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -90,10 +100,15 @@ export default function CompanySelect() {
           </div>
         ) : companies.length === 0 ? (
           <div className="text-center text-sm text-muted-foreground py-10">
-            No companies configured yet.
+            {emptyMessage}
           </div>
         ) : (
           <div className="space-y-3">
+            {adminFallbackActive && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                Company memberships have not been initialized. Admin fallback access is active.
+              </div>
+            )}
             {companies.map(c => (
               <button
                 key={c.id}

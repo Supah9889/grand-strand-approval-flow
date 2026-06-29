@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Building2, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
-import { canUseActiveCompanySelection, getCurrentCompany } from '@/lib/permissions';
+import { canUseActiveCompanySelection, getCurrentCompany, isAdminFallbackRole } from '@/lib/permissions';
 import { hasSelectedCompany } from '@/lib/routeSecurity';
 
 export function NoCompanyState({ message }) {
@@ -77,12 +77,22 @@ export function PendingReviewState({ message }) {
   );
 }
 
+function AdminFallbackBanner() {
+  return (
+    <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
+      Company memberships have not been initialized. Admin fallback access is active.
+    </div>
+  );
+}
+
 export default function CompanyGuard({ children, message }) {
   const company = getCurrentCompany();
   const companyId = typeof company === 'string' ? company : company?.id;
   const employee = getSessionEmployee();
   const sessionRole = getInternalRole();
-  const needsMembershipCheck = hasSelectedCompany(company) && !!employee?.id;
+  const isAdminFallback = isAdminFallbackRole(sessionRole);
+  const hasCompany = hasSelectedCompany(company);
+  const needsMembershipCheck = hasCompany && !!employee?.id && !isAdminFallback;
   const { data: memberships = [], isLoading } = useQuery({
     queryKey: ['company-guard-membership', employee?.id, companyId],
     queryFn: () => base44.entities.CompanyMembership.filter({
@@ -94,8 +104,15 @@ export default function CompanyGuard({ children, message }) {
     staleTime: 30 * 1000,
     retry: false,
   });
+  const { data: membershipProbe = [] } = useQuery({
+    queryKey: ['company-membership-bootstrap-probe'],
+    queryFn: () => base44.entities.CompanyMembership.list('created_date', 1).catch(() => []),
+    enabled: hasCompany && isAdminFallback,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
 
-  if (!hasSelectedCompany(company)) return <NoCompanyState message={message} />;
+  if (!hasCompany) return <NoCompanyState message={message} />;
   if (needsMembershipCheck && isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -105,6 +122,14 @@ export default function CompanyGuard({ children, message }) {
   }
   if (!canUseActiveCompanySelection({ sessionRole, employee, memberships }, company)) {
     return <NoAccessState message="You are not assigned to the selected company. Select an assigned company or contact an admin." />;
+  }
+  if (isAdminFallback && membershipProbe.length === 0) {
+    return (
+      <>
+        <AdminFallbackBanner />
+        {children}
+      </>
+    );
   }
   return children;
 }
@@ -118,7 +143,9 @@ export function useCompanyGuard(message) {
   const companyId = typeof company === 'string' ? company : company?.id;
   const employee = getSessionEmployee();
   const sessionRole = getInternalRole();
-  const needsMembershipCheck = hasSelectedCompany(company) && !!employee?.id;
+  const isAdminFallback = isAdminFallbackRole(sessionRole);
+  const hasCompany = hasSelectedCompany(company);
+  const needsMembershipCheck = hasCompany && !!employee?.id && !isAdminFallback;
   const { data: memberships = [], isLoading } = useQuery({
     queryKey: ['company-guard-membership', employee?.id, companyId],
     queryFn: () => base44.entities.CompanyMembership.filter({
@@ -131,7 +158,7 @@ export function useCompanyGuard(message) {
     retry: false,
   });
 
-  if (!hasSelectedCompany(company)) return <NoCompanyState message={message} />;
+  if (!hasCompany) return <NoCompanyState message={message} />;
   if (needsMembershipCheck && isLoading) {
     return (
       <div className="flex items-center justify-center py-20">

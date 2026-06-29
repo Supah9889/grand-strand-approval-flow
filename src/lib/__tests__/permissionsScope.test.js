@@ -6,6 +6,7 @@ import {
   canWriteEntity,
   getActiveCompanyId,
   getUserCompanyMemberships,
+  getVisibleCompaniesForSession,
   hasCompanyAccess,
   requireCompanyScope,
   safeCompanyFilter,
@@ -54,6 +55,62 @@ describe('company scope helpers', () => {
     expect(canUseActiveCompanySelection(context, { id: 'co-b' })).toBe(false);
     expect(canUseActiveCompanySelection({ sessionRole: 'admin', memberships: [] }, { id: 'co-b' })).toBe(true);
     expect(canUseActiveCompanySelection({ sessionRole: 'staff', memberships: [] }, { id: 'co-b' })).toBe(false);
+  });
+
+  test('admin and owner with zero memberships can see all active companies', () => {
+    const companies = [
+      { id: 'co-a', name: 'A', is_active: true },
+      { id: 'co-b', name: 'B' },
+      { id: 'co-c', name: 'C', is_active: false },
+    ];
+
+    expect(getVisibleCompaniesForSession({ sessionRole: 'admin', companies, memberships: [] })).toMatchObject({
+      companies: [companies[0], companies[1]],
+      adminFallbackActive: true,
+    });
+    expect(getVisibleCompaniesForSession({ sessionRole: 'owner', companies, memberships: [] })).toMatchObject({
+      companies: [companies[0], companies[1]],
+      adminFallbackActive: true,
+    });
+  });
+
+  test('field user with zero memberships sees no companies', () => {
+    const companies = [{ id: 'co-a', name: 'A', is_active: true }];
+    const visible = getVisibleCompaniesForSession({
+      sessionRole: 'staff',
+      employee: { id: 'emp-field', role: 'field' },
+      companies,
+      memberships: [],
+    });
+
+    expect(visible.companies).toEqual([]);
+    expect(visible.emptyReason).toBe('no_assigned_companies');
+    expect(visible.adminFallbackActive).toBe(false);
+  });
+
+  test('field user sees only active assigned company memberships', () => {
+    const companies = [
+      { id: 'co-a', name: 'A', is_active: true },
+      { id: 'co-b', name: 'B', is_active: true },
+    ];
+    const visible = getVisibleCompaniesForSession({
+      sessionRole: 'staff',
+      employee: { id: 'emp-field', role: 'field' },
+      companies,
+      memberships: [
+        { employee_id: 'emp-field', company_id: 'co-a', is_active: true },
+        { employee_id: 'emp-field', company_id: 'co-b', is_active: false },
+      ],
+    });
+
+    expect(visible.companies).toEqual([companies[0]]);
+  });
+
+  test('admin passes company access without membership while field user fails closed', () => {
+    expect(hasCompanyAccess({ sessionRole: 'admin', employee: { id: 'emp-admin', role: 'admin' }, memberships: [] }, 'co-a')).toBe(true);
+    expect(canUseActiveCompanySelection({ sessionRole: 'admin', employee: { id: 'emp-admin', role: 'admin' }, memberships: [] }, { id: 'co-a' })).toBe(true);
+    expect(hasCompanyAccess({ sessionRole: 'staff', employee: { id: 'emp-field', role: 'field' }, memberships: [] }, 'co-a')).toBe(false);
+    expect(canUseActiveCompanySelection({ sessionRole: 'staff', employee: { id: 'emp-field', role: 'field' }, memberships: [] }, { id: 'co-a' })).toBe(false);
   });
 });
 

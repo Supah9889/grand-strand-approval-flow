@@ -71,6 +71,23 @@ describe('employee invite helpers', () => {
     });
   });
 
+  test('invite acceptance creates memberships only for assigned companies', () => {
+    const payloads = createMembershipPayloads(
+      { ...baseInvite, company_ids: JSON.stringify(['co-b']) },
+      { id: 'emp-1', name: 'Jane Team' },
+      companies
+    );
+
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({
+      company_id: 'co-b',
+      company_name: 'Company B',
+      employee_id: 'emp-1',
+      is_active: true,
+    });
+    expect(payloads.some(payload => payload.company_id === 'co-a')).toBe(false);
+  });
+
   test('safe invite context includes companies and omits token data', () => {
     const context = buildSafeInviteContext(baseInvite, companies);
 

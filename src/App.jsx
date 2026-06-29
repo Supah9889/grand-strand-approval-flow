@@ -73,6 +73,7 @@ const NewJobPage = lazy(() => import('./pages/NewJobPage'));
 const MobileSettings = lazy(() => import('./pages/MobileSettings'));
 const QBConnection = lazy(() => import('./pages/QBConnection'));
 const CompanySelect = lazy(() => import('./pages/CompanySelect'));
+const MembershipBootstrap = lazy(() => import('./pages/MembershipBootstrap'));
 const CRMPage = lazy(() => import('./pages/CRMPage'));
 const XactimateImportPage = lazy(() => import('./pages/XactimateImportPage'));
 const NexusInbox = lazy(() => import('./pages/NexusInbox'));
@@ -271,6 +272,7 @@ const AuthenticatedApp = () => {
               <Route path="/admin-overview" element={adminCompanyOnly(<AdminOverview />)} />
               {/* Super-admin maintenance route; intentionally not company scoped. */}
               <Route path="/admin-cleanup" element={adminOnly(<AdminCleanup />)} />
+              <Route path="/admin/bootstrap-memberships" element={adminOnly(<MembershipBootstrap />)} />
               <Route path="/bt-import" element={adminCompanyOnly(<BTImport />)} />
               <Route path="/search" element={companyRequired(<JobSearch />)} />
               <Route path="/global-search" element={companyRequired(<GlobalSearch />)} />

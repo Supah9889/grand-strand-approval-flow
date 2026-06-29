@@ -18,6 +18,8 @@ import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 import { validateTimeEntry } from '@/lib/validation';
 import ValidationPanel from '@/components/shared/ValidationPanel';
 import PunchLocationMap from '@/components/timeclock/PunchLocationMap';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs } from '@/lib/companyScopedQueries';
 
 const COST_CODES = ['Carpentry Labor/Sub','Drywall Labor/Sub','Other Labor/Sub','Paint Expenses','Painting Labor/Sub'];
 
@@ -35,6 +37,8 @@ export default function TimeEntryDetail() {
   const role = getInternalRole();
   const isAdmin = getIsAdmin(); // true for admin + owner
   const sessionEmployee = getSessionEmployee();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
@@ -62,9 +66,9 @@ export default function TimeEntryDetail() {
   });
 
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
-    enabled: isAdmin,
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: isAdmin && !!activeCompanyId,
   });
 
   useEffect(() => {

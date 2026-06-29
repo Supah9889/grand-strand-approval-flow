@@ -15,6 +15,8 @@ import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { JOB_GROUP_CONFIG, OP_STATUS_FILTER_BUCKETS, isBuildertrendImportedJob } from '@/lib/jobHelpers';
 import DocumentPreviewModal from '@/components/shared/DocumentPreviewModal';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs } from '@/lib/companyScopedQueries';
 import { JOB_PRIMARY_ACTIONS, buildSignedDocPreview, getJobPrimaryAction } from '@/lib/signedDocHelpers';
 import JobRemovalModal from '@/components/jobs/JobRemovalModal';
 import { toast } from 'sonner';
@@ -46,13 +48,16 @@ export default function JobSearch() {
   const queryClient = useQueryClient();
   const isAdmin = getIsAdmin();
   const canUploadWorkOrder = isAdmin;
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const { data: liveJobs = [], isLoading } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date'),
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date'),
+    enabled: !!activeCompanyId,
   });
 
-  const { data: jobs = [], isCached, isOnline } = useOfflineCache(['jobs'], liveJobs, true);
+  const { data: jobs = [], isCached, isOnline } = useOfflineCache(['jobs', activeCompanyId], liveJobs, true);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

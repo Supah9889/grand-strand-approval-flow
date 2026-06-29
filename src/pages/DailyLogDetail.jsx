@@ -10,6 +10,8 @@ import AppLayout from '../components/AppLayout';
 import LogForm from '../components/dailylogs/LogForm';
 import PhotoLightbox from '../components/dailylogs/PhotoLightbox';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchScopedRecordById } from '@/lib/companyScopedQueries';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -33,22 +35,25 @@ export default function DailyLogDetail() {
   const role = getInternalRole();
   const [editing, setEditing] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
-  const { data: log, isLoading } = useQuery({
-    queryKey: ['daily-log', logId],
-    queryFn: async () => { const res = await base44.entities.DailyLog.filter({ id: logId }); return res[0]; },
-    enabled: !!logId,
+  const { data: jobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
   });
 
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+  const { data: log, isLoading } = useQuery({
+    queryKey: ['daily-log', logId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.DailyLog, logId, activeCompanyId, { jobs }),
+    enabled: !!logId && !!activeCompanyId && !isJobsLoading,
   });
 
   const updateMutation = useMutation({
     mutationFn: (data) => base44.entities.DailyLog.update(logId, data),
     onSuccess: (_, updatedData) => {
-      queryClient.invalidateQueries({ queryKey: ['daily-log', logId] });
+      queryClient.invalidateQueries({ queryKey: ['daily-log', logId, activeCompanyId] });
       queryClient.invalidateQueries({ queryKey: ['daily-logs'] });
       const jobLabel = log?.job_address || log?.job_title || log?.job_id || 'Unknown Job';
       const logDate = log?.log_date || '';
@@ -66,7 +71,7 @@ export default function DailyLogDetail() {
   const photos = (() => { try { return JSON.parse(log?.photos || '[]'); } catch { return []; } })();
   const WeatherIcon = log?.weather ? WEATHER_ICON[log.weather] : null;
 
-  if (isLoading) return <AppLayout title="Daily Log"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
+  if (isLoading || isJobsLoading) return <AppLayout title="Daily Log"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   if (!log) return (
     <AppLayout title="Daily Log">
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">

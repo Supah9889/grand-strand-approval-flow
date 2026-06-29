@@ -12,6 +12,7 @@ import PaymentFullForm from '../components/invoices/PaymentFullForm';
 import { fmt } from '@/lib/financialHelpers';
 import { executePaymentCreate, executePaymentDelete, invalidatePaymentQueries } from '@/lib/paymentMutations';
 import { usePermissions } from '@/hooks/usePermissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { toast } from 'sonner';
 
 function DeletePaymentDialog({ payment, onConfirm, onCancel, isDeleting, errorMessage }) {
@@ -44,7 +45,7 @@ const METHODS = { check: 'Check', ach: 'ACH', card: 'Card', cash: 'Cash', zelle:
 
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
-  const { permissions, loading } = usePermissions();
+  const { permissions, loading, activeCompanyId } = usePermissions();
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [filterMethod, setFilterMethod] = useState('all');
@@ -53,9 +54,22 @@ export default function PaymentsPage() {
   const [confirmDelete, setConfirmDelete] = useState(null); // payment object to delete
   const [deleteError, setDeleteError] = useState(null);    // error message shown inside dialog
 
-  const { data: payments = [], isLoading } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list('-created_date') });
-  const { data: invoices = [] } = useQuery({ queryKey: ['invoices'], queryFn: () => base44.entities.Invoice.list('-created_date') });
-  const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+  const hasScopedJobs = !!activeCompanyId && jobs.length > 0;
+  const { data: payments = [], isLoading } = useQuery({
+    queryKey: ['payments', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Payment, jobs, { order: '-created_date' }),
+    enabled: hasScopedJobs,
+  });
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['invoices', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Invoice, jobs, { order: '-created_date' }),
+    enabled: hasScopedJobs,
+  });
 
   const createPayment = useMutation({
     mutationFn: (d) => executePaymentCreate(d),

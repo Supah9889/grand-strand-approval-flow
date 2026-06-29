@@ -18,6 +18,8 @@ import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { INVOICE_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { audit, audit_linking } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -39,15 +41,35 @@ export default function Invoices() {
   const [filterSource, setFilterSource] = useState('all');
   const [filterArchived, setFilterArchived] = useState('active'); // 'active' | 'archived' | 'all'
   const [sort, setSort] = useState('newest');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['invoices'],
-    queryFn: () => base44.entities.Invoice.list('-created_date'),
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
   });
-  const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: () => base44.entities.Payment.list('-created_date') });
-  const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
-  const { data: estimates = [] } = useQuery({ queryKey: ['estimates'], queryFn: () => base44.entities.Estimate.list('-created_date') });
-  const { data: changeOrders = [] } = useQuery({ queryKey: ['change-orders'], queryFn: () => base44.entities.ChangeOrder.list('-created_date') });
+  const hasScopedJobs = !!activeCompanyId && jobs.length > 0;
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: ['invoices', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Invoice, jobs, { order: '-created_date' }),
+    enabled: hasScopedJobs,
+  });
+  const { data: payments = [] } = useQuery({
+    queryKey: ['payments', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Payment, jobs, { order: '-created_date' }),
+    enabled: hasScopedJobs,
+  });
+  const { data: estimates = [] } = useQuery({
+    queryKey: ['estimates', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Estimate, jobs, { order: '-created_date', jobField: 'linked_job_id' }),
+    enabled: hasScopedJobs,
+  });
+  const { data: changeOrders = [] } = useQuery({
+    queryKey: ['change-orders', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.ChangeOrder, jobs, { order: '-created_date' }),
+    enabled: hasScopedJobs,
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['invoices'] });

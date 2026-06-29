@@ -22,6 +22,8 @@ import CalendarEventModal from '../components/CalendarEventModal';
 import CalendarEventDetail from '../components/CalendarEventDetail';
 import { EVENT_TYPE_CONFIG, EVENT_STATUS_CONFIG, getEventColor, formatEventTime } from '@/lib/calendarHelpers';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 
 const VIEWS = [
   { key: 'month',    label: 'Month',    icon: Calendar },
@@ -115,23 +117,25 @@ export default function CalendarPage() {
   const [filterStaff, setFilterStaff] = useState('all');
   const [search, setSearch] = useState('');
   const canManageSchedule = getIsAdmin();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ['calendar-events'],
-    queryFn: () => base44.entities.CalendarEvent.list('start_date'),
-  });
   const { data: jobs = [] } = useQuery({
-    queryKey: ['cal-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['cal-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
   });
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees-active'],
-    queryFn: () => base44.entities.Employee.filter({ active: true }),
-    staleTime: 60000,
+  const { data: events = [], isLoading } = useQuery({
+    queryKey: ['calendar-events', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.CalendarEvent, jobs, { order: 'start_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
-  // Curated staff options from the employee directory rather than raw event strings.
-  const assignees = useMemo(() => employees.map(e => e.name).filter(Boolean).sort(), [employees]);
+  // Filter options come only from active-company calendar records.
+  const assignees = useMemo(
+    () => [...new Set(events.map(e => e.assigned_to).filter(Boolean))].sort(),
+    [events],
+  );
 
   const filteredEvents = useMemo(() => {
     let l = events;

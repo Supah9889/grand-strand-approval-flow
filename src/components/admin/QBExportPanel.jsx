@@ -14,19 +14,38 @@ import ExportTypeSelector from './export/ExportTypeSelector';
 import ExportFilters from './export/ExportFilters';
 import ExportPreviewModal from './export/ExportPreviewModal';
 import ExportHistory from './export/ExportHistory';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchCompanyRecords, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 
 // ── Fetch functions by entity ────────────────────────────────────────────────
-const ENTITY_FETCHERS = {
-  Lead:      () => base44.entities.Lead.list('-created_date', 1000),
-  Job:       () => base44.entities.Job.list('-created_date', 1000),
-  Estimate:  () => base44.entities.Estimate.list('-created_date', 1000),
-  Invoice:   () => base44.entities.Invoice.list('-invoice_date', 1000),
-  Expense:   () => base44.entities.Expense.list('-created_date', 1000),
-  Bill:      () => base44.entities.Bill.list('-bill_date', 1000),
-  Vendor:    () => base44.entities.Vendor.list('company_name', 500),
-  TimeEntry: () => base44.entities.TimeEntry.list('-clock_in', 2000),
-  CostCode:  () => base44.entities.CostCode.list('name', 500),
-};
+async function fetchExportRecords(entityName, companyId, jobs) {
+  if (!companyId || !entityName) return [];
+  const companyOwned = {
+    Lead: [base44.entities.Lead, '-created_date', 1000],
+    Job: [base44.entities.Job, '-created_date', 1000],
+    Estimate: [base44.entities.Estimate, '-created_date', 1000],
+    Vendor: [base44.entities.Vendor, 'company_name', 500],
+    TimeEntry: [base44.entities.TimeEntry, '-clock_in', 2000],
+  };
+  const jobOwned = {
+    Invoice: [base44.entities.Invoice, '-invoice_date', 1000],
+    Expense: [base44.entities.Expense, '-created_date', 1000],
+    Bill: [base44.entities.Bill, '-bill_date', 1000],
+  };
+
+  if (companyOwned[entityName]) {
+    const [entity, order, limit] = companyOwned[entityName];
+    return fetchCompanyRecords(entity, companyId, order, limit);
+  }
+  if (jobOwned[entityName]) {
+    const [entity, order, limitPerJob] = jobOwned[entityName];
+    return fetchJobScopedRecords(entity, jobs, { order, limitPerJob });
+  }
+  if (entityName === 'CostCode') {
+    return base44.entities.CostCode.list('name', 500);
+  }
+  return [];
+}
 
 const EMPTY_FILTERS = {
   dateFrom: '', dateTo: '', exportStatus: 'all', recordStatus: 'all',
@@ -41,6 +60,8 @@ function generateBatchId(batchCount) {
 export default function QBExportPanel() {
   const role = getInternalRole();
   const queryClient = useQueryClient();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
 
   const [activeType, setActiveType] = useState('invoices');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -51,24 +72,26 @@ export default function QBExportPanel() {
   const typeCfg = EXPORT_TYPES.find(t => t.key === activeType);
 
   // ── Data fetches ────────────────────────────────────────────────────────────
-  const { data: rawRecords = [], isLoading: loadingRecords } = useQuery({
-    queryKey: ['export-records', typeCfg?.entity],
-    queryFn: () => ENTITY_FETCHERS[typeCfg?.entity]?.() || Promise.resolve([]),
-    enabled: !!typeCfg?.entity,
-    staleTime: 30000,
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['export-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 500),
+    enabled: !!activeCompanyId,
   });
 
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['export-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 500),
+  const { data: rawRecords = [], isLoading: loadingRecords } = useQuery({
+    queryKey: ['export-records', typeCfg?.entity, activeCompanyId, jobs.length],
+    queryFn: () => fetchExportRecords(typeCfg?.entity, activeCompanyId, jobs),
+    enabled: !!typeCfg?.entity && !!activeCompanyId,
+    staleTime: 30000,
   });
   const { data: employees = [] } = useQuery({
     queryKey: ['export-employees'],
     queryFn: () => base44.entities.Employee.list('name', 200),
   });
   const { data: vendors = [] } = useQuery({
-    queryKey: ['export-vendors'],
-    queryFn: () => base44.entities.Vendor.list('company_name', 200),
+    queryKey: ['export-vendors', activeCompanyId],
+    queryFn: () => fetchCompanyRecords(base44.entities.Vendor, activeCompanyId, 'company_name', 200),
+    enabled: !!activeCompanyId,
   });
   const { data: batches = [] } = useQuery({
     queryKey: ['qb-export-batches'],

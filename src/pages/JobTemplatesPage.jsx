@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Plus, Briefcase, Edit2, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Plus, Briefcase, Edit2, Loader2, CheckCircle2 } from 'lucide-react';
 import { getCurrentCompany } from '@/lib/permissions';
 import { getSession, isAdmin } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
@@ -29,7 +29,8 @@ export default function JobTemplatesPage() {
     queryKey: ['job-templates', company?.id],
     queryFn: () => company
       ? base44.entities.JobTemplate.filter({ company_id: company.id }, 'name')
-      : base44.entities.JobTemplate.list('name'),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const handleSaved = async (tpl, isEdit) => {

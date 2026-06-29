@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,11 +20,21 @@ const ratings = [
 
 export default function Review() {
   const urlParams = new URLSearchParams(window.location.search);
-  const jobId = urlParams.get('jobId');
+  const signingToken = urlParams.get('token') || urlParams.get('signatureToken') || urlParams.get('signature_token') || urlParams.get('approvalToken') || urlParams.get('approval_token') || '';
   const navigate = useNavigate();
   const [selected, setSelected] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  const { data: signingContext, isLoading } = useQuery({
+    queryKey: ['signing-grant', signingToken],
+    queryFn: async () => {
+      const response = await base44.functions.invoke('resolveSigningGrant', { token: signingToken });
+      return response?.data || response;
+    },
+    enabled: !!signingToken,
+  });
+  const jobId = signingContext?.job?.id || '';
 
   useEffect(() => {
     if (!jobId) return;
@@ -47,6 +57,26 @@ export default function Review() {
       toast.success('Thank you for your feedback!');
     },
   });
+
+  if (isLoading) {
+    return (
+      <AppLayout title="Review">
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!jobId) {
+    return (
+      <AppLayout title="Review">
+        <div className="flex-1 flex items-center justify-center px-4 text-center">
+          <p className="text-sm text-muted-foreground">This review link is invalid or expired.</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (submitted) {
     return (

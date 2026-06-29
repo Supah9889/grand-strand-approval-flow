@@ -8,7 +8,7 @@ import {
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 import { isAdmin } from '@/lib/adminAuth';
-import { canManageWorkOrders, canViewAllTimeEntries, canApproveNexus, getCurrentCompany } from '@/lib/permissions';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const todayISO = new Date().toISOString().split('T')[0];
 
@@ -63,31 +63,40 @@ export default function ManagerDashboard() {
     queryKey: ['mgr-jobs', company?.id],
     queryFn: () => company
       ? base44.entities.Job.filter({ company_id: company.id }, '-created_date', 200)
-      : base44.entities.Job.list('-created_date', 200),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: workOrders = [] } = useQuery({
     queryKey: ['mgr-work-orders', company?.id],
     queryFn: () => company
       ? base44.entities.WorkOrder.filter({ company_id: company.id }, '-created_date', 100)
-      : base44.entities.WorkOrder.list('-created_date', 100),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: timeEntries = [] } = useQuery({
-    queryKey: ['mgr-time-entries'],
-    queryFn: () => base44.entities.TimeEntry.filter({ status: 'clocked_in' }),
+    queryKey: ['mgr-time-entries', company?.id],
+    queryFn: () => company
+      ? base44.entities.TimeEntry.filter({ company_id: company.id, status: 'clocked_in' })
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: pendingEntries = [] } = useQuery({
-    queryKey: ['mgr-pending-time'],
-    queryFn: () => base44.entities.TimeEntry.filter({ approval_status: 'pending', status: 'clocked_out' }, '-entry_date', 100),
+    queryKey: ['mgr-pending-time', company?.id],
+    queryFn: () => company
+      ? base44.entities.TimeEntry.filter({ company_id: company.id, approval_status: 'pending', status: 'clocked_out' }, '-entry_date', 100)
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: nexusItems = [] } = useQuery({
     queryKey: ['mgr-nexus', company?.id],
     queryFn: () => company
       ? base44.entities.NexusItem.filter({ company_id: company.id, status: 'pending_review' })
-      : base44.entities.NexusItem.filter({ status: 'pending_review' }),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: scheduleEvents = [] } = useQuery({
@@ -95,12 +104,13 @@ export default function ManagerDashboard() {
     queryFn: async () => {
       const all = company
         ? await base44.entities.ScheduleEvent.filter({ company_id: company.id }, 'start_datetime', 50)
-        : await base44.entities.ScheduleEvent.list('start_datetime', 50);
+        : [];
       return all.filter(e => {
         const d = e.start_datetime?.split('T')[0];
         return d >= todayISO && e.status !== 'cancelled';
       });
     },
+    enabled: !!company?.id,
   });
 
   const activeJobs = useMemo(() => jobs.filter(j => ['in_progress', 'scheduled', 'needs_scheduling', 'new'].includes(j.op_status)), [jobs]);

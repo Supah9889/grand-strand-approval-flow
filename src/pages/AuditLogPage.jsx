@@ -14,6 +14,8 @@ import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import { ACTION_LABELS } from '@/lib/audit';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { useNavigate } from 'react-router-dom';
 
 const MODULES = [
@@ -159,6 +161,8 @@ export default function AuditLogPage() {
   const navigate = useNavigate();
   const role = getInternalRole();
   const isAdmin = getIsAdmin();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const [search, setSearch] = useState('');
   const [filterModule, setFilterModule] = useState('all');
@@ -173,44 +177,31 @@ export default function AuditLogPage() {
   const [actorPopoverOpen, setActorPopoverOpen] = useState(false);
   const PAGE_SIZE = 100;
 
-  const { data: logs = [], isLoading } = useQuery({
-    queryKey: ['audit-log-page'],
-    queryFn: () => base44.entities.AuditLog.list('-timestamp', 2000),
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['audit-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 500),
     staleTime: 30000,
-    enabled: isAdmin,
+    enabled: isAdmin && !!activeCompanyId,
   });
 
-  // Actor options come from structured employee/vendor sources — NOT raw audit log strings.
-  // This prevents internal admin/owner/system email addresses appearing as filter options.
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees-for-audit-filter'],
-    queryFn: () => base44.entities.Employee.filter({ active: true }),
-    staleTime: 60000,
-    enabled: isAdmin,
-  });
-  const { data: vendors = [] } = useQuery({
-    queryKey: ['vendors-for-audit-filter'],
-    queryFn: () => base44.entities.Vendor.filter({ active: true }),
-    staleTime: 60000,
-    enabled: isAdmin,
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['audit-log-page', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.AuditLog, jobs, { order: '-timestamp', limitPerJob: 2000 }),
+    staleTime: 30000,
+    enabled: isAdmin && !!activeCompanyId && jobs.length > 0,
   });
 
-  // Build curated actor options: employees by name, vendors/subs by company name.
+  // Build actor options only from the active-company audit result set.
   const actorOptions = useMemo(() => {
-    const opts = [];
-    employees.forEach(e => { if (e.name) opts.push({ label: e.name, value: e.name }); });
-    vendors
-      .filter(v => ['vendor', 'subcontractor'].includes(v.type))
-      .forEach(v => {
-        const name = v.display_name || v.company_name;
-        if (name) opts.push({ label: name, value: name });
-      });
-    // Deduplicate by value and sort
+    const opts = logs
+      .map(log => log.actor)
+      .filter(Boolean)
+      .map(actor => ({ label: actor, value: actor }));
     const seen = new Set();
     return opts
       .filter(o => { if (seen.has(o.value)) return false; seen.add(o.value); return true; })
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [employees, vendors]);
+  }, [logs]);
 
   const filteredActorOptions = useMemo(() => {
     if (!actorSearch.trim()) return actorOptions;

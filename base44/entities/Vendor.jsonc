@@ -6,6 +6,10 @@
       "type": "string",
       "description": "Internal reference number e.g. VEN-001"
     },
+    "company_id": {
+      "type": "string",
+      "description": "Owning company id for multi-tenant isolation. Backfilled by migrateCompanyOwnership; GLOBAL_ADMIN_UNASSIGNED means manual admin review is required."
+    },
     "company_name": {
       "type": "string"
     },

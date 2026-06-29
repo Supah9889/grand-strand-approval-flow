@@ -11,6 +11,8 @@ import POForm from '../components/purchasing/POForm';
 import POCard from '../components/purchasing/POCard';
 import { PO_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { toast } from 'sonner';
 
 export default function PurchaseOrders() {
@@ -22,10 +24,20 @@ export default function PurchaseOrders() {
   const [filterVendor, setFilterVendor] = useState('all');
   const [filterJob, setFilterJob] = useState('all');
   const [sort, setSort] = useState('newest');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
-  const { data: pos = [], isLoading } = useQuery({ queryKey: ['purchase-orders'], queryFn: () => base44.entities.PurchaseOrder.list('-created_date') });
-  const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
-  const { data: vendors = [] } = useQuery({ queryKey: ['vendors'], queryFn: () => base44.entities.Vendor.list('company_name') });
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+  const { data: pos = [], isLoading } = useQuery({
+    queryKey: ['purchase-orders', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.PurchaseOrder, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
+  });
+  const vendors = [];
 
   const createPO = useMutation({
     mutationFn: d => base44.entities.PurchaseOrder.create(d),

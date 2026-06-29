@@ -42,7 +42,9 @@ function getSigningToken(urlParams) {
 }
 
 function appendSigningToken(path, signingToken) {
-  return signingToken ? `${path}&token=${encodeURIComponent(signingToken)}` : path;
+  if (!signingToken) return path;
+  const separator = path.includes('?') ? (path.endsWith('?') || path.endsWith('&') ? '' : '&') : '?';
+  return `${path}${separator}token=${encodeURIComponent(signingToken)}`;
 }
 
 async function uploadFileToR2({ jobId, file, category, purpose, publicSigning = false, signingToken = '' }) {
@@ -108,26 +110,23 @@ async function resolveFileUrl({ jobId, value, r2Key, category, purpose, publicSi
 
 export default function Signature() {
   const urlParams = new URLSearchParams(window.location.search);
-  const jobId = urlParams.get('jobId');
   const signingToken = getSigningToken(urlParams);
   const navigate = useNavigate();
   const [signatureData, setSignatureData] = useState(null);
 
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job', jobId],
+  const { data: signingContext, isLoading } = useQuery({
+    queryKey: ['signing-grant', signingToken],
     queryFn: async () => {
-      const jobs = await base44.entities.Job.filter({ id: jobId });
-      return jobs[0];
+      const response = await base44.functions.invoke('resolveSigningGrant', { token: signingToken });
+      return response?.data || response;
     },
-    enabled: !!jobId,
+    enabled: !!signingToken,
   });
-  const { data: currentUser = null, isLoading: isAuthLoading } = useQuery({
-    queryKey: ['signature-auth'],
-    queryFn: () => base44.auth.me().catch(() => null),
-  });
+  const job = signingContext?.job || null;
+  const jobId = job?.id || '';
 
   const usePublicSigning = Boolean(signingToken);
-  const canSubmitSignature = usePublicSigning || Boolean(currentUser);
+  const canSubmitSignature = usePublicSigning && Boolean(job);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -137,8 +136,8 @@ export default function Signature() {
         throw new Error('This signing link is missing required security information. Please request a new signing link.');
       }
 
-      const latestJobs = await base44.entities.Job.filter({ id: jobId });
-      const latestJob = latestJobs[0];
+      const latestGrantResponse = await base44.functions.invoke('resolveSigningGrant', { token: signingToken });
+      const latestJob = (latestGrantResponse?.data || latestGrantResponse)?.job;
       if (!latestJob) throw new Error('Job not found');
 
       if (latestJob.locked || latestJob.status === 'approved') {
@@ -264,14 +263,14 @@ export default function Signature() {
       await logAudit(jobId, 'signature_submitted', 'Customer', `Signed by ${latestJob.customer_name} · Terms ${TERMS_VERSION}`);
     },
     onSuccess: () => {
-      navigate(`/confirmation?jobId=${jobId}`);
+      navigate(appendSigningToken('/confirmation', signingToken));
     },
     onError: (error) => {
       toast.error(getR2UploadErrorMessage(error));
     },
   });
 
-  if (isLoading || isAuthLoading) {
+  if (isLoading) {
     return (
       <AppLayout title="Sign to Approve">
         <div className="flex-1 flex items-center justify-center">
@@ -314,7 +313,7 @@ export default function Signature() {
       <div className="max-w-lg mx-auto w-full px-4 py-6 space-y-4">
 
         <button
-          onClick={() => navigate(appendSigningToken(`/approve?jobId=${jobId}`, signingToken))}
+          onClick={() => navigate(appendSigningToken('/approve', signingToken))}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

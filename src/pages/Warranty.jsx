@@ -14,6 +14,8 @@ import WarrantyForm from '../components/warranty/WarrantyForm';
 import WarrantyCard from '../components/warranty/WarrantyCard';
 import { WARRANTY_STATUS_CONFIG, WARRANTY_CATEGORY_LABELS } from '@/lib/warrantyHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { toast } from 'sonner';
 
 export default function Warranty() {
@@ -27,14 +29,18 @@ export default function Warranty() {
   const [filterJob, setFilterJob] = useState('all');
   const [filterAssigned, setFilterAssigned] = useState('all');
   const [sort, setSort] = useState('newest');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['warranty-items'],
-    queryFn: () => base44.entities.WarrantyItem.list('-created_date'),
-  });
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['warranty-items', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.WarrantyItem, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-active'],

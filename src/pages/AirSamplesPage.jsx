@@ -27,7 +27,8 @@ export default function AirSamplesPage() {
     queryKey: ['all-air-samples', company?.id],
     queryFn: () => company
       ? base44.entities.AirSampleTest.filter({ company_id: company.id }, '-sample_date', 300)
-      : base44.entities.AirSampleTest.list('-sample_date', 300),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const filtered = filter === 'all' ? samples : samples.filter(s => s.result_status === filter);

@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Loader2, MapPin, Plus, Search, Archive } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs } from '@/lib/companyScopedQueries';
 import { isActiveJob } from '@/lib/jobHelpers';
 import JobStatusBadge from '@/components/jobs/JobStatusBadge';
 
@@ -33,9 +34,12 @@ function sortJobs(jobs) {
 }
 
 function useWorkspaceJobs() {
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
   return useQuery({
-    queryKey: ['workspace-jobs'],
-    queryFn: () => base44.entities.Job.list('-updated_date'),
+    queryKey: ['workspace-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-updated_date'),
+    enabled: !!activeCompanyId,
     staleTime: 60_000,
   });
 }

@@ -41,7 +41,8 @@ export default function DocumentationRequirementsPage() {
     queryKey: ['doc-requirements', company?.id],
     queryFn: () => company
       ? base44.entities.DocumentationRequirement.filter({ company_id: company.id }, 'service_line')
-      : base44.entities.DocumentationRequirement.list('service_line'),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const filtered = filterLine === 'all' ? reqs : reqs.filter(r => r.service_line === filterLine);

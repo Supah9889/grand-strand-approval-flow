@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Droplets, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Droplets, Loader2, CheckCircle2 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
 import { useCompanyGuard } from '@/components/CompanyGuard';
-import usePermissions from '@/hooks/usePermissions';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -22,7 +21,8 @@ export default function MoistureReadingsPage() {
     queryKey: ['all-moisture', company?.id],
     queryFn: () => company
       ? base44.entities.MoistureReading.filter({ company_id: company.id }, '-taken_at', 300)
-      : base44.entities.MoistureReading.list('-taken_at', 300),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const filtered = filter === 'wet' ? readings.filter(r => !r.is_dry) : filter === 'dry' ? readings.filter(r => r.is_dry) : readings;

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Cpu, Plus, Loader2, X, ChevronRight } from 'lucide-react';
+import { Cpu, Plus, Loader2, X } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
 import usePermissions from '@/hooks/usePermissions';
@@ -125,14 +125,16 @@ export default function EquipmentPage() {
     queryKey: ['equipment', company?.id],
     queryFn: () => company
       ? base44.entities.RestorationEquipment.filter({ company_id: company.id })
-      : base44.entities.RestorationEquipment.list(),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['equip-jobs', company?.id],
     queryFn: () => company
       ? base44.entities.Job.filter({ company_id: company.id }, '-created_date', 100)
-      : base44.entities.Job.list('-created_date', 100),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const filtered = filter === 'all' ? equipment : equipment.filter(e => e.status === filter);

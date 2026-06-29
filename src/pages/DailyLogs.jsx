@@ -13,6 +13,8 @@ import AppLayout from '../components/AppLayout';
 import LogForm from '../components/dailylogs/LogForm';
 import LogCard from '../components/dailylogs/LogCard';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -34,15 +36,19 @@ export default function DailyLogs() {
   const [filterFollowUp, setFilterFollowUp] = useState('all');
   const [sort, setSort] = useState('newest');
   const [activeStat, setActiveStat] = useState(null);
-
-  const { data: logs = [], isLoading } = useQuery({
-    queryKey: ['daily-logs'],
-    queryFn: () => base44.entities.DailyLog.list('-log_date'),
-  });
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['daily-logs', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.DailyLog, jobs, { order: '-log_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
   const createMutation = useMutation({

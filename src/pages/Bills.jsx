@@ -14,6 +14,8 @@ import BillDetailForm from '../components/purchasing/BillDetailForm';
 import BillDetailCard from '../components/purchasing/BillDetailCard';
 import { BILL_STATUS_CONFIG, fmt } from '@/lib/financialHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { toast } from 'sonner';
 
 export default function Bills() {
@@ -26,10 +28,20 @@ export default function Bills() {
   const [filterJob, setFilterJob] = useState('all');
   const [filterOverdue, setFilterOverdue] = useState('all');
   const [sort, setSort] = useState('newest');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
-  const { data: bills = [], isLoading } = useQuery({ queryKey: ['bills'], queryFn: () => base44.entities.Bill.list('-created_date') });
-  const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: () => base44.entities.Job.list('-created_date', 200) });
-  const { data: vendors = [] } = useQuery({ queryKey: ['vendors'], queryFn: () => base44.entities.Vendor.list('company_name') });
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+  const { data: bills = [], isLoading } = useQuery({
+    queryKey: ['bills', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Bill, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
+  });
+  const vendors = [];
 
   const createBill = useOptimisticMutation({
     mutationFn: d => base44.entities.Bill.create(d),
@@ -70,7 +82,6 @@ export default function Bills() {
     setIsRefreshing(true);
     await queryClient.refetchQueries({ queryKey: ['bills'] });
     await queryClient.refetchQueries({ queryKey: ['jobs'] });
-    await queryClient.refetchQueries({ queryKey: ['vendors'] });
     setIsRefreshing(false);
   };
 

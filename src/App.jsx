@@ -8,9 +8,11 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { NavigationProvider } from '@/lib/NavigationContext';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import BottomNav from '@/components/BottomNav';
+import CompanyGuard from '@/components/CompanyGuard';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { isAdmin, isUnlocked } from '@/lib/adminAuth';
+import { shouldRequireUnlock } from '@/lib/routeSecurity';
 
 // Core pages (loaded immediately)
 import Splash from './pages/Splash';
@@ -122,13 +124,11 @@ function RouteLoader() {
  * UnlockGuard — renders children only if the app session is unlocked.
  * If locked, redirects to /gate. Public routes (/, /gate) are exempt.
  */
-const PUBLIC_PATHS = new Set(['/', '/gate']);
-
 function UnlockGuard({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  if (!PUBLIC_PATHS.has(location.pathname) && !isUnlocked()) {
+  if (shouldRequireUnlock(location.pathname, location.search) && !isUnlocked()) {
     // Use an effect-free immediate redirect via Navigate component
     return <Navigate to="/gate" replace />;
   }
@@ -172,8 +172,20 @@ function AdminRoute({ children }) {
   return children;
 }
 
+function CompanyRoute({ children }) {
+  return <CompanyGuard>{children}</CompanyGuard>;
+}
+
 function adminOnly(element) {
   return <AdminRoute>{element}</AdminRoute>;
+}
+
+function companyRequired(element) {
+  return <CompanyRoute>{element}</CompanyRoute>;
+}
+
+function adminCompanyOnly(element) {
+  return adminOnly(companyRequired(element));
 }
 
 const AuthenticatedApp = () => {
@@ -227,89 +239,90 @@ const AuthenticatedApp = () => {
               <Route path="/review" element={<Review />} />
 
               {/* Dashboard Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/job-hub" element={<JobHub />} />
-              <Route path="/admin-overview" element={adminOnly(<AdminOverview />)} />
+              <Route path="/dashboard" element={companyRequired(<Dashboard />)} />
+              <Route path="/job-hub" element={companyRequired(<JobHub />)} />
+              <Route path="/admin-overview" element={adminCompanyOnly(<AdminOverview />)} />
+              {/* Super-admin maintenance route; intentionally not company scoped. */}
               <Route path="/admin-cleanup" element={adminOnly(<AdminCleanup />)} />
-              <Route path="/bt-import" element={adminOnly(<BTImport />)} />
-              <Route path="/search" element={<JobSearch />} />
-              <Route path="/global-search" element={<GlobalSearch />} />
+              <Route path="/bt-import" element={adminCompanyOnly(<BTImport />)} />
+              <Route path="/search" element={companyRequired(<JobSearch />)} />
+              <Route path="/global-search" element={companyRequired(<GlobalSearch />)} />
               {/* /search-jobs is the old scoped job-only search, kept for back-compat */}
-              <Route path="/new-job" element={adminOnly(<NewJobPage />)} />
+              <Route path="/new-job" element={adminCompanyOnly(<NewJobPage />)} />
 
               {/* Time Tracking Routes */}
-              <Route path="/time-clock" element={<TimeClock />} />
-              <Route path="/time-entries" element={<TimeEntries />} />
-              <Route path="/time-entries/:id" element={<TimeEntryDetail />} />
+              <Route path="/time-clock" element={companyRequired(<TimeClock />)} />
+              <Route path="/time-entries" element={companyRequired(<TimeEntries />)} />
+              <Route path="/time-entries/:id" element={companyRequired(<TimeEntryDetail />)} />
 
               {/* Financial Routes */}
-              <Route path="/invoices" element={adminOnly(<Invoices />)} />
-              <Route path="/expenses" element={adminOnly(<Expenses />)} />
-              <Route path="/payments" element={adminOnly(<PaymentsPage />)} />
-              <Route path="/bills" element={adminOnly(<Bills />)} />
-              <Route path="/purchase-orders" element={adminOnly(<PurchaseOrders />)} />
-              <Route path="/financials" element={adminOnly(<Financials />)} />
+              <Route path="/invoices" element={adminCompanyOnly(<Invoices />)} />
+              <Route path="/expenses" element={adminCompanyOnly(<Expenses />)} />
+              <Route path="/payments" element={adminCompanyOnly(<PaymentsPage />)} />
+              <Route path="/bills" element={adminCompanyOnly(<Bills />)} />
+              <Route path="/purchase-orders" element={adminCompanyOnly(<PurchaseOrders />)} />
+              <Route path="/financials" element={adminCompanyOnly(<Financials />)} />
 
               {/* Operations Routes */}
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/tasks/:id" element={<TaskDetail />} />
-              <Route path="/daily-logs" element={<DailyLogs />} />
-              <Route path="/daily-logs/:id" element={<DailyLogDetail />} />
-              <Route path="/warranty" element={<Warranty />} />
-              <Route path="/warranty/:id" element={<WarrantyDetail />} />
+              <Route path="/tasks" element={companyRequired(<Tasks />)} />
+              <Route path="/tasks/:id" element={companyRequired(<TaskDetail />)} />
+              <Route path="/daily-logs" element={companyRequired(<DailyLogs />)} />
+              <Route path="/daily-logs/:id" element={companyRequired(<DailyLogDetail />)} />
+              <Route path="/warranty" element={companyRequired(<Warranty />)} />
+              <Route path="/warranty/:id" element={companyRequired(<WarrantyDetail />)} />
 
               {/* Sales Routes */}
-              <Route path="/sales" element={adminOnly(<Sales />)} />
-              <Route path="/sales/:id" element={adminOnly(<LeadDetail />)} />
-              <Route path="/estimates" element={adminOnly(<Estimates />)} />
-              <Route path="/estimates/:id" element={adminOnly(<EstimateDetail />)} />
-              <Route path="/change-orders" element={adminOnly(<ChangeOrders />)} />
-              <Route path="/change-orders/:id" element={adminOnly(<ChangeOrderDetail />)} />
+              <Route path="/sales" element={adminCompanyOnly(<Sales />)} />
+              <Route path="/sales/:id" element={adminCompanyOnly(<LeadDetail />)} />
+              <Route path="/estimates" element={adminCompanyOnly(<Estimates />)} />
+              <Route path="/estimates/:id" element={adminCompanyOnly(<EstimateDetail />)} />
+              <Route path="/change-orders" element={adminCompanyOnly(<ChangeOrders />)} />
+              <Route path="/change-orders/:id" element={adminCompanyOnly(<ChangeOrderDetail />)} />
 
               {/* Communication Routes */}
-              <Route path="/job-comms" element={<JobComms />} />
-              <Route path="/job-comms/detail" element={<JobCommsDetail />} />
+              <Route path="/job-comms" element={companyRequired(<JobComms />)} />
+              <Route path="/job-comms/detail" element={companyRequired(<JobCommsDetail />)} />
 
               {/* Portal Routes */}
-              <Route path="/portal-manager" element={adminOnly(<PortalManager />)} />
+              <Route path="/portal-manager" element={adminCompanyOnly(<PortalManager />)} />
               <Route path="/portal/client" element={<ClientPortal />} />
               <Route path="/portal/vendor" element={<VendorPortal />} />
 
               {/* Admin Routes */}
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/vendors" element={adminOnly(<VendorBank />)} />
-              <Route path="/employees" element={adminOnly(<EmployeeManager />)} />
-              <Route path="/employee-permissions" element={adminOnly(<EmployeePermissions />)} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/document-templates" element={adminOnly(<DocumentTemplates />)} />
-              <Route path="/custom-fields" element={adminOnly(<CustomFields />)} />
-              <Route path="/audit-log" element={adminOnly(<AuditLogPage />)} />
-              <Route path="/qb-connection" element={adminOnly(<QBConnection />)} />
+              <Route path="/admin" element={adminCompanyOnly(<Admin />)} />
+              <Route path="/vendors" element={adminCompanyOnly(<VendorBank />)} />
+              <Route path="/employees" element={adminCompanyOnly(<EmployeeManager />)} />
+              <Route path="/employee-permissions" element={adminCompanyOnly(<EmployeePermissions />)} />
+              <Route path="/calendar" element={companyRequired(<CalendarPage />)} />
+              <Route path="/document-templates" element={adminCompanyOnly(<DocumentTemplates />)} />
+              <Route path="/custom-fields" element={adminCompanyOnly(<CustomFields />)} />
+              <Route path="/audit-log" element={adminCompanyOnly(<AuditLogPage />)} />
+              <Route path="/qb-connection" element={adminCompanyOnly(<QBConnection />)} />
               <Route path="/company-select" element={<CompanySelect />} />
-              <Route path="/crm" element={<CRMPage />} />
-              <Route path="/xactimate" element={<XactimateImportPage />} />
-              <Route path="/nexus" element={<NexusInbox />} />
-              <Route path="/company-admin" element={adminOnly(<CompanyAdmin />)} />
-              <Route path="/field" element={<FieldDashboard />} />
-              <Route path="/manager" element={<ManagerDashboard />} />
-              <Route path="/work-orders" element={<WorkOrders />} />
-              <Route path="/work-orders/:id" element={<WorkOrderDetail />} />
-              <Route path="/field-schedule" element={<FieldSchedule />} />
-              <Route path="/restoration" element={<RestorationHub />} />
-              <Route path="/jobs/:id/documentation" element={<JobDocumentation />} />
-              <Route path="/moisture-readings" element={<MoistureReadingsPage />} />
-              <Route path="/drying-logs" element={<DryingLogsPage />} />
-              <Route path="/air-samples" element={<AirSamplesPage />} />
-              <Route path="/equipment" element={<EquipmentPage />} />
-              <Route path="/gscp-field" element={<GSCPField />} />
-              <Route path="/subcontract-review" element={<SubcontractReview />} />
-              <Route path="/subcontracts" element={<SubcontractVisibility />} />
-              <Route path="/access-management" element={adminOnly(<AccessManagement />)} />
-              <Route path="/access-tests" element={adminOnly(<AccessTests />)} />
-              <Route path="/templates" element={<TemplatesHub />} />
-              <Route path="/job-templates" element={<JobTemplatesPage />} />
-              <Route path="/work-order-templates" element={<WorkOrderTemplatesPage />} />
-              <Route path="/documentation-requirements" element={<DocumentationRequirementsPage />} />
+              <Route path="/crm" element={companyRequired(<CRMPage />)} />
+              <Route path="/xactimate" element={companyRequired(<XactimateImportPage />)} />
+              <Route path="/nexus" element={companyRequired(<NexusInbox />)} />
+              <Route path="/company-admin" element={adminCompanyOnly(<CompanyAdmin />)} />
+              <Route path="/field" element={companyRequired(<FieldDashboard />)} />
+              <Route path="/manager" element={companyRequired(<ManagerDashboard />)} />
+              <Route path="/work-orders" element={companyRequired(<WorkOrders />)} />
+              <Route path="/work-orders/:id" element={companyRequired(<WorkOrderDetail />)} />
+              <Route path="/field-schedule" element={companyRequired(<FieldSchedule />)} />
+              <Route path="/restoration" element={companyRequired(<RestorationHub />)} />
+              <Route path="/jobs/:id/documentation" element={companyRequired(<JobDocumentation />)} />
+              <Route path="/moisture-readings" element={companyRequired(<MoistureReadingsPage />)} />
+              <Route path="/drying-logs" element={companyRequired(<DryingLogsPage />)} />
+              <Route path="/air-samples" element={companyRequired(<AirSamplesPage />)} />
+              <Route path="/equipment" element={companyRequired(<EquipmentPage />)} />
+              <Route path="/gscp-field" element={companyRequired(<GSCPField />)} />
+              <Route path="/subcontract-review" element={companyRequired(<SubcontractReview />)} />
+              <Route path="/subcontracts" element={companyRequired(<SubcontractVisibility />)} />
+              <Route path="/access-management" element={adminCompanyOnly(<AccessManagement />)} />
+              <Route path="/access-tests" element={adminCompanyOnly(<AccessTests />)} />
+              <Route path="/templates" element={companyRequired(<TemplatesHub />)} />
+              <Route path="/job-templates" element={companyRequired(<JobTemplatesPage />)} />
+              <Route path="/work-order-templates" element={companyRequired(<WorkOrderTemplatesPage />)} />
+              <Route path="/documentation-requirements" element={companyRequired(<DocumentationRequirementsPage />)} />
               <Route path="/legacy-imports" element={adminOnly(<LegacyImports />)} />
               <Route path="/legacy-records" element={adminOnly(<LegacyRecords />)} />
               <Route path="/migration-dashboard" element={adminOnly(<MigrationDashboard />)} />
@@ -322,12 +335,12 @@ const AuthenticatedApp = () => {
               <Route path="/review-feedback" element={adminOnly(<ReviewFeedbackAdmin />)} />
               <Route path="/review-script" element={adminOnly(<ReviewScript />)} />
               <Route path="/review-decisions" element={adminOnly(<ReviewDecisions />)} />
-              <Route path="/edge-case-tests" element={adminOnly(<EdgeCaseTests />)} />
-              <Route path="/esx-draft-work-orders" element={adminOnly(<ESXDraftWorkOrderQueue />)} />
-              <Route path="/esx-sample-tests" element={adminOnly(<ESXSampleTests />)} />
+              <Route path="/edge-case-tests" element={adminCompanyOnly(<EdgeCaseTests />)} />
+              <Route path="/esx-draft-work-orders" element={adminCompanyOnly(<ESXDraftWorkOrderQueue />)} />
+              <Route path="/esx-sample-tests" element={adminCompanyOnly(<ESXSampleTests />)} />
 
               {/* Settings Routes */}
-              <Route path="/mobile-settings" element={<MobileSettings />} />
+              <Route path="/mobile-settings" element={companyRequired(<MobileSettings />)} />
 
               {/* 404 */}
               <Route path="*" element={<PageNotFound />} />

@@ -12,26 +12,28 @@ import { toast } from 'sonner';
 
 export default function Confirmation() {
   const urlParams = new URLSearchParams(window.location.search);
-  const jobId = urlParams.get('jobId');
+  const signingToken = urlParams.get('token') || urlParams.get('signatureToken') || urlParams.get('signature_token') || urlParams.get('approvalToken') || urlParams.get('approval_token') || '';
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
 
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job-confirmed', jobId],
+  const { data: signingContext, isLoading } = useQuery({
+    queryKey: ['signing-grant', signingToken],
     queryFn: async () => {
-      const jobs = await base44.entities.Job.filter({ id: jobId });
-      return jobs[0];
+      const response = await base44.functions.invoke('resolveSigningGrant', { token: signingToken });
+      return response?.data || response;
     },
-    enabled: !!jobId,
+    enabled: !!signingToken,
   });
+  const job = signingContext?.job || null;
+  const jobId = job?.id || '';
 
   useEffect(() => {
     if (job?.customer_email) setEmail(job.customer_email);
   }, [job]);
 
   const handleSendEmail = async () => {
-    if (!email) return;
+    if (!email || !job) return;
     setSending(true);
     try {
       await base44.integrations.Core.SendEmail({
@@ -122,7 +124,7 @@ export default function Confirmation() {
               />
               <Button
                 onClick={handleSendEmail}
-                disabled={!email || sending}
+                disabled={!email || !job || sending}
                 size="icon"
                 className="h-11 w-12 rounded-xl shrink-0"
               >
@@ -135,7 +137,7 @@ export default function Confirmation() {
           <div className="space-y-2 pt-1">
             <Button
               className="w-full h-12 rounded-xl text-base font-medium"
-              onClick={() => navigate(`/review?jobId=${jobId}`)}
+              onClick={() => navigate(`/review?token=${encodeURIComponent(signingToken)}`)}
             >
               Continue to Review
               <ArrowRight className="w-4 h-4 ml-2" />

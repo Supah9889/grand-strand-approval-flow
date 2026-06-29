@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
   Droplets, Wind, FlaskConical, Cpu, AlertTriangle,
-  ChevronRight, Loader2, CheckCircle2, Clock, XCircle
+  ChevronRight, Loader2, Clock, XCircle
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
@@ -77,35 +77,40 @@ export default function RestorationHub() {
     queryKey: ['resto-jobs', cid],
     queryFn: () => cid
       ? base44.entities.Job.filter({ company_id: cid }, '-created_date', 100)
-      : base44.entities.Job.list('-created_date', 100),
+      : Promise.resolve([]),
+    enabled: !!cid,
   });
 
   const { data: readings = [] } = useQuery({
     queryKey: ['resto-readings', cid],
     queryFn: () => cid
       ? base44.entities.MoistureReading.filter({ company_id: cid }, '-taken_at', 200)
-      : base44.entities.MoistureReading.list('-taken_at', 200),
+      : Promise.resolve([]),
+    enabled: !!cid,
   });
 
   const { data: dryingLogs = [] } = useQuery({
     queryKey: ['resto-drying', cid],
     queryFn: () => cid
       ? base44.entities.DryingLog.filter({ company_id: cid }, '-log_date', 200)
-      : base44.entities.DryingLog.list('-log_date', 200),
+      : Promise.resolve([]),
+    enabled: !!cid,
   });
 
   const { data: airSamples = [] } = useQuery({
     queryKey: ['resto-samples', cid],
     queryFn: () => cid
       ? base44.entities.AirSampleTest.filter({ company_id: cid }, '-sample_date', 200)
-      : base44.entities.AirSampleTest.list('-sample_date', 200),
+      : Promise.resolve([]),
+    enabled: !!cid,
   });
 
   const { data: equipment = [] } = useQuery({
     queryKey: ['resto-equipment', cid],
     queryFn: () => cid
       ? base44.entities.RestorationEquipment.filter({ company_id: cid })
-      : base44.entities.RestorationEquipment.list(),
+      : Promise.resolve([]),
+    enabled: !!cid,
   });
 
   const activeJobs = useMemo(() => jobs.filter(j => ['in_progress', 'scheduled', 'open', 'new'].includes(j.lifecycle_status)), [jobs]);

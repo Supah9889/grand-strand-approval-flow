@@ -17,6 +17,8 @@ import LeadActivityFeed from '../components/sales/LeadActivityFeed';
 import LeadForm from '../components/sales/LeadForm';
 import ConvertToJobModal from '../components/sales/ConvertToJobModal';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchScopedRecordById } from '@/lib/companyScopedQueries';
 import { toast } from 'sonner';
 
 const label = s => s?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '';
@@ -27,35 +29,43 @@ export default function LeadDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const role = getInternalRole();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
 
   const [editing, setEditing] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [addingNote, setAddingNote] = useState(false);
 
+  const { data: jobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+
   const { data: lead, isLoading } = useQuery({
-    queryKey: ['lead', leadId],
-    queryFn: async () => {
-      const res = await base44.entities.Lead.filter({ id: leadId });
-      return res[0];
-    },
-    enabled: !!leadId,
+    queryKey: ['lead', leadId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.Lead, leadId, activeCompanyId, { jobs }),
+    enabled: !!leadId && !!activeCompanyId && !isJobsLoading,
   });
 
   const { data: activities = [] } = useQuery({
     queryKey: ['lead-activities', leadId],
     queryFn: () => base44.entities.LeadActivity.filter({ lead_id: leadId }),
-    enabled: !!leadId,
+    enabled: !!lead,
   });
 
   const { data: vendors = [] } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: () => base44.entities.Vendor.list('company_name'),
+    queryKey: ['vendors', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Vendor.filter({ company_id: activeCompanyId }, 'company_name')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ data, logAction, logDetail }) => {
-      await base44.entities.Lead.update(leadId, data);
+      await base44.entities.Lead.update(leadId, { ...data, company_id: lead?.company_id || activeCompanyId });
       if (logAction) {
         await base44.entities.LeadActivity.create({
           lead_id: leadId,
@@ -67,9 +77,9 @@ export default function LeadDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId, activeCompanyId] });
       queryClient.invalidateQueries({ queryKey: ['lead-activities', leadId] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['leads', activeCompanyId] });
       setEditing(false);
       toast.success('Lead updated');
     },
@@ -99,7 +109,7 @@ export default function LeadDetail() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || isJobsLoading) {
     return <AppLayout title="Lead"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   }
 

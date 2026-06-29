@@ -11,6 +11,8 @@ import {
 import AppLayout from '../components/AppLayout';
 import { format, parseISO } from 'date-fns';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchCompanyRecords, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 
 // ── Type config ───────────────────────────────────────────────────────────────
 const TYPE_CONFIG = {
@@ -134,6 +136,8 @@ export default function GlobalSearch() {
   const location = useLocation();
   const isAdmin = getIsAdmin();
   const inputRef = useRef(null);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   // Seed query from ?q= param (for DashQuickSearch hand-off)
   const urlParams = new URLSearchParams(location.search);
@@ -149,16 +153,57 @@ export default function GlobalSearch() {
   }, []);
 
   // ── Data fetches ────────────────────────────────────────────────────────────
-  const { data: jobs = [],     isLoading: ljobs } = useQuery({ queryKey: ['gs-jobs'],     queryFn: () => base44.entities.Job.list('-updated_date', 500) });
-  const { data: notes = [],    isLoading: lnotes } = useQuery({ queryKey: ['gs-notes'],    queryFn: () => base44.entities.JobNote.list('-created_date', 400) });
-  const { data: invoices = [], isLoading: linvs }  = useQuery({ queryKey: ['gs-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 300), enabled: isAdmin });
-  const { data: bills = [],    isLoading: lbills }  = useQuery({ queryKey: ['gs-bills'],    queryFn: () => base44.entities.Bill.list('-created_date', 300), enabled: isAdmin });
-  const { data: files = [],    isLoading: lfiles }  = useQuery({ queryKey: ['gs-files'],    queryFn: () => base44.entities.JobFile.list('-created_date', 300) });
-  const { data: events = [],   isLoading: levts }   = useQuery({ queryKey: ['gs-events'],   queryFn: () => base44.entities.CalendarEvent.list('-start_date', 300) });
-  const { data: contacts = [], isLoading: lcnts }   = useQuery({ queryKey: ['gs-contacts'], queryFn: () => base44.entities.JobContact.list('name', 300) });
-  const { data: vendors = [],  isLoading: lvens }   = useQuery({ queryKey: ['gs-vendors'],  queryFn: () => base44.entities.Vendor.list('company_name', 200), enabled: isAdmin });
-  const { data: expenses = [], isLoading: lexps }   = useQuery({ queryKey: ['gs-expenses'], queryFn: () => base44.entities.Expense.list('-created_date', 200), enabled: isAdmin });
-  const { data: estimates = [],isLoading: lests }   = useQuery({ queryKey: ['gs-estimates'],queryFn: () => base44.entities.Estimate.list('-created_date', 200), enabled: isAdmin });
+  const { data: jobs = [], isLoading: ljobs } = useQuery({
+    queryKey: ['gs-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-updated_date', 500),
+    enabled: !!activeCompanyId,
+  });
+  const hasScopedJobs = !!activeCompanyId && jobs.length > 0;
+  const { data: notes = [], isLoading: lnotes } = useQuery({
+    queryKey: ['gs-notes', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobNote, jobs, { order: '-created_date', limitPerJob: 400 }),
+    enabled: hasScopedJobs,
+  });
+  const { data: invoices = [], isLoading: linvs } = useQuery({
+    queryKey: ['gs-invoices', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Invoice, jobs, { order: '-created_date', limitPerJob: 300 }),
+    enabled: isAdmin && hasScopedJobs,
+  });
+  const { data: bills = [], isLoading: lbills } = useQuery({
+    queryKey: ['gs-bills', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Bill, jobs, { order: '-created_date', limitPerJob: 300 }),
+    enabled: isAdmin && hasScopedJobs,
+  });
+  const { data: files = [], isLoading: lfiles } = useQuery({
+    queryKey: ['gs-files', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobFile, jobs, { order: '-created_date', limitPerJob: 300 }),
+    enabled: hasScopedJobs,
+  });
+  const { data: events = [], isLoading: levts } = useQuery({
+    queryKey: ['gs-events', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.CalendarEvent, jobs, { order: '-start_date', limitPerJob: 300 }),
+    enabled: hasScopedJobs,
+  });
+  const { data: contacts = [], isLoading: lcnts } = useQuery({
+    queryKey: ['gs-contacts', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobContact, jobs, { order: 'name', limitPerJob: 300 }),
+    enabled: hasScopedJobs,
+  });
+  const { data: vendors = [], isLoading: lvens } = useQuery({
+    queryKey: ['gs-vendors', activeCompanyId],
+    queryFn: () => fetchCompanyRecords(base44.entities.Vendor, activeCompanyId, 'company_name', 300),
+    enabled: isAdmin && !!activeCompanyId,
+  });
+  const { data: expenses = [], isLoading: lexps } = useQuery({
+    queryKey: ['gs-expenses', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Expense, jobs, { order: '-created_date', limitPerJob: 200 }),
+    enabled: isAdmin && hasScopedJobs,
+  });
+  const { data: estimates = [], isLoading: lests } = useQuery({
+    queryKey: ['gs-estimates', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Estimate, jobs, { order: '-created_date', limitPerJob: 200, jobField: 'linked_job_id' }),
+    enabled: isAdmin && hasScopedJobs,
+  });
 
   const isLoading = ljobs || lnotes || linvs || lbills || lfiles || levts || lcnts || lvens || lexps || lests;
 

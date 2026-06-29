@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  CheckCircle2, XCircle, AlertTriangle, MessageSquare,
-  Send, Eye, Loader2, ChevronRight, Filter, Building2, X
+  AlertTriangle, Send, Eye, Loader2, ChevronRight, X
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
@@ -161,7 +160,7 @@ export default function SubcontractReview() {
       );
       return all;
     },
-    enabled: !!company,
+    enabled: !!company?.id,
   });
 
   // Also load pending for badge
@@ -176,7 +175,7 @@ export default function SubcontractReview() {
     queryFn: () => company
       ? base44.entities.WorkOrder.filter({ performing_company_id: company.id, subcontract_status: 'needs_review' })
       : Promise.resolve([]),
-    enabled: !!company,
+    enabled: !!company?.id,
   });
 
   if (companyGuard) return <AppLayout title="Subcontract Review">{companyGuard}</AppLayout>;

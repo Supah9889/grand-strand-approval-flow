@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Loader2, Mail, Clock, Copy, CheckCheck, Send, AlertCircle } from 'lucide-react';
+import { X, Loader2, Mail, Clock, Copy, CheckCheck, Send, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { audit } from '@/lib/audit';
@@ -28,6 +28,22 @@ function applyInviteLinkToBody(message, link) {
     : message;
 }
 
+/**
+ * Determine the correct UI message from backend email result.
+ * Never says "sent" unless provider returned delivered=true.
+ */
+function getEmailStatusMessage(emailResult) {
+  if (!emailResult) return { type: 'error', message: 'Invite could not be created.' };
+  if (emailResult.delivered) return { type: 'success', message: 'Invite email sent.' };
+  if (emailResult.attempted && !emailResult.delivered) {
+    return { type: 'warning', message: 'Invite created, but email delivery failed. Copy this link and send it manually.' };
+  }
+  if (!emailResult.attempted) {
+    return { type: 'warning', message: 'Invite created. Email is not configured. Copy this link and send it manually.' };
+  }
+  return { type: 'error', message: 'Invite could not be created.' };
+}
+
 export default function EmployeeInviteModal({
   employee,
   invite = null,
@@ -46,6 +62,7 @@ export default function EmployeeInviteModal({
   const [preparing, setPreparing] = useState(false);
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null); // { type, message }
 
   const { data: approvedEmails = [] } = useQuery({
     queryKey: ['approved-emails'],
@@ -129,7 +146,7 @@ export default function EmployeeInviteModal({
       setExpiresAt(data.expiresAt || data.invite?.expires_at || '');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['employee-invites'] });
-      return data.inviteLink;
+      return data;
     } finally {
       setPreparing(false);
     }
@@ -137,23 +154,29 @@ export default function EmployeeInviteModal({
 
   const handleSend = async () => {
     if (!employee.email) { toast.error('Employee has no email address on file'); return; }
-    if (!fromEmail) { toast.error('Please select a sender email'); return; }
     setSending(true);
+    setEmailStatus(null);
     try {
-      const link = await prepareInviteLink();
-      const message = applyInviteLinkToBody(body, link);
-      await base44.integrations.Core.SendEmail({
-        from_name: senderRecord?.display_name || 'Grand Strand Approval Flow',
-        to: employee.email,
-        subject,
-        body: message,
-      });
-      audit.employee.inviteSent(employee.id, actor, employee.name, employee.email);
-      toast.success('Invite sent');
+      const data = await prepareInviteLink();
+      const link = data.inviteLink;
+      // Backend already attempted email via Resend. Use backend result for status.
+      const status = getEmailStatusMessage(data.email);
+      setEmailStatus(status);
+      if (status.type === 'success') {
+        audit.employee.inviteSent(employee.id, actor, employee.name, employee.email);
+        toast.success(status.message);
+      } else if (status.type === 'warning') {
+        toast.warning(status.message, { duration: 8000 });
+      } else {
+        toast.error(status.message);
+      }
+      // Invalidate so parent lists refresh, but do NOT auto-close so manual fallback is visible.
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-invites'] });
       onSent?.();
-      onClose();
-    } catch {
-      toast.error('Email could not be sent automatically. Use Copy Message or Copy Link and send it manually.', { duration: 6000 });
+    } catch (error) {
+      setEmailStatus({ type: 'error', message: 'Invite could not be created.' });
+      toast.error(error.message || 'Invite could not be created.');
     } finally {
       setSending(false);
     }
@@ -161,7 +184,8 @@ export default function EmployeeInviteModal({
 
   const handleCopyMessage = async () => {
     try {
-      const link = await prepareInviteLink();
+      const data = await prepareInviteLink();
+      const link = data.inviteLink;
       await navigator.clipboard.writeText(applyInviteLinkToBody(body, link));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -173,8 +197,8 @@ export default function EmployeeInviteModal({
 
   const handleCopyLink = async () => {
     try {
-      const link = await prepareInviteLink();
-      await navigator.clipboard.writeText(link);
+      const data = await prepareInviteLink();
+      await navigator.clipboard.writeText(data.inviteLink);
       toast.success('Invite link copied');
     } catch (error) {
       toast.error(error.message || 'Could not prepare invite link.');
@@ -229,6 +253,22 @@ export default function EmployeeInviteModal({
             </div>
           </div>
 
+          {/* Email Delivery Status Banner */}
+          {emailStatus && (
+            <div className={`flex items-start gap-2 text-xs rounded-xl px-3 py-2.5 border ${
+              emailStatus.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+              emailStatus.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+              'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              {emailStatus.type === 'success'
+                ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                : emailStatus.type === 'warning'
+                ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+              <p>{emailStatus.message}</p>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">From</label>
             {approvedEmails.length === 0 ? (
@@ -262,10 +302,11 @@ export default function EmployeeInviteModal({
             <Textarea value={body} onChange={e => setBody(e.target.value)} className="rounded-xl text-sm min-h-48 font-mono text-xs" />
           </div>
 
+          {/* Manual Link Fallback — ALWAYS visible after link is generated */}
           <div className="bg-muted/40 border border-border rounded-xl px-3 py-2">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-medium text-muted-foreground">Secure Invite Link</p>
-              <button onClick={handleCopyLink} disabled={preparing}
+              <button onClick={handleCopyLink} disabled={preparing || sending}
                 className="text-xs text-primary hover:underline flex items-center gap-1 disabled:opacity-60">
                 {preparing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />} Copy Link
               </button>
@@ -283,14 +324,14 @@ export default function EmployeeInviteModal({
             <div className="flex items-start gap-2 text-xs text-muted-foreground">
               <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
               <p>
-                Automatic email uses the existing Base44 email integration. If delivery fails, copy the link or message and send it manually.
+                If email delivery fails or is not configured, use Copy Link or Copy Message and send it to the employee manually.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs" onClick={handleCopyMessage} disabled={preparing}>
+              <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs" onClick={handleCopyMessage} disabled={preparing || sending}>
                 {copied ? <><CheckCheck className="w-3.5 h-3.5 mr-1" /> Copied</> : <><Copy className="w-3.5 h-3.5 mr-1" /> Copy Message</>}
               </Button>
-              <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs" onClick={handleMarkSent} disabled={preparing}>
+              <Button variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-xs" onClick={handleMarkSent} disabled={preparing || sending}>
                 {preparing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Manual Send'}
               </Button>
             </div>
@@ -301,7 +342,7 @@ export default function EmployeeInviteModal({
           <Button
             className="flex-1 h-10 rounded-xl gap-2"
             onClick={handleSend}
-            disabled={sending || preparing || !employee.email || !companyIds.length || approvedEmails.length === 0}
+            disabled={sending || preparing || !employee.email || !companyIds.length}
           >
             {sending || preparing
               ? <Loader2 className="w-4 h-4 animate-spin" />

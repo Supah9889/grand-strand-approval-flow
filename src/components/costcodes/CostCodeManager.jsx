@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import CostCodeCard from './CostCodeCard';
 import CostCodeForm from './CostCodeForm';
 import { logAudit } from '@/lib/audit';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'All Categories' },
@@ -52,6 +53,8 @@ const RECORD_TYPE_OPTIONS = [
 
 export default function CostCodeManager({ actorName }) {
   const queryClient = useQueryClient();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
   const [showForm, setShowForm] = useState(false);
   const [editingCode, setEditingCode] = useState(null);
   const [search, setSearch] = useState('');
@@ -66,11 +69,31 @@ export default function CostCodeManager({ actorName }) {
   });
 
   // Usage counts from related entities
-  const { data: expenses = [] } = useQuery({ queryKey: ['cc-expenses'], queryFn: () => base44.entities.Expense.list('-created_date', 1000) });
-  const { data: bills = [] } = useQuery({ queryKey: ['cc-bills'], queryFn: () => base44.entities.Bill.list('-created_date', 500) });
-  const { data: invoices = [] } = useQuery({ queryKey: ['cc-invoices'], queryFn: () => base44.entities.Invoice.list('-created_date', 1000) });
-  const { data: estimates = [] } = useQuery({ queryKey: ['cc-estimates'], queryFn: () => base44.entities.Estimate.list('-created_date', 500) });
-  const { data: timeEntries = [] } = useQuery({ queryKey: ['cc-time-entries'], queryFn: () => base44.entities.TimeEntry.list('-clock_in', 2000) });
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['cc-expenses', activeCompanyId],
+    queryFn: () => base44.entities.Expense.filter({ company_id: activeCompanyId }),
+    enabled: !!activeCompanyId,
+  });
+  const { data: bills = [] } = useQuery({
+    queryKey: ['cc-bills', activeCompanyId],
+    queryFn: () => base44.entities.Bill.filter({ company_id: activeCompanyId }),
+    enabled: !!activeCompanyId,
+  });
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['cc-invoices', activeCompanyId],
+    queryFn: () => base44.entities.Invoice.filter({ company_id: activeCompanyId }),
+    enabled: !!activeCompanyId,
+  });
+  const { data: estimates = [] } = useQuery({
+    queryKey: ['cc-estimates', activeCompanyId],
+    queryFn: () => base44.entities.Estimate.filter({ company_id: activeCompanyId }),
+    enabled: !!activeCompanyId,
+  });
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ['cc-time-entries', activeCompanyId],
+    queryFn: () => base44.entities.TimeEntry.filter({ company_id: activeCompanyId }),
+    enabled: !!activeCompanyId,
+  });
 
   // Build usage map: cost_code_id -> { expenses, bills, invoices, estimates, time_entries }
   const usageMap = useMemo(() => {

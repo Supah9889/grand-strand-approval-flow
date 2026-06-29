@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   canAccessJob,
   canReadEntity,
+  canUseActiveCompanySelection,
   canWriteEntity,
   getActiveCompanyId,
   getUserCompanyMemberships,
@@ -47,6 +48,13 @@ describe('company scope helpers', () => {
     expect(hasCompanyAccess(context, 'co-b')).toBe(false);
     expect(hasCompanyAccess(context, 'co-c')).toBe(false);
   });
+
+  test('active company selection must match active membership for employee sessions', () => {
+    expect(canUseActiveCompanySelection(context, { id: 'co-a' })).toBe(true);
+    expect(canUseActiveCompanySelection(context, { id: 'co-b' })).toBe(false);
+    expect(canUseActiveCompanySelection({ sessionRole: 'admin', memberships: [] }, { id: 'co-b' })).toBe(true);
+    expect(canUseActiveCompanySelection({ sessionRole: 'staff', memberships: [] }, { id: 'co-b' })).toBe(false);
+  });
 });
 
 describe('entity record permissions', () => {
@@ -67,5 +75,12 @@ describe('entity record permissions', () => {
 
   test('canWriteEntity rejects records from inaccessible companies', () => {
     expect(canWriteEntity(context, 'Job', { id: 'job-1', company_id: 'co-x' })).toBe(false);
+  });
+
+  test('tampered active company does not grant record access without active membership', () => {
+    const tamperedContext = { ...context, activeCompanyId: 'co-b' };
+    expect(hasCompanyAccess(tamperedContext, 'co-b')).toBe(false);
+    expect(canAccessJob(tamperedContext, { id: 'job-2', company_id: 'co-b' })).toBe(false);
+    expect(canReadEntity(tamperedContext, 'Invoice', { id: 'inv-2', company_id: 'co-b' })).toBe(false);
   });
 });

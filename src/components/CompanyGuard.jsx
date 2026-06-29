@@ -14,8 +14,11 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
-import { getCurrentCompany } from '@/lib/permissions';
+import { useQuery } from '@tanstack/react-query';
+import { Building2, Loader2 } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
+import { canUseActiveCompanySelection, getCurrentCompany } from '@/lib/permissions';
 import { hasSelectedCompany } from '@/lib/routeSecurity';
 
 export function NoCompanyState({ message }) {
@@ -76,7 +79,33 @@ export function PendingReviewState({ message }) {
 
 export default function CompanyGuard({ children, message }) {
   const company = getCurrentCompany();
+  const companyId = typeof company === 'string' ? company : company?.id;
+  const employee = getSessionEmployee();
+  const sessionRole = getInternalRole();
+  const needsMembershipCheck = hasSelectedCompany(company) && !!employee?.id;
+  const { data: memberships = [], isLoading } = useQuery({
+    queryKey: ['company-guard-membership', employee?.id, companyId],
+    queryFn: () => base44.entities.CompanyMembership.filter({
+      employee_id: employee.id,
+      company_id: companyId,
+      is_active: true,
+    }),
+    enabled: needsMembershipCheck,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
   if (!hasSelectedCompany(company)) return <NoCompanyState message={message} />;
+  if (needsMembershipCheck && isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (!canUseActiveCompanySelection({ sessionRole, employee, memberships }, company)) {
+    return <NoAccessState message="You are not assigned to the selected company. Select an assigned company or contact an admin." />;
+  }
   return children;
 }
 
@@ -86,6 +115,32 @@ export default function CompanyGuard({ children, message }) {
  */
 export function useCompanyGuard(message) {
   const company = getCurrentCompany();
+  const companyId = typeof company === 'string' ? company : company?.id;
+  const employee = getSessionEmployee();
+  const sessionRole = getInternalRole();
+  const needsMembershipCheck = hasSelectedCompany(company) && !!employee?.id;
+  const { data: memberships = [], isLoading } = useQuery({
+    queryKey: ['company-guard-membership', employee?.id, companyId],
+    queryFn: () => base44.entities.CompanyMembership.filter({
+      employee_id: employee.id,
+      company_id: companyId,
+      is_active: true,
+    }),
+    enabled: needsMembershipCheck,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
   if (!hasSelectedCompany(company)) return <NoCompanyState message={message} />;
+  if (needsMembershipCheck && isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (!canUseActiveCompanySelection({ sessionRole, employee, memberships }, company)) {
+    return <NoAccessState message="You are not assigned to the selected company. Select an assigned company or contact an admin." />;
+  }
   return null;
 }

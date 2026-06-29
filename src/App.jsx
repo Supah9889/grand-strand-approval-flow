@@ -1,23 +1,25 @@
 import { Toaster } from "@/components/ui/toaster"
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { base44 } from '@/api/base44Client';
 import { NavigationProvider } from '@/lib/NavigationContext';
 import SafeAreaWrapper from '@/components/SafeAreaWrapper';
 import BottomNav from '@/components/BottomNav';
 import CompanyGuard from '@/components/CompanyGuard';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import { isAdmin, isUnlocked } from '@/lib/adminAuth';
+import { adminLogout, getSession, isAdmin, isSessionEmployeeStillValid, isUnlocked } from '@/lib/adminAuth';
 import { shouldRequireUnlock } from '@/lib/routeSecurity';
 
 // Core pages (loaded immediately)
 import Splash from './pages/Splash';
 import AccessGate from './pages/AccessGate';
 import VerifyInvitePublic from './pages/VerifyInvite';
+import AcceptInvitePublic from './pages/AcceptInvite';
 
 // Lazy-loaded pages (code splitting)
 const Notes = lazy(() => import('./pages/Notes'));
@@ -126,10 +128,35 @@ function RouteLoader() {
  */
 function UnlockGuard({ children }) {
   const location = useLocation();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const requiresUnlock = shouldRequireUnlock(location.pathname, location.search);
+  const session = getSession();
+  const sessionEmployeeId = session?.employee?.id;
 
-  if (shouldRequireUnlock(location.pathname, location.search) && !isUnlocked()) {
+  const { data: currentEmployee = null, isLoading: checkingSession, isError: sessionCheckFailed } = useQuery({
+    queryKey: ['session-employee-validity', sessionEmployeeId],
+    queryFn: async () => {
+      const records = await base44.entities.Employee.filter({ id: sessionEmployeeId });
+      return records?.[0] || null;
+    },
+    enabled: requiresUnlock && !!sessionEmployeeId,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
+  if (requiresUnlock && !isUnlocked()) {
     // Use an effect-free immediate redirect via Navigate component
+    return <Navigate to="/gate" replace />;
+  }
+
+  if (requiresUnlock && sessionEmployeeId && checkingSession) {
+    return <RouteLoader />;
+  }
+
+  if (requiresUnlock && sessionEmployeeId && (sessionCheckFailed || !isSessionEmployeeStillValid(session, currentEmployee))) {
+    adminLogout();
+    sessionStorage.removeItem('active_company');
+    queryClient.clear();
     return <Navigate to="/gate" replace />;
   }
 
@@ -363,6 +390,7 @@ function App() {
             {/* Public route — must be checked before AuthenticatedApp to avoid auth gate */}
             <Routes>
               <Route path="/verify-invite" element={<VerifyInvitePublic />} />
+              <Route path="/accept-invite" element={<AcceptInvitePublic />} />
               <Route path="*" element={<AuthenticatedApp />} />
             </Routes>
           </NavigationProvider>

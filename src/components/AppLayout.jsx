@@ -16,6 +16,7 @@ const NO_JOB_WORKSPACE_PATHS = [
   /^\/portal\/client/,
   /^\/portal\/vendor/,
   /^\/verify-invite/,
+  /^\/accept-invite/,
 ];
 
 export default function AppLayout({ children, title }) {

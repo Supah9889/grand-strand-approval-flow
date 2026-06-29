@@ -1,11 +1,12 @@
 export function resolvePortalTokenAccess(token, grants = [], nowMs = Date.now()) {
   if (!token) return { ok: false, reason: 'missing_token' };
   const grant = grants.find((record) =>
-    (record?.access_token === token || record?.token === token) && record.active !== false
+    (record?.access_token === token || record?.token === token || record?.invite_token === token) && record.active !== false
   );
   if (!grant) return { ok: false, reason: 'invalid_token' };
+  if (grant.access_status && grant.access_status !== 'active') return { ok: false, reason: 'inactive' };
   const expiresAt = grant.expires_at || grant.expiresAt;
-  if (expiresAt && new Date(expiresAt).getTime() < nowMs) {
+  if (expiresAt && new Date(expiresAt).getTime() <= nowMs) {
     return { ok: false, reason: 'expired' };
   }
   return { ok: true, grant };
@@ -94,7 +95,7 @@ export function buildPortalGrantContext(portalUser, jobs = [], {
   }
 
   const expiresAt = portalUser.expires_at || portalUser.expiresAt || portalUser.expiration_date || portalUser.access_expires_at;
-  if (expiresAt && new Date(expiresAt).getTime() < nowMs) return { ok: false, reason: 'expired' };
+  if (expiresAt && new Date(expiresAt).getTime() <= nowMs) return { ok: false, reason: 'expired' };
 
   const allowedJobIds = getPortalAllowedJobIds(portalUser);
   if (!allowedJobIds.length) return { ok: false, reason: 'no_jobs' };

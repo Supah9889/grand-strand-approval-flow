@@ -51,7 +51,17 @@ export default function DailyLogDetail() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data) => base44.entities.DailyLog.update(logId, data),
+    mutationFn: (data) => {
+      if (!activeCompanyId) throw new Error('Company scope is required to update a daily log.');
+      const nextJobId = data.job_id || log?.job_id;
+      if (nextJobId && !jobs.some(job => job.id === nextJobId)) {
+        throw new Error('Selected job is not available in this company.');
+      }
+      return base44.entities.DailyLog.update(logId, {
+        ...data,
+        company_id: activeCompanyId,
+      });
+    },
     onSuccess: (_, updatedData) => {
       queryClient.invalidateQueries({ queryKey: ['daily-log', logId, activeCompanyId] });
       queryClient.invalidateQueries({ queryKey: ['daily-logs'] });
@@ -66,6 +76,7 @@ export default function DailyLogDetail() {
       setEditing(false);
       toast.success('Log updated');
     },
+    onError: (error) => toast.error(error.message || 'Daily log could not be updated.'),
   });
 
   const photos = (() => { try { return JSON.parse(log?.photos || '[]'); } catch { return []; } })();

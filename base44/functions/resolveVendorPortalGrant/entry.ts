@@ -89,7 +89,7 @@ function requireActivePortalUser(portalUser) {
     throw Object.assign(new Error("Forbidden: invalid portal token"), { status: 403 });
   }
   const expiresAt = portalUser.expires_at || portalUser.expiresAt || portalUser.expiration_date || portalUser.access_expires_at;
-  if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+  if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
     throw Object.assign(new Error("Forbidden: portal token expired"), { status: 403 });
   }
 }

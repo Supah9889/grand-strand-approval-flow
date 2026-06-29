@@ -1,0 +1,100 @@
+{
+  "name": "EmployeeInvite",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "admin",
+        "manager",
+        "office",
+        "field",
+        "staff"
+      ],
+      "default": "field"
+    },
+    "company_ids": {
+      "type": "string",
+      "description": "JSON array of company IDs assigned by the invite"
+    },
+    "default_company_id": {
+      "type": "string"
+    },
+    "permission_group": {
+      "type": "string",
+      "description": "Optional CompanyMembership permission_group override"
+    },
+    "requires_pin_setup": {
+      "type": "boolean",
+      "default": true
+    },
+    "employee_code": {
+      "type": "string",
+      "description": "Temporary or accepted employee PIN/code; not used until Employee is active"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee record created or updated for this invite"
+    },
+    "invite_token_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the invite token. Raw tokens are never stored."
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "accepted",
+        "expired",
+        "revoked"
+      ],
+      "default": "draft"
+    },
+    "accepted_at": {
+      "type": "string"
+    },
+    "accepted_by_email": {
+      "type": "string"
+    },
+    "invited_by": {
+      "type": "string"
+    },
+    "invited_by_email": {
+      "type": "string"
+    },
+    "last_sent_at": {
+      "type": "string"
+    },
+    "last_revoked_at": {
+      "type": "string"
+    },
+    "manual_delivery_required": {
+      "type": "boolean",
+      "default": true,
+      "description": "True when the invite link must be copied or sent from the frontend email fallback"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "email",
+    "role",
+    "status"
+  ]
+}

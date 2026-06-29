@@ -8,20 +8,23 @@ import {
 
 describe('portal token access', () => {
   test('resolves active tokens and rejects missing or unknown tokens', () => {
-    const grants = [{ access_token: 'tok-a', job_id: 'job-1', active: true }];
+    const grants = [{ access_token: 'tok-a', invite_token: 'tok-b', job_id: 'job-1', active: true, access_status: 'active' }];
 
     expect(resolvePortalTokenAccess('', grants).reason).toBe('missing_token');
     expect(resolvePortalTokenAccess('tok-x', grants).reason).toBe('invalid_token');
     expect(resolvePortalTokenAccess('tok-a', grants).ok).toBe(true);
+    expect(resolvePortalTokenAccess('tok-b', grants).ok).toBe(true);
   });
 
   test('rejects inactive and expired grants', () => {
     const now = new Date('2026-06-29T12:00:00Z').getTime();
     expect(resolvePortalTokenAccess('tok-a', [{ access_token: 'tok-a', active: false }], now).reason).toBe('invalid_token');
+    expect(resolvePortalTokenAccess('tok-a', [{ access_token: 'tok-a', active: true, access_status: 'revoked' }], now).reason).toBe('inactive');
     expect(resolvePortalTokenAccess('tok-b', [{
       access_token: 'tok-b',
       active: true,
-      expires_at: '2026-06-29T11:59:00Z',
+      access_status: 'active',
+      expires_at: '2026-06-29T12:00:00Z',
     }], now).reason).toBe('expired');
   });
 });

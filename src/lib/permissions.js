@@ -454,20 +454,39 @@ export function hasCompanyAccess(userOrContext, companyId) {
   const targetCompanyId = normalizeId(companyId);
   if (!targetCompanyId) return false;
 
-  const activeCompanyId = getActiveCompanyId(userOrContext);
-  if (activeCompanyId && activeCompanyId === targetCompanyId) return true;
+  const employee = getContextEmployee(userOrContext);
+  const role = getContextRole(userOrContext);
+  if (!employee?.id && (role === 'owner' || role === 'admin' || isOwnerSession() || isAdminSession())) {
+    return true;
+  }
 
   return getUserCompanyMemberships(userOrContext).some(membership =>
     membership?.company_id === targetCompanyId && membership.is_active !== false
   );
 }
 
+export function canUseActiveCompanySelection(userOrContext, company) {
+  const targetCompanyId = normalizeId(company);
+  if (!targetCompanyId) return false;
+
+  const employee = getContextEmployee(userOrContext);
+  const role = getContextRole(userOrContext);
+
+  // Override-code owner/admin sessions have no Employee record and are allowed
+  // to select any active company. Staff-like sessions must be employee scoped.
+  if (!employee?.id) return role === 'owner' || role === 'admin';
+
+  return getUserCompanyMemberships(userOrContext).some(membership =>
+    membership.employee_id === employee.id
+      && membership.company_id === targetCompanyId
+      && membership.is_active !== false
+  );
+}
+
 export function canAccessJob(userOrContext, job) {
   if (!job) return false;
-  const activeCompanyId = getActiveCompanyId(userOrContext);
   const jobCompanyIds = getRecordCompanyIds(job);
 
-  if (activeCompanyId && jobCompanyIds.includes(activeCompanyId)) return true;
   if (jobCompanyIds.some(companyId => hasCompanyAccess(userOrContext, companyId))) return true;
   if (jobCompanyIds.length) return false;
 
@@ -500,9 +519,7 @@ export function canReadEntity(userOrContext, entityName, record) {
 
   if (entityName === 'Job') return canAccessJob(userOrContext, record);
 
-  const activeCompanyId = getActiveCompanyId(userOrContext);
   const directCompanyIds = getRecordCompanyIds(record);
-  if (activeCompanyId && directCompanyIds.includes(activeCompanyId)) return true;
   if (directCompanyIds.some(companyId => hasCompanyAccess(userOrContext, companyId))) return true;
 
   // Some child entities only carry job_id. They are safe to read only when the
@@ -528,7 +545,6 @@ export function canWriteEntity(userOrContext, entityName, record = {}) {
     return isOwnerSession() || hasRole(userOrContext, ['owner', 'full_admin']);
   }
 
-  const activeCompanyId = getActiveCompanyId(userOrContext);
   if (hasAnyCompanyField(record) && !canReadEntity(userOrContext, entityName, record)) return false;
 
   if (isAdminSession()) return true;

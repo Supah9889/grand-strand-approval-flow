@@ -18,12 +18,21 @@ Phase 3 adds deployment-critical portal grant resolution, relationship-map enfor
   - `Estimate.company_id`
 - Confirm existing records are not deleted or overwritten during schema deployment.
 - Confirm PortalUser records keep existing `access_token`, `job_id`, and `linked_job_ids` values.
+- Deploy Phase 4 onboarding schema before enabling employee invites:
+  - `EmployeeInvite`
+  - extended `Employee.role` values for `owner`, `manager`, and `office`
+  - extended `Employee.invite_status` values for `draft`, `sent`, `accepted`, and `revoked`
 
 ## Base44 Function Deploy Steps
 
 - Deploy or redeploy these functions together:
   - `resolveClientPortalGrant`
   - `resolveVendorPortalGrant`
+  - `createEmployeeInvite`
+  - `resolveEmployeeInvite`
+  - `acceptEmployeeInvite`
+  - `resendEmployeeInvite`
+  - `revokeEmployeeInvite`
   - `migrateCompanyOwnership`
   - `resolveSigningGrant`
   - `requestSignatureAccessGrant`

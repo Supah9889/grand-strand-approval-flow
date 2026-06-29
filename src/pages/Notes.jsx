@@ -6,6 +6,8 @@ import { Loader2, StickyNote, Check, Paperclip, ChevronDown, ChevronUp, MapPin }
 import { format, parseISO } from 'date-fns';
 import AppLayout from '../components/AppLayout';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { getNoteTypeConfig, NOTE_TYPE_OPTIONS, getNoteVisibilityConfig } from '@/lib/timelineHelpers';
 
 // Filter options — "All" + one per note_type that has records
@@ -125,10 +127,18 @@ export default function Notes() {
   const navigate = useNavigate();
   const isAdmin = getIsAdmin();
   const [typeFilter, setTypeFilter] = useState('all');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['note-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-updated_date', 200),
+    enabled: !!activeCompanyId,
+  });
   const { data: notes = [], isLoading } = useQuery({
-    queryKey: ['job-notes'],
-    queryFn: () => base44.entities.JobNote.list('-created_date', 200),
+    queryKey: ['job-notes', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobNote, jobs, { order: '-created_date', limitPerJob: 200 }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
   const markReadMutation = useMutation({

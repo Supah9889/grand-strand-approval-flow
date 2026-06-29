@@ -12,19 +12,19 @@ import TermsOfService from '../components/TermsOfService';
 
 export default function JobApproval() {
   const urlParams = new URLSearchParams(window.location.search);
-  const jobId = urlParams.get('jobId');
   const signingToken = urlParams.get('token') || urlParams.get('signatureToken') || urlParams.get('signature_token') || urlParams.get('approvalToken') || urlParams.get('approval_token') || '';
   const navigate = useNavigate();
   const [agreed, setAgreed] = useState(false);
 
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job', jobId],
+  const { data: signingContext, isLoading } = useQuery({
+    queryKey: ['signing-grant', signingToken],
     queryFn: async () => {
-      const jobs = await base44.entities.Job.filter({ id: jobId });
-      return jobs[0];
+      const response = await base44.functions.invoke('resolveSigningGrant', { token: signingToken });
+      return response?.data || response;
     },
-    enabled: !!jobId,
+    enabled: !!signingToken,
   });
+  const job = signingContext?.job || null;
 
   if (isLoading) {
     return (
@@ -168,7 +168,7 @@ export default function JobApproval() {
           <Button
             className="w-full h-12 rounded-xl text-base font-medium"
             disabled={!agreed}
-            onClick={() => navigate(`/signature?jobId=${jobId}${signingToken ? `&token=${encodeURIComponent(signingToken)}` : ''}`)}
+            onClick={() => navigate(`/signature?token=${encodeURIComponent(signingToken)}`)}
           >
             Continue to Sign
           </Button>

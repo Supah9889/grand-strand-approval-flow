@@ -51,24 +51,35 @@ export default function TimeEntries() {
         // Scope to active company when selected
         return activeCompany
           ? base44.entities.TimeEntry.filter({ company_id: activeCompany.id }, '-clock_in', 500)
-          : base44.entities.TimeEntry.list('-clock_in', 500);
+          : Promise.resolve([]);
       }
       if (!sessionEmployee?.id) return [];
-      const employeeEntries = await base44.entities.TimeEntry.filter({ employee_id: sessionEmployee.id }, '-clock_in', 500);
+      if (!activeCompany?.id) return [];
+      const employeeEntries = await base44.entities.TimeEntry.filter({ company_id: activeCompany.id, employee_id: sessionEmployee.id }, '-clock_in', 500);
       if (employeeEntries.length || !sessionEmployee.employee_code) return employeeEntries;
-      return base44.entities.TimeEntry.filter({ employee_code: sessionEmployee.employee_code }, '-clock_in', 500);
+      return base44.entities.TimeEntry.filter({ company_id: activeCompany.id, employee_code: sessionEmployee.employee_code }, '-clock_in', 500);
     },
   });
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs', activeCompany?.id],
     queryFn: () => activeCompany
       ? base44.entities.Job.filter({ company_id: activeCompany.id }, '-created_date', 200)
-      : base44.entities.Job.list('-created_date', 200),
+      : Promise.resolve([]),
+    enabled: !!activeCompany?.id,
   });
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list('name'),
-    enabled: isAdmin, // now correctly includes owner
+    queryKey: ['employees', activeCompany?.id],
+    queryFn: async () => {
+      if (!activeCompany?.id) return [];
+      const memberships = await base44.entities.CompanyMembership.filter({ company_id: activeCompany.id, is_active: true }, 'created_date', 500);
+      const employeeIds = [...new Set(memberships.map(m => m.employee_id).filter(Boolean))];
+      const batches = await Promise.all(employeeIds.map(id => base44.entities.Employee.filter({ id }).catch(() => [])));
+      return batches
+        .flat()
+        .filter(employee => employee?.active !== false)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    },
+    enabled: isAdmin && !!activeCompany?.id, // now correctly includes owner
   });
 
   const queryClient = useQueryClient();

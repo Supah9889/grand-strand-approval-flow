@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useParams } from 'react-router-dom';
 import {
-  ArrowLeft, CheckSquare, Square, FileText, Send,
+  ArrowLeft, CheckSquare, Square, Send,
   Edit2, Loader2, AlertTriangle
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
@@ -15,6 +15,7 @@ import { getSessionEmployee, getSession } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 import DocumentationChecklist from '@/components/templates/DocumentationChecklist';
+import { fetchCompanyJobs, fetchScopedRecordById } from '@/lib/companyScopedQueries';
 
 function getActiveCompany() {
   try { return JSON.parse(sessionStorage.getItem('active_company')); } catch { return null; }
@@ -39,10 +40,16 @@ export default function WorkOrderDetail() {
   const [nexusNote, setNexusNote] = useState('');
   const [showNexus, setShowNexus] = useState(false);
 
+  const { data: jobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: ['jobs', company?.id],
+    queryFn: () => fetchCompanyJobs(company?.id, '-created_date', 200),
+    enabled: !!company?.id,
+  });
+
   const { data: wo, isLoading, refetch } = useQuery({
-    queryKey: ['work-order', id],
-    queryFn: () => base44.entities.WorkOrder.get(id),
-    enabled: !!id,
+    queryKey: ['work-order', id, company?.id],
+    queryFn: () => fetchScopedRecordById(base44.entities.WorkOrder, id, company?.id, { jobs }),
+    enabled: !!id && !!company?.id && !isJobsLoading,
   });
 
   const updateMutation = useMutation({
@@ -93,9 +100,15 @@ export default function WorkOrderDetail() {
     audit.workOrder.completed(wo.id, actor, wo.title).catch(() => toast.warning('Audit log failed'));
   };
 
-  if (isLoading || !wo) return (
+  if (isLoading || isJobsLoading) return (
     <AppLayout title="Work Order">
       <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+    </AppLayout>
+  );
+
+  if (!wo) return (
+    <AppLayout title="Work Order">
+      <NoAccessRecord message="Work order not found or you do not have access to it." />
     </AppLayout>
   );
 

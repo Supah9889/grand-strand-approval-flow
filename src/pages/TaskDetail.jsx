@@ -13,6 +13,8 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskStatusBadge, { STATUS_CONFIG, PRIORITY_CONFIG } from '../components/tasks/TaskStatusBadge';
 import PhotoLightbox from '../components/dailylogs/PhotoLightbox';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchScopedRecordById } from '@/lib/companyScopedQueries';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -27,24 +29,25 @@ export default function TaskDetail() {
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [completionNote, setCompletionNote] = useState('');
   const [statusNoteShown, setStatusNoteShown] = useState(false);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
+
+  const { data: jobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
 
   const { data: task, isLoading } = useQuery({
-    queryKey: ['task', taskId],
-    queryFn: async () => { const r = await base44.entities.Task.filter({ id: taskId }); return r[0]; },
-    enabled: !!taskId,
+    queryKey: ['task', taskId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.Task, taskId, activeCompanyId, { jobs }),
+    enabled: !!taskId && !!activeCompanyId && !isJobsLoading,
   });
-
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
-  });
-
-  const queryClient2 = useQueryClient();
 
   const updateMutation = useMutation({
     mutationFn: (data) => base44.entities.Task.update(taskId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['task', taskId, activeCompanyId] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
@@ -90,7 +93,7 @@ export default function TaskDetail() {
     return 'upcoming';
   })();
 
-  if (isLoading) return <AppLayout title="Task"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
+  if (isLoading || isJobsLoading) return <AppLayout title="Task"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   if (!task) return (
     <AppLayout title="Task">
       <div className="flex-1 flex flex-col items-center justify-center gap-4">

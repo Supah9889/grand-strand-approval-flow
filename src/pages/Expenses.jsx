@@ -20,6 +20,8 @@ import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { audit } from '@/lib/audit';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 
 /**
  * LLM call to detect if a file has multiple receipts and return them all.
@@ -130,6 +132,8 @@ Return: { "receipts": [...] }`,
 export default function Expenses() {
   const queryClient = useQueryClient();
   const actor = getInternalRole() || 'Admin';
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   // view: 'inbox' | 'upload' | 'review' | 'multi' | 'edit'
   const [view, setView] = useState('inbox');
@@ -154,16 +158,18 @@ export default function Expenses() {
   const [dupeMatches, setDupeMatches] = useState(null);
 
   // Data
-  const { data: liveExpenses = [], isLoading } = useQuery({
-    queryKey: ['expenses'],
-    queryFn: () => base44.entities.Expense.list('-created_date', 200),
-  });
   const { data: jobs = [] } = useQuery({
-    queryKey: ['expense-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 100),
+    queryKey: ['expense-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 100),
+    enabled: !!activeCompanyId,
+  });
+  const { data: liveExpenses = [], isLoading } = useQuery({
+    queryKey: ['expenses', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Expense, jobs, { order: '-created_date', limitPerJob: 200 }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
-  const { data: expenses = [], isCached, isOnline } = useOfflineCache(['expenses'], liveExpenses, true);
+  const { data: expenses = [], isCached, isOnline } = useOfflineCache(['expenses', activeCompanyId], liveExpenses, true);
   const [mutationStatus, setMutationStatus] = useState('idle');
 
   // Create mutation

@@ -47,6 +47,40 @@ function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+function isSafeJobId(jobId) {
+  return SAFE_SEGMENT.test(cleanString(jobId));
+}
+
+function safeDecodeURIComponent(value) {
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+
+function isSafeR2Key(fileKey, publicSigning = false) {
+  const key = cleanString(fileKey);
+  if (!key || key.length > 1024) return false;
+  if (key.startsWith("/") || key.includes("\\") || key.includes("//")) return false;
+  if (/[\u0000-\u001f\u007f]/.test(key)) return false;
+  const decoded = safeDecodeURIComponent(key);
+  if (decoded !== key && !isSafeR2Key(decoded, publicSigning)) return false;
+  const segments = key.split("/");
+  if (segments.length < 3 || segments[0] !== "jobs") return false;
+  if (!isSafeJobId(segments[1])) return false;
+  if (segments.some(segment => !segment || segment === "." || segment === "..")) return false;
+  if (publicSigning) {
+    return segments.length === 5 && segments[2] === "public-signing" && SAFE_SEGMENT.test(segments[3]) && SAFE_SEGMENT.test(segments[4]);
+  }
+  return true;
+}
+
+function sanitizeFileName(fileName) {
+  const raw = cleanString(fileName).split(/[\\/]/).pop() || "";
+  const safe = raw.replace(/[\u0000-\u001f\u007f]/g, "").replace(/[^A-Za-z0-9._ -]/g, "_").replace(/\s+/g, " ").trim();
+  if (!safe || safe === "." || safe === "..") return "file";
+  return safe.slice(0, 180);
+}
+
 function parseJson(value, fallback) {
   if (!value || typeof value !== "string") return fallback;
   try { return JSON.parse(value); } catch { return fallback; }
@@ -78,12 +112,15 @@ async function resolveActor(base44, user) {
   const email = normalizeEmail(user?.email || user?.email_address || user?.username);
   const employees = email ? await entities.Employee.filter({ email }).catch(() => []) : [];
   const employee = employees?.find(r => r.active !== false) || null;
+  const memberships = employee?.id
+    ? await entities.CompanyMembership.filter({ employee_id: employee.id, is_active: true }).catch(() => [])
+    : [];
   const rawRole = normalizeRole(employee?.role || user?.role || user?.app_role);
   const role = rawRole === "field" ? "staff" : rawRole;
   const rolePermissions = await loadRolePermissions(entities, role);
   const employeeOverrides = parseJson(employee?.permissions_override || employee?.permission_overrides, {});
   return {
-    user, employee,
+    user, employee, memberships,
     id: employee?.id || user?.id || email,
     name: employee?.name || user?.full_name || user?.name || email || "Unknown user",
     email, role,
@@ -93,16 +130,29 @@ async function resolveActor(base44, user) {
 
 async function requireJobAccess(base44, actor, jobId) {
   if (!jobId || typeof jobId !== "string") throw Object.assign(new Error("Missing required field: jobId"), { status: 400 });
+  if (!isSafeJobId(jobId)) throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
   const entities = base44.asServiceRole?.entities || base44.entities;
   const jobs = await entities.Job.filter({ id: jobId }).catch(() => []);
   const job = jobs?.[0];
   if (!job) throw Object.assign(new Error("Job not found"), { status: 404 });
+  if (!actorHasJobCompanyAccess(actor, job)) throw Object.assign(new Error("Forbidden: company access is required"), { status: 403 });
   if (isAdminActor(actor)) return job;
   const assignments = actor.employee?.id
     ? await entities.JobAssignment.filter({ job_id: jobId, employee_id: actor.employee.id }).catch(() => [])
     : [];
   if (assignments?.length) return job;
   throw Object.assign(new Error("Forbidden: job access is not assigned to this user"), { status: 403 });
+}
+
+function getJobCompanyIds(job) {
+  return [job?.company_id, job?.origin_company_id, job?.assigned_company_id, job?.performing_company_id].filter(Boolean);
+}
+
+function actorHasJobCompanyAccess(actor, job) {
+  const companyIds = getJobCompanyIds(job);
+  if (!companyIds.length) return true;
+  if (actor?.employee?.company_id && companyIds.includes(actor.employee.company_id)) return true;
+  return (actor?.memberships || []).some(m => m?.is_active !== false && companyIds.includes(m.company_id));
 }
 
 function requireUploadPermission(actor, category) {
@@ -117,14 +167,16 @@ function requireUploadPermission(actor, category) {
 
 function normalizeUploadPayload(body) {
   const jobId = cleanString(body.jobId || body.job_id);
-  const fileName = cleanString(body.fileName || body.file_name);
+  const rawFileName = cleanString(body.fileName || body.file_name);
+  const fileName = sanitizeFileName(rawFileName);
   const fileType = cleanString(body.fileType || body.file_type || "application/octet-stream");
   const category = cleanString(body.category || "other");
   const purpose = cleanString(body.purpose || body.action || "upload");
   const fileSize = Number(body.fileSize || body.file_size || 0);
   const publicSigning = body.publicSigning === true || body.public_signing === true;
   const signingToken = cleanString(body.signingToken || body.signing_token || body.signatureToken || body.signature_token || body.approvalToken || body.approval_token || body.token);
-  if (!fileName) throw Object.assign(new Error("Missing required field: fileName"), { status: 400 });
+  if (!rawFileName) throw Object.assign(new Error("Missing required field: fileName"), { status: 400 });
+  if (jobId && !isSafeJobId(jobId)) throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
   if (fileSize < 0) throw Object.assign(new Error("Invalid field: fileSize"), { status: 400 });
   return { jobId, fileName, fileType, fileSize, category, purpose, publicSigning, signingToken };
 }
@@ -138,6 +190,8 @@ function normalizeUploadVerificationPayload(body) {
   const publicSigning = body.publicSigning === true || body.public_signing === true;
   const signingToken = cleanString(body.signingToken || body.signing_token || body.signatureToken || body.signature_token || body.approvalToken || body.approval_token || body.token);
   if (!fileKey) throw Object.assign(new Error("Missing required field: fileKey or r2Key"), { status: 400 });
+  if (jobId && !isSafeJobId(jobId)) throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
+  if (!isSafeR2Key(fileKey)) throw Object.assign(new Error("Invalid field: fileKey"), { status: 400 });
   return { jobId, fileKey, uploadSessionId, category, purpose, publicSigning, signingToken };
 }
 
@@ -202,6 +256,7 @@ async function verifySigningGrant(token) {
 
 async function requirePublicSignableJob(base44, jobId, signingToken) {
   if (!jobId || typeof jobId !== "string") throw Object.assign(new Error("Missing required field: jobId"), { status: 400 });
+  if (!isSafeJobId(jobId)) throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
   if (!signingToken) throw Object.assign(new Error("Unauthorized: signing token is required"), { status: 401 });
   const entities = base44.asServiceRole?.entities || base44.entities;
   const jobs = await entities.Job.filter({ id: jobId }).catch(() => []);
@@ -210,6 +265,9 @@ async function requirePublicSignableJob(base44, jobId, signingToken) {
   if (job.locked || job.status === "approved") throw Object.assign(new Error("Forbidden: job has already been signed"), { status: 403 });
   const grant = await verifySigningGrant(signingToken);
   if (grant.jobId !== jobId) throw Object.assign(new Error("Forbidden: invalid signing token"), { status: 403 });
+  if (grant.scope && grant.scope !== "job-signature") throw Object.assign(new Error("Forbidden: invalid signing token"), { status: 403 });
+  const companyIds = getJobCompanyIds(job);
+  if (grant.companyId && companyIds.length && !companyIds.includes(grant.companyId)) throw Object.assign(new Error("Forbidden: invalid signing token"), { status: 403 });
   return job;
 }
 
@@ -245,6 +303,7 @@ function requirePublicSigningUploadKey(payload) {
   if (!payload.uploadSessionId) throw Object.assign(new Error("Missing required field: uploadSessionId"), { status: 400 });
   const expectedFileName = getPublicSignatureFileName(payload.purpose);
   const expectedKey = `jobs/${payload.jobId}/public-signing/${payload.uploadSessionId}/${expectedFileName}`;
+  if (!isSafeR2Key(payload.fileKey, true)) throw Object.assign(new Error("Invalid field: fileKey"), { status: 400 });
   if (payload.fileKey !== expectedKey) throw Object.assign(new Error("Forbidden: upload key does not match this public signing session"), { status: 403 });
 }
 

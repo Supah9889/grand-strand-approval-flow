@@ -9,6 +9,8 @@ import {
 import AppLayout from '../components/AppLayout';
 import { StatCard, SectionHeader } from '../components/dashboard/DashSection';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { format, parseISO } from 'date-fns';
 import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
 
@@ -34,35 +36,44 @@ export default function AdminOverview() {
 
 function AdminOverviewContent({ navigate }) {
   const [activeSection, setActiveSection] = useState(null);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
-    queryKey: ['ao-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 500),
+    queryKey: ['ao-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 500),
+    enabled: !!activeCompanyId,
   });
+  const hasScopedJobs = !!activeCompanyId && jobs.length > 0;
 
   const { data: expenses = [], isLoading: loadingExpenses } = useQuery({
-    queryKey: ['ao-expenses'],
-    queryFn: () => base44.entities.Expense.list('-created_date', 500),
+    queryKey: ['ao-expenses', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Expense, jobs, { order: '-created_date', limitPerJob: 500 }),
+    enabled: hasScopedJobs,
   });
 
   const { data: invoices = [] } = useQuery({
-    queryKey: ['ao-invoices'],
-    queryFn: () => base44.entities.Invoice.list('-created_date', 300),
+    queryKey: ['ao-invoices', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Invoice, jobs, { order: '-created_date', limitPerJob: 300 }),
+    enabled: hasScopedJobs,
   });
 
   const { data: bills = [] } = useQuery({
-    queryKey: ['ao-bills'],
-    queryFn: () => base44.entities.Bill.list('-created_date', 300),
+    queryKey: ['ao-bills', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Bill, jobs, { order: '-created_date', limitPerJob: 300 }),
+    enabled: hasScopedJobs,
   });
 
   const { data: timeEntries = [] } = useQuery({
-    queryKey: ['ao-time'],
-    queryFn: () => base44.entities.TimeEntry.list('-clock_in', 300),
+    queryKey: ['ao-time', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.TimeEntry, jobs, { order: '-clock_in', limitPerJob: 300 }),
+    enabled: hasScopedJobs,
   });
 
   const { data: auditLogs = [] } = useQuery({
-    queryKey: ['ao-audit'],
-    queryFn: () => base44.entities.AuditLog.list('-timestamp', 30),
+    queryKey: ['ao-audit', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.AuditLog, jobs, { order: '-timestamp', limitPerJob: 30 }),
+    enabled: hasScopedJobs,
   });
 
   const isLoading = loadingJobs || loadingExpenses;

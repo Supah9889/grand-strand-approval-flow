@@ -12,6 +12,8 @@ import COCard from '../components/changeorders/COCard';
 import COForm from '../components/changeorders/COForm';
 import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS } from '@/lib/changeOrderHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { toast } from 'sonner';
 
 const STATS = [
@@ -34,15 +36,19 @@ export default function ChangeOrders() {
   const [filterJob, setFilterJob] = useState('all');
   const [sort, setSort] = useState('newest');
   const [activeStat, setActiveStat] = useState(null);
-
-  const { data: changeOrders = [], isLoading } = useQuery({
-    queryKey: ['change-orders'],
-    queryFn: () => base44.entities.ChangeOrder.list('-created_date'),
-  });
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+
+  const { data: changeOrders = [], isLoading } = useQuery({
+    queryKey: ['change-orders', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.ChangeOrder, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
   const createMutation = useMutation({

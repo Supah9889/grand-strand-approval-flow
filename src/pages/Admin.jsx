@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 import { logAudit } from '@/lib/audit';
 import { format } from 'date-fns';
 import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs } from '@/lib/companyScopedQueries';
 
 const emptyJob = { address: '', customer_name: '', description: '', price: '', buildertrend_id: '', email: '', phone: '' };
 
@@ -63,19 +65,28 @@ export default function Admin() {
   const [activeSection, setActiveSection] = useState(null);
   const [filters, setFilters] = useState({ search: '', status: 'all', date: '' });
   const queryClient = useQueryClient();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const isAdminRole = isAdmin(); // true for both 'admin' and 'owner'
   const isOwnerRole = isOwner(); // true only for owner — can manage access config
 
   const { data: jobs = [], isLoading } = useQuery({
-    queryKey: ['admin-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date'),
-    enabled: authed,
+    queryKey: ['admin-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date'),
+    enabled: authed && !!activeCompanyId,
   });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const job = await base44.entities.Job.create({ ...data, price: Number(data.price), status: 'pending' });
+      if (!activeCompanyId) throw new Error('Company scope is required to create a job.');
+      const job = await base44.entities.Job.create({
+        ...data,
+        company_id: activeCompanyId,
+        company_name: activeCompany?.name || activeCompany?.company_name || '',
+        price: Number(data.price),
+        status: 'pending',
+      });
       await logAudit(job.id, 'job_created', 'Admin', `Manually created: ${data.address}`);
       return job;
     },

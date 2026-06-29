@@ -19,7 +19,8 @@ export default function DryingLogsPage() {
     queryKey: ['all-drying', company?.id],
     queryFn: () => company
       ? base44.entities.DryingLog.filter({ company_id: company.id }, '-log_date', 300)
-      : base44.entities.DryingLog.list('-log_date', 300),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   if (companyGuard) return <AppLayout title="Drying Logs">{companyGuard}</AppLayout>;

@@ -36,7 +36,8 @@ export default function WorkOrderModal({ workOrder, company, onClose, onSaved })
     queryKey: ['modal-jobs', company?.id],
     queryFn: () => company
       ? base44.entities.Job.filter({ company_id: company.id }, '-created_date', 100)
-      : base44.entities.Job.list('-created_date', 100),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: companies = [] } = useQuery({

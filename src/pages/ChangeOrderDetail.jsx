@@ -19,6 +19,8 @@ import { CO_STATUS_CONFIG, CO_CATEGORY_LABELS } from '@/lib/changeOrderHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords, fetchScopedRecordById } from '@/lib/companyScopedQueries';
 
 export default function ChangeOrderDetail() {
   const coId = window.location.pathname.split('/').pop();
@@ -29,27 +31,31 @@ export default function ChangeOrderDetail() {
   const [responseNote, setResponseNote] = useState('');
   const [showResponseNote, setShowResponseNote] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
+
+  const { data: jobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
 
   const { data: co, isLoading } = useQuery({
-    queryKey: ['change-order', coId],
-    queryFn: async () => { const r = await base44.entities.ChangeOrder.filter({ id: coId }); return r[0]; },
-    enabled: !!coId,
+    queryKey: ['change-order', coId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.ChangeOrder, coId, activeCompanyId, { jobs }),
+    enabled: !!coId && !!activeCompanyId && !isJobsLoading,
   });
 
   const { data: activities = [] } = useQuery({
     queryKey: ['co-activities', coId],
     queryFn: () => base44.entities.ChangeOrderActivity.filter({ co_id: coId }),
-    enabled: !!coId,
-  });
-
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    enabled: !!co,
   });
 
   const { data: allCOs = [] } = useQuery({
-    queryKey: ['change-orders'],
-    queryFn: () => base44.entities.ChangeOrder.list('-created_date'),
+    queryKey: ['change-orders', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.ChangeOrder, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
   const logActivity = (action, detail) =>
@@ -61,7 +67,7 @@ export default function ChangeOrderDetail() {
       if (action) await logActivity(action, detail || '');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['change-order', coId] });
+      queryClient.invalidateQueries({ queryKey: ['change-order', coId, activeCompanyId] });
       queryClient.invalidateQueries({ queryKey: ['co-activities', coId] });
       queryClient.invalidateQueries({ queryKey: ['change-orders'] });
     },
@@ -100,7 +106,7 @@ export default function ChangeOrderDetail() {
     }
   };
 
-  if (isLoading) return <AppLayout title="Change Order"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
+  if (isLoading || isJobsLoading) return <AppLayout title="Change Order"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   if (!co) return (
     <AppLayout title="Change Order">
       <div className="flex-1 flex flex-col items-center justify-center gap-4">

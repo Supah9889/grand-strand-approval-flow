@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       return json({ error: "Job has already been signed" }, 403);
     }
 
-    const token = await createSigningGrant(jobId);
+    const token = await createSigningGrant(job);
     return json({
       token,
       expiresIn: 7 * 24 * 60 * 60,

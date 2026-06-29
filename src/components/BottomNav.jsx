@@ -2,7 +2,8 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigation } from '@/lib/NavigationContext';
 import { getInternalRole, isUnlocked } from '@/lib/adminAuth';
-import { Home, Search, Clock, DollarSign, Settings, Briefcase, CalendarDays, FolderOpen, MoreHorizontal, HardHat, ClipboardCheck } from 'lucide-react';
+import { getCurrentCompany } from '@/lib/permissions';
+import { Home, Search, Clock, DollarSign, Settings, CalendarDays, MoreHorizontal, HardHat, ClipboardCheck } from 'lucide-react';
 
 const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', tabName: 'dashboard', primaryPath: '/dashboard', icon: Home },
@@ -43,6 +44,11 @@ export default function BottomNav() {
   const { getTabStack } = useNavigation();
   const role = getInternalRole();
   const isAdminOrOwner = role === 'admin' || role === 'owner';
+  const activeCompany = getCurrentCompany();
+
+  if (!activeCompany && isUnlocked() && location.pathname !== '/company-select') {
+    return null;
+  }
 
   const NAV_ITEMS = isAdminOrOwner ? ADMIN_NAV_ITEMS : STAFF_NAV_ITEMS;
   const activeTab = getActiveTab(location.pathname, isAdminOrOwner);

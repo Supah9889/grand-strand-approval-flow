@@ -15,6 +15,8 @@ import TaskForm from '../components/tasks/TaskForm';
 import TaskCard from '../components/tasks/TaskCard';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '../components/tasks/TaskStatusBadge';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -51,6 +53,8 @@ export default function Tasks() {
   const [activeStat, setActiveStat] = useState(null);
   const [ariaLiveMessage, setAriaLiveMessage] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -59,13 +63,15 @@ export default function Tasks() {
     setIsRefreshing(false);
   };
 
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => base44.entities.Task.list('-created_date'),
-  });
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Task, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
   const createMutation = useOptimisticMutation({

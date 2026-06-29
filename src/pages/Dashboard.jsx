@@ -10,6 +10,7 @@ import AppLayout from '../components/AppLayout';
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { isAdmin as getIsAdmin, getSessionEmployee } from '@/lib/adminAuth';
 import { getCurrentCompany, canViewAssignedOnly } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import DashQuickSearch from '../components/dashboard/DashQuickSearch';
 import DashTodaySchedule from '../components/dashboard/DashTodaySchedule';
 import DashRecentActivity from '../components/dashboard/DashRecentActivity';
@@ -120,6 +121,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const isAdmin = getIsAdmin();
   const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
   const employee = getSessionEmployee();
   // assignedOnly is false for admins (canViewAssignedOnly returns false for admin sessions)
   const assignedOnly = !isAdmin && canViewAssignedOnly();
@@ -127,68 +129,62 @@ export default function Dashboard() {
 
   // ── Data loading ──────────────────────────────────────────────────────────
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
-    queryKey: ['dashboard-jobs', activeCompany?.id, isAdmin],
-    queryFn: () => {
-      if (isAdmin) return base44.entities.Job.list('-created_date', 300);
-      return base44.entities.Job.filter({ company_id: activeCompany.id }, '-created_date', 200);
-    },
+    queryKey: ['dashboard-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 300),
+    enabled: !!activeCompanyId,
   });
+  const hasScopedJobs = !!activeCompanyId && jobs.length > 0;
   const { data: calendarEvents = [] } = useQuery({
-    queryKey: ['dashboard-calendar', activeCompany?.id, isAdmin],
-    queryFn: () => {
-      if (isAdmin) return base44.entities.CalendarEvent.list('-start_date', 200);
-      return base44.entities.CalendarEvent.filter({ company_id: activeCompany.id }, '-start_date', 100);
-    },
+    queryKey: ['dashboard-calendar', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.CalendarEvent, jobs, { order: '-start_date', limitPerJob: 100 }),
+    enabled: hasScopedJobs,
   });
   const { data: tasks = [] } = useQuery({
-    queryKey: ['dashboard-tasks'],
-    queryFn: () => base44.entities.Task.list('-created_date', 200),
-    enabled: isAdmin,
+    queryKey: ['dashboard-tasks', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Task, jobs, { order: '-created_date', limitPerJob: 200 }),
+    enabled: hasScopedJobs,
   });
   const { data: leads = [] } = useQuery({
-    queryKey: ['dashboard-leads'],
-    queryFn: () => base44.entities.Lead.list('-created_date', 200),
-    enabled: isAdmin,
+    queryKey: ['dashboard-leads', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Lead, jobs, { order: '-created_date', limitPerJob: 200, jobField: 'linked_job_id' }),
+    enabled: isAdmin && hasScopedJobs,
   });
   const { data: invoices = [] } = useQuery({
-    queryKey: ['dashboard-invoices'],
-    queryFn: () => base44.entities.Invoice.list('-created_date', 200),
-    enabled: isAdmin,
+    queryKey: ['dashboard-invoices', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Invoice, jobs, { order: '-created_date', limitPerJob: 200 }),
+    enabled: isAdmin && hasScopedJobs,
   });
   const { data: bills = [] } = useQuery({
-    queryKey: ['dashboard-bills'],
-    queryFn: () => base44.entities.Bill.list('-created_date', 100),
-    enabled: isAdmin,
+    queryKey: ['dashboard-bills', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Bill, jobs, { order: '-created_date', limitPerJob: 100 }),
+    enabled: isAdmin && hasScopedJobs,
   });
   const { data: expenses = [] } = useQuery({
-    queryKey: ['dashboard-expenses'],
-    queryFn: () => base44.entities.Expense.list('-created_date', 100),
-    enabled: isAdmin,
+    queryKey: ['dashboard-expenses', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.Expense, jobs, { order: '-created_date', limitPerJob: 100 }),
+    enabled: isAdmin && hasScopedJobs,
   });
   const { data: auditLogs = [] } = useQuery({
-    queryKey: ['dashboard-audit'],
-    queryFn: () => base44.entities.AuditLog.list('-timestamp', 30),
-    enabled: isAdmin,
+    queryKey: ['dashboard-audit', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.AuditLog, jobs, { order: '-timestamp', limitPerJob: 30 }),
+    enabled: isAdmin && hasScopedJobs,
   });
   const { data: notes = [] } = useQuery({
-    queryKey: ['dashboard-notes'],
-    queryFn: () => base44.entities.JobNote.list('-created_date', 50),
+    queryKey: ['dashboard-notes', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobNote, jobs, { order: '-created_date', limitPerJob: 50 }),
+    enabled: hasScopedJobs,
   });
   const { data: dailyLogs = [] } = useQuery({
-    queryKey: ['dashboard-logs'],
-    queryFn: () => base44.entities.DailyLog.list('-log_date', 50),
-    enabled: isAdmin,
+    queryKey: ['dashboard-logs', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.DailyLog, jobs, { order: '-log_date', limitPerJob: 50 }),
+    enabled: isAdmin && hasScopedJobs,
   });
   const { data: changeOrders = [] } = useQuery({
-    queryKey: ['dashboard-cos'],
-    queryFn: () => base44.entities.ChangeOrder.list('-created_date', 100),
-    enabled: isAdmin,
+    queryKey: ['dashboard-cos', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.ChangeOrder, jobs, { order: '-created_date', limitPerJob: 100 }),
+    enabled: isAdmin && hasScopedJobs,
   });
-  const { data: vendors = [] } = useQuery({
-    queryKey: ['dashboard-vendors'],
-    queryFn: () => base44.entities.Vendor.list('company_name', 100),
-    enabled: isAdmin,
-  });
+  const vendors = [];
 
   // ── Company-filtered job subset ───────────────────────────────────────────
   const filteredJobs = useMemo(() => {

@@ -15,6 +15,7 @@ import VendorDetailPanel from '../components/vendors/VendorDetailPanel';
 import { toast } from 'sonner';
 import { getInternalRole, isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import { audit } from '@/lib/audit';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const TYPES = [
   { value: 'vendor', label: 'Vendor' },
@@ -39,24 +40,29 @@ export default function VendorBank() {
   const [form, setForm] = useState(emptyVendor);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await queryClient.refetchQueries({ queryKey: ['vendors'] });
+    await queryClient.refetchQueries({ queryKey: ['vendors', activeCompanyId] });
     setIsRefreshing(false);
   };
 
   const { data: vendors = [], isLoading } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: () => base44.entities.Vendor.list('company_name'),
+    queryKey: ['vendors', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Vendor.filter({ company_id: activeCompanyId }, 'company_name')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   const createMutation = useOptimisticMutation({
-    mutationFn: (data) => base44.entities.Vendor.create(data),
-    queryKey: ['vendors'],
+    mutationFn: (data) => base44.entities.Vendor.create({ ...data, company_id: activeCompanyId }),
+    queryKey: ['vendors', activeCompanyId],
     optimisticUpdate: (prev, data) => [
       ...prev,
-      { ...data, id: `temp-${Date.now()}`, created_date: new Date().toISOString() },
+      { ...data, company_id: activeCompanyId, id: `temp-${Date.now()}`, created_date: new Date().toISOString() },
     ],
     onSuccess: (vendor) => {
       audit.vendor.created(vendor.id, role || 'Admin', vendor.company_name, { vendor_id: vendor.id });
@@ -152,7 +158,7 @@ export default function VendorBank() {
                 </>
               )}
 
-              <Button className="w-full h-10 rounded-xl" disabled={!form.company_name || createMutation.isPending} onClick={() => createMutation.mutate(form)}>
+              <Button className="w-full h-10 rounded-xl" disabled={!activeCompanyId || !form.company_name || createMutation.isPending} onClick={() => createMutation.mutate({ ...form, company_id: activeCompanyId })}>
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Vendor'}
               </Button>
             </motion.div>
@@ -236,7 +242,7 @@ export default function VendorBank() {
           onClose={() => setSelectedVendor(null)}
           onUpdate={(updated) => {
             setSelectedVendor(updated);
-            queryClient.invalidateQueries({ queryKey: ['vendors'] });
+            queryClient.invalidateQueries({ queryKey: ['vendors', activeCompanyId] });
           }}
         />
       )}

@@ -16,6 +16,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { getCurrentCompany } from '@/lib/permissions';
+import { hasSelectedCompany } from '@/lib/routeSecurity';
 
 export function NoCompanyState({ message }) {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ export function PendingReviewState({ message }) {
 
 export default function CompanyGuard({ children, message }) {
   const company = getCurrentCompany();
-  if (!company) return <NoCompanyState message={message} />;
+  if (!hasSelectedCompany(company)) return <NoCompanyState message={message} />;
   return children;
 }
 
@@ -85,6 +86,6 @@ export default function CompanyGuard({ children, message }) {
  */
 export function useCompanyGuard(message) {
   const company = getCurrentCompany();
-  if (!company) return <NoCompanyState message={message} />;
+  if (!hasSelectedCompany(company)) return <NoCompanyState message={message} />;
   return null;
 }

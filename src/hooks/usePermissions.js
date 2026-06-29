@@ -18,7 +18,9 @@ import {
   canManageAccess, canManageCompanyMemberships, canAssignReviewer,
   canDeactivateUser, canViewAssignedOnly, canViewCrossCompanySubcontract,
   getUserCompanyMemberships, hasRole, isAdminSession, isOwnerSession,
-  timeEntryFilter, companyFilter,
+  timeEntryFilter, companyFilter, getActiveCompanyId, hasCompanyAccess,
+  canAccessJob, canReadEntity, canWriteEntity, requireCompanyScope,
+  safeCompanyFilter, resolvePermissions,
 } from '@/lib/permissions';
 
 export function usePermissions() {
@@ -26,7 +28,7 @@ export function usePermissions() {
   const employee = getSessionEmployee();
   const sessionRole = getInternalRole();
 
-  const { data: memberships = [] } = useQuery({
+  const { data: memberships = [], isLoading: loadingMemberships } = useQuery({
     queryKey: ['company-memberships', employee?.id],
     queryFn: () => employee
       ? base44.entities.CompanyMembership.filter({ employee_id: employee.id, is_active: true })
@@ -36,6 +38,17 @@ export function usePermissions() {
   });
 
   const myMemberships = getUserCompanyMemberships(memberships);
+  const canViewFinancialRecords = canViewFinancials(myMemberships);
+  const canEditFinancialRecords = canEditFinancials(myMemberships);
+  const permissions = {
+    ...resolvePermissions({ role: sessionRole || 'staff' }),
+    view_financials: canViewFinancialRecords,
+    edit_financials: canEditFinancialRecords,
+    manage_invoices: canEditFinancialRecords,
+    manage_expenses: canEditFinancialRecords,
+    manage_payments: canEditFinancialRecords,
+    delete_payments: canEditFinancialRecords,
+  };
 
   return {
     // Context
@@ -43,11 +56,14 @@ export function usePermissions() {
     employee,
     sessionRole,
     memberships: myMemberships,
+    permissions,
+    loading: loadingMemberships,
 
     // Flags
     isOwner: isOwnerSession(),
     isAdmin: isAdminSession(),
     hasCompany: !!company,
+    activeCompanyId: getActiveCompanyId({ activeCompany: company }),
 
     // Operational permissions
     canManageJobs: canManageJobs(myMemberships),
@@ -66,8 +82,8 @@ export function usePermissions() {
     canViewSubcontractOrigin: canViewSubcontractOrigin(myMemberships),
 
     // Financial permissions
-    canViewFinancials: canViewFinancials(myMemberships),
-    canEditFinancials: canEditFinancials(myMemberships),
+    canViewFinancials: canViewFinancialRecords,
+    canEditFinancials: canEditFinancialRecords,
 
     // Access management permissions
     canManageAccess: canManageAccess(myMemberships),
@@ -80,10 +96,16 @@ export function usePermissions() {
     // Record-level checks (pass record)
     canViewRecord: (record) => canViewRecord(record, company, myMemberships),
     canEditRecord: (record) => canEditRecord(record, company, myMemberships),
+    hasCompanyAccess: (companyId) => hasCompanyAccess({ activeCompany: company, employee, memberships: myMemberships, sessionRole }, companyId),
+    canAccessJob: (job) => canAccessJob({ activeCompany: company, employee, memberships: myMemberships, sessionRole }, job),
+    canReadEntity: (entityName, record, context = {}) => canReadEntity({ activeCompany: company, employee, memberships: myMemberships, sessionRole, ...context }, entityName, record),
+    canWriteEntity: (entityName, record, context = {}) => canWriteEntity({ activeCompany: company, employee, memberships: myMemberships, sessionRole, ...context }, entityName, record),
 
     // Filter builders
     companyFilter: () => companyFilter(company),
     timeEntryFilter: () => timeEntryFilter(company, myMemberships),
+    safeCompanyFilter: (extra) => safeCompanyFilter(company?.id, extra),
+    requireCompanyScope: (queryParams = {}) => requireCompanyScope(queryParams, company?.id),
   };
 }
 

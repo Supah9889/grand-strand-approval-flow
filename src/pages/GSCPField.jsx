@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  Clock, Play, Square, FileText, CheckSquare, Camera,
-  Loader2, ChevronRight, AlertTriangle, Building2, Send, X
+  Play, Square, FileText, CheckSquare,
+  Loader2, ChevronRight, Building2, X
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
@@ -163,7 +163,7 @@ export default function GSCPField() {
     queryFn: async () => {
       const [mine, subcontracts] = await Promise.all([
         company ? base44.entities.WorkOrder.filter({ company_id: company.id }, '-created_date', 100)
-                : base44.entities.WorkOrder.list('-created_date', 100),
+                : Promise.resolve([]),
         company ? base44.entities.WorkOrder.filter({ performing_company_id: company.id }, '-created_date', 100)
                 : Promise.resolve([]),
       ]);
@@ -174,11 +174,11 @@ export default function GSCPField() {
   });
 
   const { data: activeEntries = [] } = useQuery({
-    queryKey: ['gscp-time', employee?.id],
+    queryKey: ['gscp-time', company?.id, employee?.id],
     queryFn: () => employee
-      ? base44.entities.TimeEntry.filter({ employee_id: employee.id, status: 'clocked_in' })
+      ? base44.entities.TimeEntry.filter({ company_id: company.id, employee_id: employee.id, status: 'clocked_in' })
       : [],
-    enabled: !!employee,
+    enabled: !!company?.id && !!employee,
   });
   const activeEntry = activeEntries[0];
 

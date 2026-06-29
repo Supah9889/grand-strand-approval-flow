@@ -12,6 +12,8 @@ import FileGrid from '../components/jobcomms/FileGrid';
 import CommentThread from '../components/jobcomms/CommentThread';
 import { getInternalRole } from '@/lib/adminAuth';
 import { canManageJobFiles } from '@/lib/fileActions';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchScopedRecordById } from '@/lib/companyScopedQueries';
 
 const CATEGORY_LABEL = {
   before_photo: 'Before', progress_photo: 'Progress', after_photo: 'After',
@@ -27,27 +29,29 @@ export default function JobCommsDetail() {
   const queryClient = useQueryClient();
   const role = getInternalRole();
   const canManageDocuments = canManageJobFiles({ role });
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
   const [activeTab, setActiveTab] = useState('files');
   const [showUpload, setShowUpload] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterVisibility, setFilterVisibility] = useState('all');
 
   const { data: job, isLoading: loadingJob } = useQuery({
-    queryKey: ['job', jobId],
-    queryFn: async () => { const r = await base44.entities.Job.filter({ id: jobId }); return r[0]; },
-    enabled: !!jobId,
+    queryKey: ['job-comms-job', jobId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.Job, jobId, activeCompanyId),
+    enabled: !!jobId && !!activeCompanyId,
   });
 
   const { data: files = [], isLoading: loadingFiles } = useQuery({
     queryKey: ['job-files', jobId],
     queryFn: () => base44.entities.JobFile.filter({ job_id: jobId, archived: false }),
-    enabled: !!jobId,
+    enabled: !!job,
   });
 
   const { data: comments = [], isLoading: loadingComments } = useQuery({
     queryKey: ['job-comments', jobId],
     queryFn: () => base44.entities.JobComment.filter({ job_id: jobId }),
-    enabled: !!jobId,
+    enabled: !!job,
   });
 
   const filteredFiles = files
@@ -56,6 +60,8 @@ export default function JobCommsDetail() {
     .sort((a, b) => (b.created_date || '').localeCompare(a.created_date || ''));
 
   if (!jobId) return <AppLayout title="Job Documents"><div className="flex-1 flex items-center justify-center"><p className="text-sm text-muted-foreground">No job selected.</p></div></AppLayout>;
+
+  if (!loadingJob && !job) return <AppLayout title="Job Documents"><div className="flex-1 flex items-center justify-center"><p className="text-sm text-muted-foreground">Job not found or access denied.</p></div></AppLayout>;
 
   return (
     <AppLayout title="Documents & Communication">

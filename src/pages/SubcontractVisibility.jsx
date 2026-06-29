@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  Building2, CheckCircle2, Clock, Eye, Send, Loader2,
-  ChevronRight, AlertTriangle
+  Building2, Eye, Loader2, ChevronRight
 } from 'lucide-react';
 import { useCompanyGuard, NoAccessState } from '@/components/CompanyGuard';
 import usePermissions from '@/hooks/usePermissions';
@@ -118,7 +116,6 @@ function WODetailSheet({ wo, notes, timeEntries, onClose }) {
 }
 
 export default function SubcontractVisibility() {
-  const navigate = useNavigate();
   const company = getActiveCompany();
   const { canViewSubcontractOrigin } = usePermissions();
   const companyGuard = useCompanyGuard('Select a company to view subcontracts.');
@@ -130,7 +127,8 @@ export default function SubcontractVisibility() {
     queryKey: ['origin-subcontracts', company?.id],
     queryFn: () => company
       ? base44.entities.WorkOrder.filter({ origin_company_id: company.id, is_subcontract: true }, '-created_date', 200)
-      : base44.entities.WorkOrder.filter({ is_subcontract: true }, '-created_date', 200),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   // Load notes that are visible to origin company
@@ -138,7 +136,8 @@ export default function SubcontractVisibility() {
     queryKey: ['subcontract-notes-visible', company?.id],
     queryFn: () => company
       ? base44.entities.SubcontractNote.filter({ origin_company_id: company.id, visible_to_origin: true }, '-created_date', 500)
-      : base44.entities.SubcontractNote.filter({ visible_to_origin: true }, '-created_date', 500),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   // Load time entries for these work orders
@@ -153,7 +152,7 @@ export default function SubcontractVisibility() {
       ));
       return results.flat();
     },
-    enabled: workOrders.length > 0,
+    enabled: !!company?.id && workOrders.length > 0,
   });
 
   const filtered = filter === 'all' ? workOrders

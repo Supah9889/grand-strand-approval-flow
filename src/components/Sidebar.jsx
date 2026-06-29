@@ -7,13 +7,15 @@ import {
   List, ChevronDown, Plus, StickyNote, TrendingUp, ClipboardList,
   BookOpen, CheckSquare, FolderOpen, FileDiff, Globe, DollarSign,
   ShoppingCart, CreditCard, ShieldCheck, Settings2, ScrollText, LogOut, Database, Link2,
-  Brain, FileBarChart2, UserCircle2, Layers, Hammer, HardHat, BarChart3, ClipboardCheck,
+  Brain, FileBarChart2, UserCircle2, Layers, HardHat, BarChart3, ClipboardCheck,
   Droplets, Droplet, Wind, FlaskConical, Cpu, LayoutTemplate, Archive, AlertTriangle, MessageSquare
 } from 'lucide-react';
 import CompanyLogo from './CompanyLogo';
 import { getInternalRole, getSessionEmployee, adminLogout } from '@/lib/adminAuth';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 
 // Sidebar groups — staff see only non-adminOnly groups
 const NAV_GROUPS = [
@@ -177,8 +179,9 @@ function getDefaultOpen(role) {
   return defaults;
 }
 
-function NavGroup({ group, role, location, onClose, unreadNotes, isOpen, onToggle }) {
+function NavGroup({ group, role, location, onClose, unreadNotes, isOpen, onToggle, hasCompany }) {
   if (group.adminOnly && role !== 'admin' && role !== 'owner') return null;
+  if (!hasCompany && group.label !== 'Platform') return null;
 
   // Auto-open group if current path is one of its items
   const isActiveGroup = group.items.some(item => location.pathname === item.to || location.pathname.startsWith(item.to + '/'));
@@ -242,6 +245,8 @@ export default function Sidebar({ open, onClose }) {
   const navigate = useNavigate();
   const role = getInternalRole();
   const sessionEmployee = getSessionEmployee();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const handleSignOut = () => {
     adminLogout();
@@ -277,10 +282,15 @@ export default function Sidebar({ open, onClose }) {
     });
   };
 
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['sidebar-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-updated_date', 100),
+    enabled: open && !!activeCompanyId,
+  });
   const { data: notes = [] } = useQuery({
-    queryKey: ['job-notes'],
-    queryFn: () => base44.entities.JobNote.list('-created_date', 100),
-    enabled: open,
+    queryKey: ['job-notes', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobNote, jobs, { order: '-created_date', limitPerJob: 100 }),
+    enabled: open && !!activeCompanyId && jobs.length > 0,
   });
   const unreadNotes = notes.filter(n => !n.read).length;
 
@@ -343,6 +353,7 @@ export default function Sidebar({ open, onClose }) {
                     unreadNotes={unreadNotes}
                     isOpen={!!openGroups[group.label]}
                     onToggle={() => toggleGroup(group.label)}
+                    hasCompany={!!activeCompanyId}
                   />
                 ))}
               </nav>

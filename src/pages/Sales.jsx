@@ -14,6 +14,7 @@ import AppLayout from '../components/AppLayout';
 import LeadStatusBadge, { STATUS_CONFIG } from '../components/sales/LeadStatusBadge';
 import LeadForm from '../components/sales/LeadForm';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
 import { toast } from 'sonner';
 
 const PRIORITY_COLORS = {
@@ -55,27 +56,35 @@ export default function Sales() {
   const [activeStat, setActiveStat] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [ariaLiveMessage, setAriaLiveMessage] = useState('');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['leads'],
-    queryFn: () => base44.entities.Lead.list('-created_date'),
+    queryKey: ['leads', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Lead.filter({ company_id: activeCompanyId }, '-created_date')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   const { data: vendors = [] } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: () => base44.entities.Vendor.list('company_name'),
+    queryKey: ['vendors', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Vendor.filter({ company_id: activeCompanyId }, 'company_name')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await queryClient.refetchQueries({ queryKey: ['leads'] });
-    await queryClient.refetchQueries({ queryKey: ['vendors'] });
+    await queryClient.refetchQueries({ queryKey: ['leads', activeCompanyId] });
+    await queryClient.refetchQueries({ queryKey: ['vendors', activeCompanyId] });
     setIsRefreshing(false);
   };
 
   const createMutation = useOptimisticMutation({
     mutationFn: async (data) => {
-      const lead = await base44.entities.Lead.create(data);
+      const lead = await base44.entities.Lead.create({ ...data, company_id: activeCompanyId });
       await base44.entities.LeadActivity.create({
         lead_id: lead.id,
         action: 'record_created',
@@ -85,9 +94,9 @@ export default function Sales() {
       });
       return lead;
     },
-    queryKey: ['leads'],
+    queryKey: ['leads', activeCompanyId],
     optimisticUpdate: (prev, leadData) => [
-      { ...leadData, id: `temp-${Date.now()}`, created_date: new Date().toISOString(), updated_date: new Date().toISOString() },
+      { ...leadData, company_id: activeCompanyId, id: `temp-${Date.now()}`, created_date: new Date().toISOString(), updated_date: new Date().toISOString() },
       ...prev,
     ],
     rollback: (prev) => prev,
@@ -220,7 +229,7 @@ export default function Sales() {
                 </div>
                 <LeadForm
                   vendors={vendors}
-                  onSubmit={(data) => createMutation.mutate(data)}
+                  onSubmit={(data) => createMutation.mutate({ ...data, company_id: activeCompanyId })}
                   onCancel={() => setShowForm(false)}
                   isLoading={createMutation.isPending}
                 />

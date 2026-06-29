@@ -90,6 +90,47 @@ export async function optionalUser(base44) {
   return base44.auth.me().catch(() => null);
 }
 
+const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+function isSafeJobId(jobId) {
+  return SAFE_SEGMENT.test(cleanString(jobId));
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function isSafeR2Key(fileKey, publicSigning = false) {
+  const key = cleanString(fileKey);
+  if (!key || key.length > 1024) return false;
+  if (key.startsWith("/") || key.includes("\\") || key.includes("//")) return false;
+  if (/[\u0000-\u001f\u007f]/.test(key)) return false;
+  const decoded = safeDecodeURIComponent(key);
+  if (decoded !== key && !isSafeR2Key(decoded, publicSigning)) return false;
+  const segments = key.split("/");
+  if (segments.length < 3 || segments[0] !== "jobs") return false;
+  if (!isSafeJobId(segments[1])) return false;
+  if (segments.some(segment => !segment || segment === "." || segment === "..")) return false;
+  if (publicSigning) {
+    return segments.length === 5
+      && segments[2] === "public-signing"
+      && SAFE_SEGMENT.test(segments[3])
+      && SAFE_SEGMENT.test(segments[4]);
+  }
+  return true;
+}
+
+function sanitizeFileName(fileName) {
+  const raw = cleanString(fileName).split(/[\\/]/).pop() || "";
+  const safe = raw.replace(/[\u0000-\u001f\u007f]/g, "").replace(/[^A-Za-z0-9._ -]/g, "_").replace(/\s+/g, " ").trim();
+  if (!safe || safe === "." || safe === "..") return "file";
+  return safe.slice(0, 180);
+}
+
 export async function resolveActor(base44, user) {
   const entities = base44.asServiceRole?.entities || base44.entities;
   const email = normalizeEmail(user?.email || user?.email_address || user?.username);
@@ -97,6 +138,9 @@ export async function resolveActor(base44, user) {
     ? await entities.Employee.filter({ email }).catch(() => [])
     : [];
   const employee = employees?.find((record) => record.active !== false) || null;
+  const memberships = employee?.id
+    ? await entities.CompanyMembership.filter({ employee_id: employee.id, is_active: true }).catch(() => [])
+    : [];
 
   const rawRole = normalizeRole(employee?.role || user?.role || user?.app_role);
   const role = rawRole === "field" ? "staff" : rawRole;
@@ -109,6 +153,7 @@ export async function resolveActor(base44, user) {
   return {
     user,
     employee,
+    memberships,
     id: employee?.id || user?.id || user?._id || email,
     name: employee?.name || user?.full_name || user?.name || email || "Unknown user",
     email,
@@ -137,12 +182,19 @@ export async function requireJobAccess(base44, actor, jobId) {
   if (!jobId || typeof jobId !== "string") {
     throw Object.assign(new Error("Missing required field: jobId"), { status: 400 });
   }
+  if (!isSafeJobId(jobId)) {
+    throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
+  }
 
   const entities = base44.asServiceRole?.entities || base44.entities;
   const jobs = await entities.Job.filter({ id: jobId }).catch(() => []);
   const job = jobs?.[0];
   if (!job) {
     throw Object.assign(new Error("Job not found"), { status: 404 });
+  }
+
+  if (!actorHasJobCompanyAccess(actor, job)) {
+    throw Object.assign(new Error("Forbidden: company access is required"), { status: 403 });
   }
 
   if (isAdminActor(actor)) {
@@ -190,7 +242,8 @@ export function requireReadPermission(actor) {
 
 export function normalizeUploadPayload(body) {
   const jobId = cleanString(body.jobId || body.job_id);
-  const fileName = cleanString(body.fileName || body.file_name);
+  const rawFileName = cleanString(body.fileName || body.file_name);
+  const fileName = sanitizeFileName(rawFileName);
   const fileType = cleanString(body.fileType || body.file_type || "application/octet-stream");
   const category = cleanString(body.category || "other");
   const purpose = cleanString(body.purpose || body.action || "upload");
@@ -200,8 +253,12 @@ export function normalizeUploadPayload(body) {
     body.signingToken || body.signing_token || body.signatureToken || body.signature_token || body.approvalToken || body.approval_token || body.token,
   );
 
-  if (!fileName) {
+  if (!rawFileName) {
     throw Object.assign(new Error("Missing required field: fileName"), { status: 400 });
+  }
+
+  if (jobId && !isSafeJobId(jobId)) {
+    throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
   }
 
   if (fileSize < 0) {
@@ -233,6 +290,14 @@ export function normalizeUploadVerificationPayload(body) {
 
   if (!fileKey) {
     throw Object.assign(new Error("Missing required field: fileKey or r2Key"), { status: 400 });
+  }
+
+  if (jobId && !isSafeJobId(jobId)) {
+    throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
+  }
+
+  if (!isSafeR2Key(fileKey)) {
+    throw Object.assign(new Error("Invalid field: fileKey"), { status: 400 });
   }
 
   return {
@@ -275,6 +340,9 @@ export function normalizeReadPayload(body) {
 }
 
 export function requireScopedFileKey(jobId, fileKey) {
+  if (!isSafeR2Key(fileKey)) {
+    throw Object.assign(new Error("Invalid field: fileKey"), { status: 400 });
+  }
   const expectedPrefix = `jobs/${jobId}/`;
   if (!fileKey.startsWith(expectedPrefix)) {
     throw Object.assign(new Error("Forbidden: file key is not scoped to the requested job"), {
@@ -420,6 +488,9 @@ async function requirePublicSignableJob(base44, jobId, signingToken) {
   if (!jobId || typeof jobId !== "string") {
     throw Object.assign(new Error("Missing required field: jobId"), { status: 400 });
   }
+  if (!isSafeJobId(jobId)) {
+    throw Object.assign(new Error("Invalid field: jobId"), { status: 400 });
+  }
 
   if (!signingToken) {
     throw Object.assign(new Error("Unauthorized: signing token is required"), { status: 401 });
@@ -440,6 +511,13 @@ async function requirePublicSignableJob(base44, jobId, signingToken) {
   if (grant.jobId !== jobId) {
     throw Object.assign(new Error("Forbidden: invalid signing token"), { status: 403 });
   }
+  if (grant.scope && grant.scope !== "job-signature") {
+    throw Object.assign(new Error("Forbidden: invalid signing token"), { status: 403 });
+  }
+  const companyIds = getJobCompanyIds(job);
+  if (grant.companyId && companyIds.length && !companyIds.includes(grant.companyId)) {
+    throw Object.assign(new Error("Forbidden: invalid signing token"), { status: 403 });
+  }
 
   return job;
 }
@@ -448,11 +526,18 @@ function keyFromR2Ref(value) {
   return typeof value === "string" && value.startsWith("r2://") ? value.slice(5) : "";
 }
 
-export async function createSigningGrant(jobId, expiresInSeconds = 7 * 24 * 60 * 60) {
+export async function createSigningGrant(jobOrId, expiresInSeconds = 7 * 24 * 60 * 60) {
   const now = Math.floor(Date.now() / 1000);
+  const jobId = typeof jobOrId === "string" ? jobOrId : jobOrId?.id;
+  const companyId = typeof jobOrId === "string"
+    ? ""
+    : jobOrId?.company_id || jobOrId?.origin_company_id || jobOrId?.assigned_company_id || jobOrId?.performing_company_id || "";
   const payload = {
+    scope: "job-signature",
     jobId,
-    exp: now + Math.min(Number(expiresInSeconds) || 0, 30 * 24 * 60 * 60),
+    companyId,
+    iat: now,
+    exp: now + Math.min(Number(expiresInSeconds) || 7 * 24 * 60 * 60, 7 * 24 * 60 * 60),
     nonce: crypto.randomUUID(),
   };
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
@@ -489,6 +574,9 @@ function requirePublicSigningUploadKey(payload) {
 
   const expectedFileName = getPublicSignatureFileName(payload.purpose);
   const expectedKey = `jobs/${payload.jobId}/public-signing/${payload.uploadSessionId}/${expectedFileName}`;
+  if (!isSafeR2Key(payload.fileKey, true)) {
+    throw Object.assign(new Error("Invalid field: fileKey"), { status: 400 });
+  }
   if (payload.fileKey !== expectedKey) {
     throw Object.assign(new Error("Forbidden: upload key does not match this public signing session"), {
       status: 403,
@@ -497,6 +585,7 @@ function requirePublicSigningUploadKey(payload) {
 }
 
 function isPublicSigningFileKey(jobId, fileKey, fileName) {
+  if (!isSafeR2Key(fileKey, true)) return false;
   const prefix = `jobs/${jobId}/public-signing/`;
   if (!fileKey.startsWith(prefix)) return false;
 
@@ -606,6 +695,17 @@ export function errorResponse(error) {
 
 function isAdminActor(actor) {
   return actor?.role === "owner" || actor?.role === "admin";
+}
+
+function getJobCompanyIds(job) {
+  return [job?.company_id, job?.origin_company_id, job?.assigned_company_id, job?.performing_company_id].filter(Boolean);
+}
+
+function actorHasJobCompanyAccess(actor, job) {
+  const companyIds = getJobCompanyIds(job);
+  if (!companyIds.length) return true;
+  if (actor?.employee?.company_id && companyIds.includes(actor.employee.company_id)) return true;
+  return (actor?.memberships || []).some(m => m?.is_active !== false && companyIds.includes(m.company_id));
 }
 
 function hasAnyPermission(actor, permissions) {

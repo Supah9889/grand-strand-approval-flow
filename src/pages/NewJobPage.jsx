@@ -189,6 +189,7 @@ export default function NewJobPage() {
   const [selectedClient, setSelectedClient] = useState(null); // existing Lead/client
   const [newClientFields, setNewClientFields] = useState({ name: '', phone: '', email: '' });
   const [useNewClient, setUseNewClient] = useState(false);
+  const activeCompanyId = activeCompany?.id || '';
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -203,12 +204,18 @@ export default function NewJobPage() {
     enabled: isAdmin,
   });
   const { data: vendors = [] } = useQuery({
-    queryKey: ['vendors-active'],
-    queryFn: () => base44.entities.Vendor.filter({ active: true }, 'company_name'),
+    queryKey: ['vendors-active', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Vendor.filter({ active: true, company_id: activeCompanyId }, 'company_name')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
   const { data: leads = [] } = useQuery({
-    queryKey: ['leads-all'],
-    queryFn: () => base44.entities.Lead.list('-created_date', 200),
+    queryKey: ['leads-all', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Lead.filter({ company_id: activeCompanyId }, '-created_date', 200)
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   // Resolve the effective customer name from the Clients tab or form
@@ -238,6 +245,10 @@ export default function NewJobPage() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!activeCompanyId) {
+        throw new Error('Active company is required before creating a job.');
+      }
+
       // Resolve client info — always prefer effectiveCustomerName (covers Clients tab selections)
       let customerName = effectiveCustomerName;
       let customerEmail = form.customer_email;
@@ -247,6 +258,7 @@ export default function NewJobPage() {
       if (useNewClient && newClientFields.name) {
         // Create new Lead record (uses contact_name as primary field)
         const newLead = await base44.entities.Lead.create({
+          company_id: activeCompanyId,
           contact_name: newClientFields.name,
           email: newClientFields.email,
           phone: newClientFields.phone,
@@ -288,7 +300,7 @@ export default function NewJobPage() {
       let vendorId = selectedVendor?.id || '';
       let vendorName = selectedVendor?.company_name || '';
       if (!selectedVendor && newVendorName.trim()) {
-        const nv = await base44.entities.Vendor.create({ company_name: newVendorName.trim(), active: true });
+        const nv = await base44.entities.Vendor.create({ company_id: activeCompanyId, company_name: newVendorName.trim(), active: true });
         vendorId = nv.id;
         vendorName = nv.company_name;
       }
@@ -300,6 +312,8 @@ export default function NewJobPage() {
       const jobPayload = {
         ...formWithoutCityStateZip,
         price,
+        company_id: activeCompanyId,
+        company_slug: activeCompany?.slug,
         address: resolvedAddress,
         customer_name: customerName,
         customer_email: customerEmail,

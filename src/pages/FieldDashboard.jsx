@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  Clock, MapPin, CheckSquare, Camera, FileText, Send,
-  Play, Square, Loader2, ChevronRight, AlertTriangle, Building2
+  MapPin, CheckSquare, FileText, Send,
+  Play, Square, Loader2, ChevronRight, AlertTriangle
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { format } from 'date-fns';
@@ -153,8 +153,8 @@ export default function FieldDashboard() {
     queryKey: ['field-jobs', company?.id],
     queryFn: () => company
       ? base44.entities.Job.filter({ company_id: company.id, lifecycle_status: 'in_progress' }, '-created_date', 50)
-      : base44.entities.Job.list('-created_date', 50),
-    enabled: true,
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: scheduleEvents = [] } = useQuery({
@@ -162,24 +162,26 @@ export default function FieldDashboard() {
     queryFn: async () => {
       const all = company
         ? await base44.entities.ScheduleEvent.filter({ company_id: company.id })
-        : await base44.entities.ScheduleEvent.list('-start_datetime', 100);
+        : [];
       return all.filter(e => e.start_datetime?.startsWith(todayISO) && e.status !== 'cancelled');
     },
+    enabled: !!company?.id,
   });
 
   const { data: workOrders = [] } = useQuery({
     queryKey: ['field-work-orders', company?.id],
     queryFn: () => company
       ? base44.entities.WorkOrder.filter({ company_id: company.id, status: 'assigned' }, '-created_date', 50)
-      : base44.entities.WorkOrder.filter({ status: 'assigned' }, '-created_date', 50),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const { data: timeEntries = [] } = useQuery({
-    queryKey: ['field-time-entries', employee?.id],
+    queryKey: ['field-time-entries', company?.id, employee?.id],
     queryFn: () => employee
-      ? base44.entities.TimeEntry.filter({ employee_id: employee.id, status: 'clocked_in' })
+      ? base44.entities.TimeEntry.filter({ company_id: company.id, employee_id: employee.id, status: 'clocked_in' })
       : [],
-    enabled: !!employee,
+    enabled: !!company?.id && !!employee,
   });
 
   const activeEntry = timeEntries.find(e => e.status === 'clocked_in');

@@ -28,7 +28,8 @@ export default function WorkOrderTemplatesPage() {
     queryKey: ['wo-templates', company?.id],
     queryFn: () => company
       ? base44.entities.WorkOrderTemplate.filter({ company_id: company.id }, 'name')
-      : base44.entities.WorkOrderTemplate.list('name'),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const handleSaved = async (tpl, isEdit) => {

@@ -13,6 +13,8 @@ import FileUploadArea from '../components/jobcomms/FileUploadArea';
 import FileGrid from '../components/jobcomms/FileGrid';
 import { getInternalRole } from '@/lib/adminAuth';
 import { canManageJobFiles } from '@/lib/fileActions';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 
 const CATEGORY_LABEL = {
   before_photo: 'Before', progress_photo: 'Progress', after_photo: 'After',
@@ -41,20 +43,29 @@ export default function JobComms() {
   const [filterVisibility, setFilterVisibility] = useState('all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('newest');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
+
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+  const hasScopedJobs = !!activeCompanyId && jobs.length > 0;
 
   const { data: files = [], isLoading: loadingFiles } = useQuery({
-    queryKey: ['job-files-all'],
-    queryFn: () => base44.entities.JobFile.filter({ archived: false }),
+    queryKey: ['job-files-all', activeCompanyId],
+    queryFn: async () => {
+      const records = await fetchJobScopedRecords(base44.entities.JobFile, jobs, { order: '-created_date' });
+      return records.filter(file => file.archived !== true);
+    },
+    enabled: hasScopedJobs,
   });
 
   const { data: comments = [], isLoading: loadingComments } = useQuery({
-    queryKey: ['job-comments-all'],
-    queryFn: () => base44.entities.JobComment.list('-created_date'),
-  });
-
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['job-comments-all', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.JobComment, jobs, { order: '-created_date' }),
+    enabled: hasScopedJobs,
   });
 
   const stats = useMemo(() => ({

@@ -12,6 +12,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/AppLayout';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchJobScopedRecords } from '@/lib/companyScopedQueries';
 import { audit } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -42,15 +44,19 @@ export default function PortalManager() {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [form, setForm] = useState(EMPTY_FORM);
-
-  const { data: portalUsers = [], isLoading } = useQuery({
-    queryKey: ['portal-users'],
-    queryFn: () => base44.entities.PortalUser.list('-created_date'),
-  });
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
 
   const { data: jobs = [] } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 200),
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+
+  const { data: portalUsers = [], isLoading } = useQuery({
+    queryKey: ['portal-users', activeCompanyId],
+    queryFn: () => fetchJobScopedRecords(base44.entities.PortalUser, jobs, { order: '-created_date' }),
+    enabled: !!activeCompanyId && jobs.length > 0,
   });
 
   const createMutation = useMutation({
@@ -63,6 +69,8 @@ export default function PortalManager() {
         email: data.email,
         portal_type: data.portal_type,
         access_status: 'invited',
+        job_id: data.job_ids?.[0] || '',
+        job_address: linkedJobs[0]?.address || linkedJobs[0]?.title || '',
         linked_job_ids: JSON.stringify(data.job_ids || []),
         invited_by: role || 'admin',
         invite_date: new Date().toISOString(),

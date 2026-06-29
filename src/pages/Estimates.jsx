@@ -12,6 +12,7 @@ import AppLayout from '../components/AppLayout';
 import EstimateStatusBadge from '../components/estimates/EstimateStatusBadge';
 import { ESTIMATE_STATUS_CONFIG, generateEstimateNumber } from '@/lib/estimateHelpers';
 import { getInternalRole } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
 
 const STAT_GROUPS = [
   { key: 'total',           label: 'Total',            color: 'text-slate-700',  bg: 'bg-slate-50',  border: 'border-slate-200' },
@@ -34,16 +35,22 @@ export default function Estimates() {
   const [sort, setSort] = useState('newest');
   const [activeStat, setActiveStat] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
+  const activeCompanyName = activeCompany?.name || activeCompany?.company_name || '';
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await queryClient.refetchQueries({ queryKey: ['estimates'] });
+    await queryClient.refetchQueries({ queryKey: ['estimates', activeCompanyId] });
     setIsRefreshing(false);
   };
 
   const { data: estimates = [], isLoading } = useQuery({
-    queryKey: ['estimates'],
-    queryFn: () => base44.entities.Estimate.list('-created_date'),
+    queryKey: ['estimates', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Estimate.filter({ company_id: activeCompanyId }, '-created_date')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   const createMutation = useMutation({
@@ -55,6 +62,8 @@ export default function Estimates() {
         estimate_type: 'estimate',
         status: 'draft',
         client_name: '',
+        company_id: activeCompanyId,
+        company_name: activeCompanyName,
         date_created: new Date().toISOString(),
         version: 1,
         is_current_version: true,
@@ -71,7 +80,7 @@ export default function Estimates() {
       return est;
     },
     onSuccess: (est) => {
-      queryClient.invalidateQueries({ queryKey: ['estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['estimates', activeCompanyId] });
       navigate(`/estimates/${est.id}`);
     },
   });

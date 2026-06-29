@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Loader2, ChevronRight, AlertTriangle, CheckSquare } from 'lucide-react';
+import { Plus, Loader2, AlertTriangle, CheckSquare } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import WorkOrderModal from '@/components/workorders/WorkOrderModal';
 import usePermissions from '@/hooks/usePermissions';
@@ -38,7 +38,8 @@ export default function WorkOrders() {
     queryKey: ['work-orders', company?.id],
     queryFn: () => company
       ? base44.entities.WorkOrder.filter({ company_id: company.id }, '-created_date', 200)
-      : base44.entities.WorkOrder.list('-created_date', 200),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const filtered = useMemo(() => {

@@ -23,6 +23,8 @@ import LinkedJobPanel from '@/components/jobs/LinkedJobPanel';
 import AttachmentManager from '@/components/attachments/AttachmentManager';
 import { validateEstimate } from '@/lib/validation';
 import ValidationPanel from '@/components/shared/ValidationPanel';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs, fetchScopedRecordById } from '@/lib/companyScopedQueries';
 
 const SERVICE_TYPES = ['interior_painting','exterior_painting','cabinet_painting','deck_staining','commercial_painting','drywall_repair','power_washing','epoxy_floor','other'];
 const lbl = s => s?.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) || '';
@@ -32,6 +34,9 @@ export default function EstimateDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const role = getInternalRole();
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
+  const activeCompanyName = activeCompany?.name || activeCompany?.company_name || '';
 
   const [editing, setEditing] = useState(false);
   const [showSend, setShowSend] = useState(false);
@@ -41,24 +46,30 @@ export default function EstimateDetail() {
   const [saving, setSaving] = useState(false);
   const [validationTouched, setValidationTouched] = useState(false);
 
+  const { data: jobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: ['jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 200),
+    enabled: !!activeCompanyId,
+  });
+
   const { data: estimate, isLoading } = useQuery({
-    queryKey: ['estimate', estimateId],
-    queryFn: async () => {
-      const res = await base44.entities.Estimate.filter({ id: estimateId });
-      return res[0];
-    },
-    enabled: !!estimateId,
+    queryKey: ['estimate', estimateId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.Estimate, estimateId, activeCompanyId, { jobs }),
+    enabled: !!estimateId && !!activeCompanyId && !isJobsLoading,
   });
 
   const { data: activities = [] } = useQuery({
     queryKey: ['estimate-activities', estimateId],
     queryFn: () => base44.entities.EstimateActivity.filter({ estimate_id: estimateId }),
-    enabled: !!estimateId,
+    enabled: !!estimate,
   });
 
   const { data: allEstimates = [] } = useQuery({
-    queryKey: ['estimates'],
-    queryFn: () => base44.entities.Estimate.list('-created_date'),
+    queryKey: ['estimates', activeCompanyId],
+    queryFn: () => activeCompanyId
+      ? base44.entities.Estimate.filter({ company_id: activeCompanyId }, '-created_date')
+      : Promise.resolve([]),
+    enabled: !!activeCompanyId,
   });
 
   // Versions of this estimate (same parent or this is parent)
@@ -90,9 +101,9 @@ export default function EstimateDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['estimate', estimateId] });
+      queryClient.invalidateQueries({ queryKey: ['estimate', estimateId, activeCompanyId] });
       queryClient.invalidateQueries({ queryKey: ['estimate-activities', estimateId] });
-      queryClient.invalidateQueries({ queryKey: ['estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['estimates', activeCompanyId] });
     },
   });
 
@@ -167,12 +178,12 @@ export default function EstimateDetail() {
       actor: role || 'admin',
       timestamp: new Date().toISOString(),
     });
-    queryClient.invalidateQueries({ queryKey: ['estimates'] });
+    queryClient.invalidateQueries({ queryKey: ['estimates', activeCompanyId] });
     navigate(`/estimates/${newEst.id}`);
     toast.success(`Revision v${newVersion} created`);
   };
 
-  if (isLoading || !form) {
+  if (isLoading || isJobsLoading) {
     return <AppLayout title="Estimate"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   }
 
@@ -185,6 +196,10 @@ export default function EstimateDetail() {
         </div>
       </AppLayout>
     );
+  }
+
+  if (!form) {
+    return <AppLayout title="Estimate"><div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div></AppLayout>;
   }
 
   const totals = calcTotals(lineItems, form.tax_rate || 0, form.discount_amount || 0);
@@ -522,9 +537,9 @@ export default function EstimateDetail() {
         onClose={() => setShowSend(false)}
         onSent={() => {
           setShowSend(false);
-          queryClient.invalidateQueries({ queryKey: ['estimate', estimateId] });
+          queryClient.invalidateQueries({ queryKey: ['estimate', estimateId, activeCompanyId] });
           queryClient.invalidateQueries({ queryKey: ['estimate-activities', estimateId] });
-          queryClient.invalidateQueries({ queryKey: ['estimates'] });
+          queryClient.invalidateQueries({ queryKey: ['estimates', activeCompanyId] });
         }}
       />
     </AppLayout>

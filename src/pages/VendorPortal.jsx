@@ -1,17 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Loader2, FileText, CheckSquare, CalendarDays, FileDiff, Lock, MessageSquare, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import CompanyLogo from '../components/CompanyLogo';
+import { filterRecordsByAllowedJobIds } from '@/lib/relationshipContext';
 
 const IMAGE_EXTS = /\.(jpg|jpeg|png|webp|gif)$/i;
 const isImage = (f) => IMAGE_EXTS.test(f.file_name || '') || IMAGE_EXTS.test(f.file_url || '');
-
-const CATEGORY_LABEL = {
-  vendor_document: 'Vendor Document', change_order: 'Change Order',
-  estimate: 'Estimate', permit: 'Permit', other: 'Other',
-};
 
 const STATUS_CFG = {
   open:        { label: 'Open',        color: 'bg-blue-100 text-blue-700' },
@@ -34,70 +30,67 @@ function Section({ title, icon: Icon, children }) {
 
 export default function VendorPortal() {
   const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token');
+  const token = urlParams.get('token') || urlParams.get('access_token') || urlParams.get('invite_token') || '';
   const [activeJobId, setActiveJobId] = useState(null);
 
-  const { data: portalUsers = [], isLoading: loadingUser } = useQuery({
-    queryKey: ['portal-user', token],
-    queryFn: () => base44.entities.PortalUser.filter({ access_token: token }),
+  const { data: portalContext = null, isLoading: loadingUser, isError } = useQuery({
+    queryKey: ['vendor-portal-grant', token],
+    queryFn: async () => {
+      const response = await base44.functions.invoke('resolveVendorPortalGrant', { token });
+      return response?.data || response;
+    },
     enabled: !!token,
+    retry: false,
   });
 
-  const portalUser = portalUsers[0];
-  const linkedJobIds = useMemo(() => {
-    try { return JSON.parse(portalUser?.linked_job_ids || '[]'); } catch { return []; }
-  }, [portalUser]);
-
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['vendor-portal-jobs', linkedJobIds.join(',')],
-    queryFn: () => base44.entities.Job.list('-created_date', 50),
-    enabled: linkedJobIds.length > 0,
-    select: data => data.filter(j => linkedJobIds.includes(j.id)),
-  });
-
-  const currentJobId = activeJobId || linkedJobIds[0];
+  const portalUser = portalContext?.portalUser;
+  const linkedJobIds = portalContext?.allowedJobIds || [];
+  const jobs = portalContext?.jobs || [];
+  const currentJobId = linkedJobIds.includes(activeJobId) ? activeJobId : linkedJobIds[0];
   const currentJob = jobs.find(j => j.id === currentJobId);
+  const hasCurrentJob = !!currentJobId && linkedJobIds.includes(currentJobId);
 
   const { data: files = [] } = useQuery({
-    queryKey: ['vportal-files', currentJobId],
+    queryKey: ['vportal-files', token, currentJobId],
     queryFn: () => base44.entities.JobFile.filter({ job_id: currentJobId }),
-    enabled: !!currentJobId,
-    select: data => data.filter(f => (f.visibility === 'vendor' || f.visibility === 'both') && !f.archived),
+    enabled: hasCurrentJob,
+    select: data => filterRecordsByAllowedJobIds(data, linkedJobIds)
+      .filter(f => (f.visibility === 'vendor' || f.visibility === 'both') && !f.archived),
   });
 
   const { data: comments = [] } = useQuery({
-    queryKey: ['vportal-comments', currentJobId],
+    queryKey: ['vportal-comments', token, currentJobId],
     queryFn: () => base44.entities.JobComment.filter({ job_id: currentJobId }),
-    enabled: !!currentJobId,
-    select: data => data.filter(c => c.visibility === 'vendor' || c.visibility === 'both'),
+    enabled: hasCurrentJob,
+    select: data => filterRecordsByAllowedJobIds(data, linkedJobIds)
+      .filter(c => c.visibility === 'vendor' || c.visibility === 'both'),
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['vportal-tasks', currentJobId],
+    queryKey: ['vportal-tasks', token, currentJobId],
     queryFn: () => base44.entities.Task.filter({ job_id: currentJobId }),
-    enabled: !!currentJobId,
-    select: data => data.filter(t => !['completed','closed','canceled'].includes(t.status)),
+    enabled: hasCurrentJob,
+    select: data => filterRecordsByAllowedJobIds(data, linkedJobIds)
+      .filter(t => !['completed','closed','canceled'].includes(t.status)),
   });
 
   const { data: events = [] } = useQuery({
-    queryKey: ['vportal-events', currentJobId],
+    queryKey: ['vportal-events', token, currentJobId],
     queryFn: () => base44.entities.CalendarEvent.filter({ job_id: currentJobId }),
-    enabled: !!currentJobId,
+    enabled: hasCurrentJob,
+    select: data => filterRecordsByAllowedJobIds(data, linkedJobIds),
   });
 
   const { data: changeOrders = [] } = useQuery({
-    queryKey: ['vportal-cos', currentJobId],
+    queryKey: ['vportal-cos', token, currentJobId],
     queryFn: () => base44.entities.ChangeOrder.filter({ job_id: currentJobId }),
-    enabled: !!currentJobId,
-    select: data => data.filter(co => co.status === 'approved'),
+    enabled: hasCurrentJob,
+    select: data => filterRecordsByAllowedJobIds(data, linkedJobIds).filter(co => co.status === 'approved'),
   });
 
   if (!token) return <PortalError message="No access token provided." />;
   if (loadingUser) return <PortalLoading />;
-  if (!portalUser) return <PortalError message="This portal link is not valid or has expired." />;
-  if (portalUser.access_status === 'revoked') return <PortalError message="Your portal access has been revoked." />;
-  if (portalUser.access_status === 'disabled') return <PortalError message="Your portal access is temporarily disabled." />;
-  if (portalUser.access_status === 'invited') return <PortalError message="Your portal access is pending activation." />;
+  if (isError || !portalUser) return <PortalError message="This portal link is not valid, active, or has expired." />;
 
   const typeLabel = portalUser.portal_type === 'subcontractor' ? 'Subcontractor Portal' : 'Vendor Portal';
 

@@ -30,6 +30,93 @@ import { getSession, getInternalRole, getSessionEmployee } from '@/lib/adminAuth
 
 const COMPANY_KEY = 'active_company';
 
+const COMPANY_SCOPE_FIELDS = [
+  'company_id',
+  'origin_company_id',
+  'assigned_company_id',
+  'performing_company_id',
+];
+
+const JOB_REFERENCE_FIELDS = ['job_id', 'linked_job_id', 'current_job_id'];
+const RELATED_OWNER_FIELDS = ['customer_id', 'vendor_id', 'subcontractor_id'];
+
+const GLOBAL_CONFIG_ENTITIES = new Set([
+  'AccessConfig',
+  'ApprovedEmail',
+  'Company',
+  'CostCode',
+  'GeoSettings',
+  'JobType',
+  'RolePermission',
+  'User',
+]);
+
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null) return [];
+  return [value];
+}
+
+function normalizeId(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') return value.id || value.company_id || null;
+  return String(value);
+}
+
+function isUserLike(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getContextMemberships(userOrContext) {
+  if (!isUserLike(userOrContext)) return [];
+  return userOrContext.memberships
+    || userOrContext.companyMemberships
+    || userOrContext.company_memberships
+    || [];
+}
+
+function getContextEmployee(userOrContext) {
+  if (!isUserLike(userOrContext)) return getSessionEmployee();
+  return userOrContext.employee || userOrContext.sessionEmployee || userOrContext;
+}
+
+function getContextRole(userOrContext) {
+  if (!isUserLike(userOrContext)) return getInternalRole();
+  return userOrContext.sessionRole
+    || userOrContext.internalRole
+    || userOrContext.role
+    || userOrContext.app_role
+    || userOrContext.employee?.role
+    || null;
+}
+
+function getRecordCompanyIds(record) {
+  if (!record) return [];
+  return COMPANY_SCOPE_FIELDS
+    .map(field => normalizeId(record[field]))
+    .filter(Boolean);
+}
+
+function hasAnyCompanyField(record) {
+  return getRecordCompanyIds(record).length > 0;
+}
+
+function getJobFromContext(userOrContext, jobId) {
+  if (!isUserLike(userOrContext) || !jobId) return null;
+  const byId = userOrContext.jobsById || userOrContext.jobMap || userOrContext.jobs_by_id;
+  if (byId?.[jobId]) return byId[jobId];
+  const jobs = userOrContext.jobs || [];
+  return jobs.find(job => job?.id === jobId) || null;
+}
+
+function relatedCompanyIdFromContext(userOrContext, field, id) {
+  if (!isUserLike(userOrContext) || !id) return null;
+  const mapName = `${field.replace(/_id$/, '')}CompanyMap`;
+  const snakeMapName = `${field.replace(/_id$/, '')}_company_map`;
+  return userOrContext[mapName]?.[id] || userOrContext[snakeMapName]?.[id] || null;
+}
+
 export function getCurrentCompany() {
   try {
     const raw = sessionStorage.getItem(COMPANY_KEY);
@@ -39,6 +126,35 @@ export function getCurrentCompany() {
 
 export function requireCompany() {
   return getCurrentCompany();
+}
+
+export function getActiveCompanyId(userOrContext) {
+  if (typeof userOrContext === 'string') return userOrContext || null;
+  if (isUserLike(userOrContext)) {
+    return normalizeId(
+      userOrContext.activeCompanyId
+      || userOrContext.active_company_id
+      || userOrContext.companyId
+      || userOrContext.company_id
+      || userOrContext.activeCompany
+      || userOrContext.company
+    );
+  }
+  return normalizeId(getCurrentCompany());
+}
+
+export function safeCompanyFilter(activeCompanyId, extra = {}) {
+  const companyId = getActiveCompanyId(activeCompanyId);
+  if (!companyId) return null;
+  return { ...extra, company_id: companyId };
+}
+
+export function requireCompanyScope(queryParams = {}, activeCompanyId) {
+  const companyId = getActiveCompanyId(activeCompanyId);
+  if (!companyId) {
+    throw new Error('Company scope is required for this query.');
+  }
+  return { ...queryParams, company_id: companyId };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,11 +208,34 @@ export function getEmployeeRole(memberships = []) {
  * Convenience: check if the current employee has one of the given roles
  * in the current company. Owner/admin sessions bypass role checks.
  */
-export function hasRole(roles, memberships = []) {
-  if (isAdminSession()) return true;
-  const empRole = getEmployeeRole(memberships);
-  if (!empRole) return false;
-  return roles.includes(empRole);
+export function hasRole(userOrRoles, roleOrRoles, memberships = []) {
+  // Backward-compatible form: hasRole(['owner'], memberships)
+  if (!isUserLike(userOrRoles) || Array.isArray(userOrRoles)) {
+    const roles = toArray(userOrRoles);
+    const legacyMemberships = Array.isArray(roleOrRoles) ? roleOrRoles : memberships;
+    if (isAdminSession()) return true;
+    const empRole = getEmployeeRole(legacyMemberships);
+    if (!empRole) return false;
+    return roles.includes(empRole);
+  }
+
+  const userOrContext = userOrRoles;
+  const roles = toArray(roleOrRoles);
+  if (!roles.length) return false;
+
+  const roleValues = new Set([
+    getContextRole(userOrContext),
+    userOrContext.permission_group,
+    userOrContext.permissionGroup,
+    userOrContext.employee?.role,
+  ].filter(Boolean));
+
+  getUserCompanyMemberships(userOrContext).forEach(membership => {
+    if (membership.role) roleValues.add(membership.role);
+    if (membership.permission_group) roleValues.add(membership.permission_group);
+  });
+
+  return roles.some(role => roleValues.has(role));
 }
 
 /**
@@ -311,6 +450,95 @@ export function canEditRecord(record, company, memberships = []) {
   return hasRole(['owner','operations_admin'], memberships);
 }
 
+export function hasCompanyAccess(userOrContext, companyId) {
+  const targetCompanyId = normalizeId(companyId);
+  if (!targetCompanyId) return false;
+
+  const activeCompanyId = getActiveCompanyId(userOrContext);
+  if (activeCompanyId && activeCompanyId === targetCompanyId) return true;
+
+  return getUserCompanyMemberships(userOrContext).some(membership =>
+    membership?.company_id === targetCompanyId && membership.is_active !== false
+  );
+}
+
+export function canAccessJob(userOrContext, job) {
+  if (!job) return false;
+  const activeCompanyId = getActiveCompanyId(userOrContext);
+  const jobCompanyIds = getRecordCompanyIds(job);
+
+  if (activeCompanyId && jobCompanyIds.includes(activeCompanyId)) return true;
+  if (jobCompanyIds.some(companyId => hasCompanyAccess(userOrContext, companyId))) return true;
+  if (jobCompanyIds.length) return false;
+
+  const employee = getContextEmployee(userOrContext);
+  if (!employee?.id) return false;
+
+  const assignedIds = parseJsonList(job.assigned_employee_ids);
+  if (assignedIds.includes(employee.id)) return true;
+
+  return job.employee_id === employee.id || job.created_by_id === employee.id;
+}
+
+function parseJsonList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function canReadEntity(userOrContext, entityName, record) {
+  if (!record) return false;
+
+  if (GLOBAL_CONFIG_ENTITIES.has(entityName)) {
+    return isOwnerSession() || isAdminSession() || hasRole(userOrContext, ['owner', 'full_admin']);
+  }
+
+  if (entityName === 'Job') return canAccessJob(userOrContext, record);
+
+  const activeCompanyId = getActiveCompanyId(userOrContext);
+  const directCompanyIds = getRecordCompanyIds(record);
+  if (activeCompanyId && directCompanyIds.includes(activeCompanyId)) return true;
+  if (directCompanyIds.some(companyId => hasCompanyAccess(userOrContext, companyId))) return true;
+
+  // Some child entities only carry job_id. They are safe to read only when the
+  // caller supplies the parent job context through jobsById/jobMap/jobs.
+  for (const field of JOB_REFERENCE_FIELDS) {
+    const jobId = record[field];
+    const job = getJobFromContext(userOrContext, jobId);
+    if (job && canAccessJob(userOrContext, job)) return true;
+  }
+
+  // Customer/vendor/subcontractor ownership cannot be inferred without a
+  // caller-provided map. This keeps the helper fail-closed by default.
+  for (const field of RELATED_OWNER_FIELDS) {
+    const relatedCompanyId = relatedCompanyIdFromContext(userOrContext, field, record[field]);
+    if (relatedCompanyId && hasCompanyAccess(userOrContext, relatedCompanyId)) return true;
+  }
+
+  return false;
+}
+
+export function canWriteEntity(userOrContext, entityName, record = {}) {
+  if (GLOBAL_CONFIG_ENTITIES.has(entityName)) {
+    return isOwnerSession() || hasRole(userOrContext, ['owner', 'full_admin']);
+  }
+
+  const activeCompanyId = getActiveCompanyId(userOrContext);
+  if (hasAnyCompanyField(record) && !canReadEntity(userOrContext, entityName, record)) return false;
+
+  if (isAdminSession()) return true;
+
+  const employee = getContextEmployee(userOrContext);
+  if (employee?.id && (record.employee_id === employee.id || record.created_by_id === employee.id)) return true;
+
+  return hasRole(userOrContext, ['owner', 'operations_admin', 'financial_manager']);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Query filter helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -342,10 +570,17 @@ export function workOrderFilter(company, memberships = []) {
 // getUserCompanyMemberships — for use in hooks
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function getUserCompanyMemberships(allMemberships = []) {
-  const employee = getSessionEmployee();
-  if (!employee) return [];
-  return allMemberships.filter(m => m.employee_id === employee.id);
+export function getUserCompanyMemberships(userOrMemberships = []) {
+  if (Array.isArray(userOrMemberships)) {
+    const employee = getSessionEmployee();
+    if (!employee) return [];
+    return userOrMemberships.filter(m => m.employee_id === employee.id);
+  }
+
+  const memberships = getContextMemberships(userOrMemberships);
+  const employee = getContextEmployee(userOrMemberships);
+  if (!employee?.id) return memberships.filter(m => m?.is_active !== false);
+  return memberships.filter(m => m.employee_id === employee.id && m.is_active !== false);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -485,6 +720,8 @@ export const PERMISSIONS = {
   edit_financials:      { label: 'Edit Financials',      category: 'Financial' },
   manage_invoices:      { label: 'Manage Invoices',      category: 'Financial' },
   manage_expenses:      { label: 'Manage Expenses',      category: 'Financial' },
+  manage_payments:      { label: 'Manage Payments',      category: 'Financial' },
+  delete_payments:      { label: 'Delete Payments',      category: 'Financial' },
   manage_time_entries:  { label: 'Manage Time Entries',  category: 'Operations' },
   view_all_time:        { label: 'View All Time Entries',category: 'Operations' },
   manage_crm:           { label: 'Manage CRM',           category: 'Operations' },
@@ -502,6 +739,7 @@ const ROLE_PERMISSION_DEFAULTS = {
     view_jobs: true, manage_jobs: true, manage_schedule: true,
     view_work_orders: true, manage_work_orders: true,
     view_financials: true, edit_financials: true, manage_invoices: true, manage_expenses: true,
+    manage_payments: true, delete_payments: true,
     manage_time_entries: true, view_all_time: true, manage_crm: true,
     manage_restoration: true, submit_nexus: true,
     approve_nexus: false, manage_users: false, manage_access: false, review_subcontracts: false,
@@ -510,6 +748,7 @@ const ROLE_PERMISSION_DEFAULTS = {
     view_jobs: true, manage_jobs: false, manage_schedule: false,
     view_work_orders: true, manage_work_orders: false,
     view_financials: false, edit_financials: false, manage_invoices: false, manage_expenses: false,
+    manage_payments: false, delete_payments: false,
     manage_time_entries: false, view_all_time: false, manage_crm: false,
     manage_restoration: true, submit_nexus: true,
     approve_nexus: false, manage_users: false, manage_access: false, review_subcontracts: false,

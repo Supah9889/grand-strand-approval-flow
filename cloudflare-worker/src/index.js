@@ -5,19 +5,31 @@
  * Never hardcode secrets here or in frontend code.
  */
 
+import {
+  buildCorsHeaders,
+  fileKeyMatchesJob,
+  isCorsAllowed,
+  isSafeJobId,
+  isSafeR2Key,
+  sanitizeFileName,
+} from "./security.js";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
 
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Content-Length, Authorization",
-    };
+    const corsHeaders = buildCorsHeaders(request, env);
 
     if (request.method === "OPTIONS") {
+      if (!isCorsAllowed(request, env)) {
+        return json({ error: "CORS origin is not allowed" }, corsHeaders, 403);
+      }
       return new Response(null, { headers: corsHeaders });
+    }
+
+    if (!["GET", "POST", "PUT"].includes(request.method)) {
+      return json({ error: "Method not allowed" }, corsHeaders, 405);
     }
 
     // Health check - no auth required
@@ -31,6 +43,10 @@ export default {
         const uploadToken = url.searchParams.get("token");
         const uploadGrant = await verifyUploadToken(uploadToken, env.AUTH_SECRET);
         if (!uploadGrant) {
+          return json({ error: "Unauthorized" }, corsHeaders, 401);
+        }
+
+        if (!isSafeR2Key(uploadGrant.fileKey, { publicSigning: true })) {
           return json({ error: "Unauthorized" }, corsHeaders, 401);
         }
 
@@ -92,8 +108,16 @@ export default {
           return json({ error: "Missing required fields: fileName, fileType, jobId, uploadedBy" }, corsHeaders, 400);
         }
 
+        if (!isSafeJobId(jobId)) {
+          return json({ error: "Invalid job id" }, corsHeaders, 400);
+        }
+
+        const safeFileName = sanitizeFileName(fileName);
         const uuid = crypto.randomUUID();
-        const fileKey = `jobs/${jobId}/${uuid}-${fileName}`;
+        const fileKey = `jobs/${jobId}/${uuid}-${safeFileName}`;
+        if (!isSafeR2Key(fileKey)) {
+          return json({ error: "Invalid upload key" }, corsHeaders, 400);
+        }
 
         const uploadUrl = await env.PRIVATE_FILES.createPresignedUrl(fileKey, {
           method: "PUT",
@@ -115,6 +139,9 @@ export default {
 
         if (!fileKey) {
           return json({ error: "Missing required field: fileKey" }, corsHeaders, 400);
+        }
+        if (!isSafeR2Key(fileKey) || (body.jobId && !fileKeyMatchesJob(fileKey, body.jobId))) {
+          return json({ error: "Invalid file key" }, corsHeaders, 400);
         }
 
         const signedUrl = await env.PRIVATE_FILES.createPresignedUrl(fileKey, {
@@ -141,7 +168,7 @@ export default {
           return json({ error: "Missing required fields: fileKey, fileType, maxSize" }, corsHeaders, 400);
         }
 
-        if (!/^jobs\/[^/]+\/public-signing\/[^/]+\/[^/]+$/.test(fileKey)) {
+        if (!isSafeR2Key(fileKey, { publicSigning: true })) {
           return json({ error: "Invalid public signing upload key" }, corsHeaders, 400);
         }
 
@@ -171,6 +198,9 @@ export default {
         if (!fileKey) {
           return json({ error: "Missing required field: fileKey" }, corsHeaders, 400);
         }
+        if (!isSafeR2Key(fileKey) || (body.jobId && !fileKeyMatchesJob(fileKey, body.jobId))) {
+          return json({ error: "Invalid file key" }, corsHeaders, 400);
+        }
 
         const object = await env.PRIVATE_FILES.head(fileKey);
         if (!object) {
@@ -197,6 +227,9 @@ export default {
 
         if (!fileKey) {
           return json({ error: "Missing required field: fileKey" }, corsHeaders, 400);
+        }
+        if (!isSafeR2Key(fileKey) || (body.jobId && !fileKeyMatchesJob(fileKey, body.jobId))) {
+          return json({ error: "Invalid file key" }, corsHeaders, 400);
         }
 
         await env.PRIVATE_FILES.delete(fileKey);

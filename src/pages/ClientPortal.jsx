@@ -8,6 +8,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import CompanyLogo from '../components/CompanyLogo';
 import { parseSections } from '@/lib/portalSections';
+import { filterRecordsByAllowedJobIds } from '@/lib/relationshipContext';
 
 const IMAGE_EXTS = /\.(jpg|jpeg|png|webp|gif)$/i;
 const isImage = (f) => IMAGE_EXTS.test(f.file_name || '') || IMAGE_EXTS.test(f.file_url || '');
@@ -47,91 +48,96 @@ function PortalError({ message }) {
 
 export default function ClientPortal() {
   const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token');
+  const token = urlParams.get('token') || urlParams.get('access_token') || urlParams.get('invite_token') || '';
 
   // Resolve portal user by token
-  const { data: portalUsers = [], isLoading: loadingUser } = useQuery({
-    queryKey: ['portal-user', token],
-    queryFn: () => base44.entities.PortalUser.filter({ access_token: token }),
+  const { data: portalContext = null, isLoading: loadingUser, isError } = useQuery({
+    queryKey: ['client-portal-grant', token],
+    queryFn: async () => {
+      const response = await base44.functions.invoke('resolveClientPortalGrant', { token });
+      return response?.data || response;
+    },
     enabled: !!token,
+    retry: false,
   });
 
-  const portalUser = portalUsers[0];
+  const portalUser = portalContext?.portalUser;
   const sections = useMemo(() => parseSections(portalUser?.section_permissions), [portalUser]);
 
   // Resolve job_id — support both new single-job and legacy multi-job
-  const jobId = useMemo(() => {
-    if (portalUser?.job_id) return portalUser.job_id;
-    try {
-      const ids = JSON.parse(portalUser?.linked_job_ids || '[]');
-      return ids[0] || null;
-    } catch { return null; }
-  }, [portalUser]);
-
-  const { data: jobArr = [] } = useQuery({
-    queryKey: ['portal-job', jobId],
-    queryFn: () => base44.entities.Job.filter({ id: jobId }),
-    enabled: !!jobId,
-  });
-  const job = jobArr[0];
+  const allowedJobIds = portalContext?.allowedJobIds || [];
+  const jobs = portalContext?.jobs || [];
+  const job = jobs[0] || null;
+  const jobId = job?.id || '';
+  const hasCurrentJob = !!jobId && allowedJobIds.includes(jobId);
 
   const { data: files = [] } = useQuery({
-    queryKey: ['portal-files', jobId],
+    queryKey: ['portal-files', token, jobId],
     queryFn: () => base44.entities.JobFile.filter({ job_id: jobId }),
-    enabled: !!jobId,
-    select: d => d.filter(f => (f.visibility === 'client' || f.visibility === 'both') && !f.archived),
+    enabled: hasCurrentJob,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds)
+      .filter(f => (f.visibility === 'client' || f.visibility === 'both') && !f.archived),
   });
 
   const photos = files.filter(f => isImage(f));
   const docs   = files.filter(f => !isImage(f));
 
   const { data: events = [] } = useQuery({
-    queryKey: ['portal-events', jobId],
+    queryKey: ['portal-events', token, jobId],
     queryFn: () => base44.entities.CalendarEvent.filter({ job_id: jobId }),
-    enabled: !!jobId && sections.schedule,
-    select: d => d.filter(e => e.visibility === 'client' || e.visibility === 'both' || e.visibility === 'internal'),
+    enabled: hasCurrentJob && sections.schedule,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds)
+      .filter(e => e.visibility === 'client' || e.visibility === 'both' || e.visibility === 'internal'),
   });
 
   const { data: invoices = [] } = useQuery({
-    queryKey: ['portal-invoices', jobId],
+    queryKey: ['portal-invoices', token, jobId],
     queryFn: () => base44.entities.Invoice.filter({ job_id: jobId }),
-    enabled: !!jobId && sections.invoices,
-    select: d => d.filter(i => i.status !== 'draft'),
+    enabled: hasCurrentJob && sections.invoices,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds).filter(i => i.status !== 'draft'),
   });
 
   const { data: estimates = [] } = useQuery({
-    queryKey: ['portal-estimates', jobId],
-    queryFn: () => base44.entities.Estimate.filter({ job_id: jobId }),
-    enabled: !!jobId && sections.estimates,
-    select: d => d.filter(e => e.status === 'sent' || e.status === 'approved'),
+    queryKey: ['portal-estimates', token, jobId],
+    queryFn: async () => {
+      const [byJobId, byLinkedJobId] = await Promise.all([
+        base44.entities.Estimate.filter({ job_id: jobId }).catch(() => []),
+        base44.entities.Estimate.filter({ linked_job_id: jobId }).catch(() => []),
+      ]);
+      return [...new Map([...byJobId, ...byLinkedJobId].map(record => [record.id, record])).values()];
+    },
+    enabled: hasCurrentJob && sections.estimates,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds)
+      .filter(e => e.status === 'sent' || e.status === 'approved'),
   });
 
   const { data: changeOrders = [] } = useQuery({
-    queryKey: ['portal-cos', jobId],
+    queryKey: ['portal-cos', token, jobId],
     queryFn: () => base44.entities.ChangeOrder.filter({ job_id: jobId }),
-    enabled: !!jobId && sections.change_orders,
-    select: d => d.filter(co => co.status === 'approved' || co.status === 'pending_client'),
+    enabled: hasCurrentJob && sections.change_orders,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds)
+      .filter(co => co.status === 'approved' || co.status === 'pending_client'),
   });
 
   const { data: warranty = [] } = useQuery({
-    queryKey: ['portal-warranty', jobId],
+    queryKey: ['portal-warranty', token, jobId],
     queryFn: () => base44.entities.WarrantyItem.filter({ job_id: jobId }),
-    enabled: !!jobId && sections.warranty,
+    enabled: hasCurrentJob && sections.warranty,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds),
   });
 
   const { data: comments = [] } = useQuery({
-    queryKey: ['portal-comments', jobId],
+    queryKey: ['portal-comments', token, jobId],
     queryFn: () => base44.entities.JobComment.filter({ job_id: jobId }),
-    enabled: !!jobId && sections.messages,
-    select: d => d.filter(c => c.visibility === 'client' || c.visibility === 'both'),
+    enabled: hasCurrentJob && sections.messages,
+    select: d => filterRecordsByAllowedJobIds(d, allowedJobIds)
+      .filter(c => c.visibility === 'client' || c.visibility === 'both'),
   });
 
   // ── Guard checks ──────────────────────────────────────────────
   if (!token) return <PortalError message="No access token provided." />;
   if (loadingUser) return <PortalLoading />;
-  if (!portalUser) return <PortalError message="This portal link is not valid or has expired." />;
-  if (portalUser.access_status === 'revoked') return <PortalError message="Your portal access has been revoked. Please contact us." />;
-  if (portalUser.access_status === 'disabled') return <PortalError message="Your portal access is temporarily disabled." />;
+  if (isError || !portalUser) return <PortalError message="This portal link is not valid, active, or has expired." />;
 
   const statusColor = {
     in_progress: 'bg-blue-100 text-blue-700',

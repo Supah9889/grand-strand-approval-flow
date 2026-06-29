@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Loader2, Calendar, ChevronLeft, ChevronRight, X, Loader } from 'lucide-react';
+import { Plus, Loader2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import { format, addDays, subDays, startOfWeek, parseISO } from 'date-fns';
+import { format, addDays, subDays } from 'date-fns';
 import usePermissions from '@/hooks/usePermissions';
 import { filterAssignedRecords, AssignedOnlyBanner } from '@/lib/financialGuards.jsx';
 
@@ -146,16 +145,18 @@ export default function FieldSchedule() {
     queryFn: async () => {
       const all = company
         ? await base44.entities.ScheduleEvent.filter({ company_id: company.id }, 'start_datetime', 200)
-        : await base44.entities.ScheduleEvent.list('start_datetime', 200);
+        : [];
       return all.filter(e => e.start_datetime?.startsWith(dateISO));
     },
+    enabled: !!company?.id,
   });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['schedule-jobs', company?.id],
     queryFn: () => company
       ? base44.entities.Job.filter({ company_id: company.id }, '-created_date', 100)
-      : base44.entities.Job.list('-created_date', 100),
+      : Promise.resolve([]),
+    enabled: !!company?.id,
   });
 
   const visibleEvents = useMemo(

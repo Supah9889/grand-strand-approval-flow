@@ -128,16 +128,20 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin(window.location.href);
   };
 
+  const authChecked = !isLoadingAuth && !isLoadingPublicSettings;
+
   return (
     <AuthContext.Provider value={{ 
       user, 
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
+      authChecked,
       authError,
       appPublicSettings,
       logout,
       navigateToLogin,
+      checkUserAuth,
       checkAppState
     }}>
       {children}

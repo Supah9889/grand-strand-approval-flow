@@ -10,7 +10,7 @@ import AppLayout from '../components/AppLayout';
 import PullToRefresh from '@/components/PullToRefresh';
 import { isAdmin as getIsAdmin } from '@/lib/adminAuth';
 import usePermissions from '@/hooks/usePermissions';
-import { FinancialGuard, RestrictedBadge } from '@/lib/financialGuards.jsx';
+import { RestrictedBadge } from '@/lib/financialGuards.jsx';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,8 @@ import JobNextStep from '../components/jobhub/JobNextStep';
 import JobDetailsExpandedTab from '../components/jobs/JobDetailsExpandedTab';
 import JobInternalUsersTab from '../components/jobs/JobInternalUsersTab';
 import ClientPortalManager from '../components/portal/ClientPortalManager';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchScopedRecordById } from '@/lib/companyScopedQueries';
 
 // Tab definitions — ordered for operational flow
 const TABS = [
@@ -84,6 +86,8 @@ export default function JobHub() {
   const { canViewFinancials } = usePermissions();
   const urlParams = new URLSearchParams(window.location.search);
   const jobId = urlParams.get('jobId');
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id || '';
 
   const [activeTab, setActiveTab] = useState('timeline');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,38 +105,38 @@ export default function JobHub() {
   };
 
   const { data: job, isLoading } = useQuery({
-    queryKey: ['job-hub', jobId],
-    queryFn: async () => { const r = await base44.entities.Job.filter({ id: jobId }); return r[0]; },
-    enabled: !!jobId,
+    queryKey: ['job-hub', jobId, activeCompanyId],
+    queryFn: () => fetchScopedRecordById(base44.entities.Job, jobId, activeCompanyId),
+    enabled: !!jobId && !!activeCompanyId,
   });
 
   // Assignments — needed for contacts panel (loaded upfront, small payload)
   const { data: assignments = [] } = useQuery({
     queryKey: ['hub-assignments', jobId],
     queryFn: () => base44.entities.JobAssignment.filter({ job_id: jobId }),
-    enabled: !!jobId,
+    enabled: !!job,
   });
 
   // Per-tab lazy queries
   const { data: tasks = [] } = useQuery({
     queryKey: ['hub-tasks', jobId],
     queryFn: () => base44.entities.Task.filter({ job_id: jobId }, '-created_date'),
-    enabled: !!jobId && activeTab === 'tasks',
+    enabled: !!job && activeTab === 'tasks',
   });
   const { data: logs = [] } = useQuery({
     queryKey: ['hub-logs', jobId],
     queryFn: () => base44.entities.DailyLog.filter({ job_id: jobId }, '-log_date'),
-    enabled: !!jobId && activeTab === 'logs',
+    enabled: !!job && activeTab === 'logs',
   });
   const { data: notes = [] } = useQuery({
     queryKey: ['hub-notes', jobId],
     queryFn: () => base44.entities.JobNote.filter({ job_id: jobId }, '-created_date'),
-    enabled: !!jobId && activeTab === 'notes',
+    enabled: !!job && activeTab === 'notes',
   });
   const { data: changeOrders = [] } = useQuery({
     queryKey: ['hub-cos', jobId],
     queryFn: () => base44.entities.ChangeOrder.filter({ job_id: jobId }, '-created_date'),
-    enabled: !!jobId && activeTab === 'cos' && isAdmin,
+    enabled: !!job && activeTab === 'cos' && isAdmin,
   });
 
   const visibleTabs = TABS.filter(t => (!t.adminOnly || isAdmin) && (!t.financialOnly || canViewFinancials));

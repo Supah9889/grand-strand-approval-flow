@@ -13,6 +13,8 @@ import AppLayout from '../components/AppLayout';
 import { toast } from 'sonner';
 import { runPunchGeoCheck, sendGeoAlert } from '@/lib/geolocation';
 import { getSessionEmployee, isAdmin as getIsAdmin } from '@/lib/adminAuth';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs } from '@/lib/companyScopedQueries';
 
 const COST_CODES = [
   'Carpentry Labor/Sub',
@@ -56,6 +58,8 @@ export default function TimeClock() {
   const sessionEmployeeCode = sessionEmployee?.employee_code;
   const sessionEmployeeName = sessionEmployee?.name;
   const sessionEmployeeRole = sessionEmployee?.role;
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
   const staffSessionEmployee = useMemo(() => {
     if (!sessionEmployeeId) return null;
     return {
@@ -68,21 +72,24 @@ export default function TimeClock() {
   const hasReliableStaffIdentity = isAdminUser || !!sessionEmployeeId;
 
   const { data: allJobsList = [] } = useQuery({
-    queryKey: ['clock-all-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date', 300),
+    queryKey: ['clock-all-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date', 300),
+    enabled: !!activeCompanyId,
     staleTime: 60_000,
   });
 
   const { data: timeEntries = [] } = useQuery({
-    queryKey: ['time-clock-entries', isAdminUser ? 'all' : sessionEmployeeId || 'unmatched'],
+    queryKey: ['time-clock-entries', activeCompanyId, isAdminUser ? 'all' : sessionEmployeeId || 'unmatched'],
     queryFn: async () => {
-      if (isAdminUser) return base44.entities.TimeEntry.list('-clock_in', 50);
+      if (!activeCompanyId) return [];
+      if (isAdminUser) return base44.entities.TimeEntry.filter({ company_id: activeCompanyId }, '-clock_in', 50);
       if (!sessionEmployeeId) return [];
 
-      const employeeEntries = await base44.entities.TimeEntry.filter({ employee_id: sessionEmployeeId }, '-clock_in', 50);
+      const employeeEntries = await base44.entities.TimeEntry.filter({ company_id: activeCompanyId, employee_id: sessionEmployeeId }, '-clock_in', 50);
       if (employeeEntries.length || !sessionEmployeeCode) return employeeEntries;
-      return base44.entities.TimeEntry.filter({ employee_code: sessionEmployeeCode }, '-clock_in', 50);
+      return base44.entities.TimeEntry.filter({ company_id: activeCompanyId, employee_code: sessionEmployeeCode }, '-clock_in', 50);
     },
+    enabled: !!activeCompanyId,
   });
 
   const timeSummary = useMemo(() => {
@@ -133,9 +140,13 @@ export default function TimeClock() {
       return results[0];
     },
     onSuccess: async (emp) => {
+      if (!activeCompanyId) {
+        toast.error('Select a company before clocking time.');
+        return;
+      }
       setEmployee(emp);
       if (emp.default_cost_code) setCostCode(emp.default_cost_code);
-      const open = await base44.entities.TimeEntry.filter({ employee_id: emp.id, status: 'clocked_in' });
+      const open = await base44.entities.TimeEntry.filter({ company_id: activeCompanyId, employee_id: emp.id, status: 'clocked_in' });
       if (open.length) {
         setActiveEntry(open[0]);
         setStep('clocked');
@@ -174,6 +185,7 @@ export default function TimeClock() {
       }
 
       return base44.entities.TimeEntry.create({
+        company_id: activeCompanyId,
         employee_id: employee.id,
         employee_name: employee.name,
         employee_code: employee.employee_code,

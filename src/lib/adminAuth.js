@@ -60,6 +60,18 @@ export function getSessionEmployee() {
   return getSession()?.employee || null;
 }
 
+export function mapEmployeeRoleToSessionRole(employeeRole) {
+  const roleMap = { owner: 'owner', admin: 'admin', manager: 'staff', office: 'staff', staff: 'staff', field: 'staff' };
+  return roleMap[employeeRole] || 'staff';
+}
+
+export function isSessionEmployeeStillValid(session, employeeRecord) {
+  if (!session?.employee?.id) return true;
+  if (!employeeRecord || employeeRecord.active === false) return false;
+  if (employeeRecord.id !== session.employee.id) return false;
+  return mapEmployeeRoleToSessionRole(employeeRecord.role) === session.role;
+}
+
 // ── Role checks ───────────────────────────────────────────────────────────────
 
 /** True if any valid session exists (gate has been passed) */
@@ -158,11 +170,10 @@ export async function attemptOverrideLogin(code) {
  * Maps employee.role → internal session role:
  *   admin → 'admin'
  *   staff → 'staff'
- *   field → 'staff'  (field workers get staff-level access)
+ *   manager/office/field → 'staff'  (company memberships grant finer access)
  */
 export function loginAsEmployee(employee) {
-  const roleMap = { admin: 'admin', staff: 'staff', field: 'staff' };
-  const role = roleMap[employee.role] || 'staff';
+  const role = mapEmployeeRoleToSessionRole(employee.role);
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({
     role,
     employee: {

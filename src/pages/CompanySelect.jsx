@@ -4,9 +4,10 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { getSession } from '@/lib/adminAuth';
-import { Building2, ChevronRight, Loader2 } from 'lucide-react';
+import { getInternalRole, getSessionEmployee } from '@/lib/adminAuth';
+import { ChevronRight, Loader2 } from 'lucide-react';
 
 const COMPANY_KEY = 'active_company';
 
@@ -32,16 +33,45 @@ const COMPANY_COLORS = {
 
 export default function CompanySelect() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.entities.Company.filter({ is_active: true })
-      .then(setCompanies)
-      .finally(() => setLoading(false));
+    let cancelled = false;
+
+    async function loadAllowedCompanies() {
+      try {
+        const activeCompanies = await base44.entities.Company.filter({ is_active: true });
+        const employee = getSessionEmployee();
+        const sessionRole = getInternalRole();
+        let visibleCompanies = [];
+
+        if (employee?.id) {
+          const memberships = await base44.entities.CompanyMembership.filter({
+            employee_id: employee.id,
+            is_active: true,
+          }).catch(() => []);
+          const allowedCompanyIds = new Set(memberships.map(membership => membership.company_id).filter(Boolean));
+          visibleCompanies = activeCompanies.filter(company => allowedCompanyIds.has(company.id));
+        } else if (sessionRole === 'owner' || sessionRole === 'admin') {
+          visibleCompanies = activeCompanies;
+        }
+
+        if (!cancelled) setCompanies(visibleCompanies);
+      } catch {
+        if (!cancelled) setCompanies([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadAllowedCompanies();
+    return () => { cancelled = true; };
   }, []);
 
   const pick = (company) => {
+    queryClient.clear();
     setActiveCompany(company);
     navigate('/dashboard', { replace: true });
   };

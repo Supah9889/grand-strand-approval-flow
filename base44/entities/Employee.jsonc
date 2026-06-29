@@ -16,7 +16,10 @@
     "role": {
       "type": "string",
       "enum": [
+        "owner",
         "admin",
+        "manager",
+        "office",
         "staff",
         "field"
       ],
@@ -57,6 +60,10 @@
     "invite_status": {
       "type": "string",
       "enum": [
+        "draft",
+        "sent",
+        "accepted",
+        "revoked",
         "not_sent",
         "pending_confirmation",
         "confirmed",

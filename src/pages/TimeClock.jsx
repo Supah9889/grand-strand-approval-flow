@@ -159,6 +159,18 @@ export default function TimeClock() {
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
+      if (!activeCompanyId || !employee?.id || !selectedJob) {
+        throw new Error('Employee, company, and job are required to clock in.');
+      }
+      const existingOpenEntries = await base44.entities.TimeEntry.filter({
+        company_id: activeCompanyId,
+        employee_id: employee.id,
+        status: 'clocked_in',
+      });
+      if (existingOpenEntries.length) {
+        return { ...existingOpenEntries[0], alreadyOpen: true };
+      }
+
       const job = allJobsList.find(j => j.id === selectedJob);
 
       // Geo capture (non-blocking)
@@ -207,17 +219,21 @@ export default function TimeClock() {
     onSuccess: (entry) => {
       setActiveEntry(entry);
       setStep('clocked');
-      toast.success(`Clocked in — ${format(new Date(), 'h:mm a')}`);
+      toast.success(entry.alreadyOpen ? 'Already clocked in. Showing the active entry.' : `Clocked in — ${format(new Date(), 'h:mm a')}`);
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-entries'] });
     },
+    onError: (error) => toast.error(error.message || 'Could not clock in. Please try again.'),
   });
 
   const clockOutMutation = useMutation({
     mutationFn: async () => {
+      if (!activeEntry?.id || !activeEntry.clock_in) {
+        throw new Error('No active time entry is available to clock out.');
+      }
       const now = new Date();
       const inTime = new Date(activeEntry.clock_in);
-      const mins = Math.round((now - inTime) / 60000);
+      const mins = Math.max(0, Math.round((now - inTime) / 60000));
 
       // Geo capture (non-blocking)
       setGeoStatus('capturing');
@@ -264,6 +280,7 @@ export default function TimeClock() {
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       queryClient.invalidateQueries({ queryKey: ['time-clock-entries'] });
     },
+    onError: (error) => toast.error(error.message || 'Could not clock out. Please try again.'),
   });
 
   const reset = () => {

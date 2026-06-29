@@ -52,7 +52,15 @@ export default function DailyLogs() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.DailyLog.create(data),
+    mutationFn: (data) => {
+      if (!activeCompanyId) throw new Error('Company scope is required to create a daily log.');
+      const selectedJob = jobs.find(job => job.id === data.job_id);
+      if (!selectedJob) throw new Error('Selected job is not available in this company.');
+      return base44.entities.DailyLog.create({
+        ...data,
+        company_id: activeCompanyId,
+      });
+    },
     onSuccess: (log) => {
       queryClient.invalidateQueries({ queryKey: ['daily-logs'] });
       setShowForm(false);
@@ -61,6 +69,7 @@ export default function DailyLogs() {
       toast.success('Daily log saved');
       navigate(`/daily-logs/${log.id}`);
     },
+    onError: (error) => toast.error(error.message || 'Daily log could not be saved.'),
   });
 
   const stats = useMemo(() => {

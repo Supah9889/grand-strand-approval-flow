@@ -26,7 +26,14 @@ describe('R2 key validation', () => {
     expect(isSafeR2Key('/jobs/job-1/file.pdf')).toBe(false);
     expect(isSafeR2Key('jobs/job-1//file.pdf')).toBe(false);
     expect(isSafeR2Key('jobs/job-1/%2e%2e/file.pdf')).toBe(false);
+    expect(isSafeR2Key('jobs/job-1/%252e%252e/file.pdf')).toBe(false);
     expect(isSafeR2Key('company/co-a/file.pdf')).toBe(false);
+  });
+
+  test('requires exact public-signing key shape', () => {
+    expect(isSafeR2Key('jobs/job-1/public-signing/session-1/signature.png', { publicSigning: true })).toBe(true);
+    expect(isSafeR2Key('jobs/job-1/public-signing/session-1/nested/signature.png', { publicSigning: true })).toBe(false);
+    expect(isSafeR2Key('jobs/job-1/not-public/session-1/signature.png', { publicSigning: true })).toBe(false);
   });
 
   test('matches keys to expected job id', () => {

@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Loader2, FileUp, PenLine, CheckCircle2, Star, MessageSquare, MousePointerClick } from 'lucide-react';
 import { requiresJobSignatureWorkflow } from '@/lib/jobHelpers';
+import { getCurrentCompany } from '@/lib/permissions';
+import { fetchCompanyJobs } from '@/lib/companyScopedQueries';
 
 function StatCard({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-secondary' }) {
   return (
@@ -19,9 +21,13 @@ function StatCard({ icon: Icon, label, value, color = 'text-primary', bg = 'bg-s
 }
 
 export default function ReportingPanel() {
+  const activeCompany = getCurrentCompany();
+  const activeCompanyId = activeCompany?.id;
+
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
-    queryKey: ['report-jobs'],
-    queryFn: () => base44.entities.Job.list('-created_date'),
+    queryKey: ['report-jobs', activeCompanyId],
+    queryFn: () => fetchCompanyJobs(activeCompanyId, '-created_date'),
+    enabled: !!activeCompanyId,
   });
 
   const { data: auditLogs = [], isLoading: loadingAudit } = useQuery({
@@ -51,7 +57,7 @@ export default function ReportingPanel() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">Live counts across all job records.</p>
+      <p className="text-xs text-muted-foreground">Live counts for the selected company.</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {stats.map(s => <StatCard key={s.label} {...s} />)}
       </div>

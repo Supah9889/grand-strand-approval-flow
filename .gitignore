@@ -30,3 +30,4 @@ scratch/
 
 .env
 .vite
+base44/.app.jsonc
